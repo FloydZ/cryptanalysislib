@@ -3,7 +3,6 @@
 // TODO improvements:  https://github.com/HJLebbink/SorterHunter (256 hannels)
 // TODO add a function to `Pair_t` which checks if its a simd swap pattern
 //          so this is only include swaps of equal size.
-// TODO config is contantexpr
 // Mutation which is a swap pattern
 // TODO find until Level=91 oder so
 
@@ -17,6 +16,7 @@
 #include <algorithm>
 
 #include "random.h"
+#include "algorithm/shuffle.h"
 
 using namespace cryptanalysislib;
 
@@ -229,6 +229,87 @@ constexpr static u32 computeDepth(const Network_t &nw) noexcept {
 	}
 
 	return nlayers;
+}
+
+/// \return the layers of `nw`: as in `computeDepth`, every pair is in the
+/// 	earliest layer after the last layer, which uses one of its lines
+static std::vector<Network_t> computeLayers(const Network_t &nw) noexcept {
+	std::vector<SortWord_t> used;
+	std::vector<Network_t> layers;
+
+	for (size_t k = 0; k < nw.size(); k++) {
+		const SortWord_t m = (1ULL << nw[k].lo) | (1ULL << nw[k].hi);
+		size_t matchidx = layers.size();
+		for (size_t idx = layers.size(); idx-- > 0;) {
+			if ((used[idx] & m) != 0) {
+				break;
+			}
+			matchidx = idx;
+		}
+		if (matchidx == layers.size()) {
+			layers.emplace_back();
+			used.push_back(0);
+		}
+		layers[matchidx].push_back(nw[k]);
+		used[matchidx] |= m;
+	}
+
+	return layers;
+}
+
+/// Symmetry: every layer of the network is axisymmetric, i.e. for every pair
+/// (lo, hi) of a layer, the mirrored pair (n-1-hi, n-1-lo) is in the same
+/// layer. Then the lower half of a layer is the reversed upper half, which
+/// is easier to apply with SIMD operations.
+/// \param ninputs[in]: number of inputs
+/// \param nw[in]: network
+/// \return true if every layer of `nw` is axisymmetric
+static bool isSymmetric(const u8 ninputs,
+                        const Network_t &nw) noexcept {
+	for (const Network_t &layer : computeLayers(nw)) {
+		for (const Pair_t &p : layer) {
+			const Pair_t m = {(u8)(ninputs - 1 - p.hi), (u8)(ninputs - 1 - p.lo)};
+			if (std::find(layer.begin(), layer.end(), m) == layer.end()) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+/// \param ninputs[in]: number of inputs, <= 30
+/// \param nw[in]: network
+/// \return true if `nw` sorts all 2^ninputs 0/1 inputs, hence all inputs
+/// 	(0-1 principle)
+static bool isSortingNetwork(const u8 ninputs,
+                             const Network_t &nw) noexcept {
+	assert(ninputs <= 30);
+	BPWord_t data[NMAX];
+	const uint64_t total = 1ULL << ninputs;
+	for (uint64_t base = 0; base < total; base += PARWORDSIZE) {
+		// bit b of data[i]: line i of the input `base + b`
+		for (u32 i = 0; i < ninputs; i++) {
+			data[i] = 0;
+			for (u32 b = 0; b < PARWORDSIZE && (base + b) < total; b++) {
+				data[i] |= BPWord_t(((base + b) >> i) & 1u) << b;
+			}
+		}
+
+		for (size_t n = 0; n < nw.size(); n++) {
+			const u32 i = nw[n].lo, j = nw[n].hi;
+			const BPWord_t iold = data[i];
+			data[i] &= data[j];
+			data[j] |= iold;
+		}
+
+		// sorted: line i <= line i+1 for every input
+		for (u32 i = 0; i + 1 < ninputs; i++) {
+			if ((data[i] & ~data[i + 1]) != 0) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 /// \param nw[in]
@@ -662,9 +743,7 @@ SortWord_t createGreedyPrefix(u8 ninputs,
 	while ((prefix.size() < maxpairs) || (use_symmetry && (prefix.size() < (maxpairs - 1)))) {
 		Network_t ashuf = alphabet;
 		Pair_t best = {0, 1};
-		// std::shuffle(ashuf.begin(), ashuf.end(), rndgen);
-        // TODO
-		std::random_shuffle(ashuf.begin(), ashuf.end());
+		cryptanalysislib::random_shuffle(ashuf.begin(), ashuf.end());
 		SortWord_t minsize = currentsize;
 
 		ClusterGroup cgbest = cg;
@@ -797,8 +876,7 @@ void prepareTestVectorsFromPrefix(const Network_t &prefix) noexcept {
 	SinglePatternList_t singles;
 	computePrefixOutputs(config.N, prefix, singles);
     // Shuffle test vectors: improve probability of early rejection of non-sorters
-	// TODO std::shuffle(singles.begin(), singles.end(), mtRand);
-	std::random_shuffle(singles.begin(), singles.end());
+	cryptanalysislib::random_shuffle(singles.begin(), singles.end());
 
 	convertToBitParallel(config.N, singles, config.use_symmetry && is_even, parallelpatterns_from_prefix);
 }
@@ -987,8 +1065,10 @@ void fillprefixGreedyA(Network_t &prefix,
 static
 void fillprefixFixedThenGreedyA(Network_t &prefix, 
                                 const u32 npairs) noexcept {
-    std::vector<Pair_t> t(sizeof(config.FixedPrefix));
-    for (uint32_t i = 0; i < 1; i++) {
+    // NOTE: number of elements, not bytes
+    constexpr size_t n = sizeof(config.FixedPrefix) / sizeof(config.FixedPrefix[0]);
+    std::vector<Pair_t> t(n);
+    for (uint32_t i = 0; i < n; i++) {
        t[i] = config.FixedPrefix[i];
     }
 	prefix = copyValidPairs(t, config.N);
@@ -1146,8 +1226,8 @@ static void checkImproved(const Network_t &nw) noexcept {
 		// Print only if the sorter is an improved (size,depth) combination
         // Reduce rubbish listing. Should at least compete with bubble sort before reporting
 		if ((Verbosity > 1) || (nw.size() <= ((config.N * (config.N - 1u)) / 2u))) {
-			printf(" {'N':%u,'L':%lu,'D':%u,'ESC':%u,'Prefix':%lu,'Postfix':%lu,'nw':",
-            config.N, nw.size(), depth,  config.EscapeRate, prefix.size(), postfix.size());
+			printf(" {'N':%u,'L':%lu,'D':%u,'Sym':%u,'ESC':%u,'Prefix':%lu,'Postfix':%lu,'nw':",
+            config.N, nw.size(), depth, isSymmetric(config.N, nw), config.EscapeRate, prefix.size(), postfix.size());
 			printnw(nw);
 			conv_hull.print();
 		}

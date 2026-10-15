@@ -16,6 +16,7 @@ TEST(HashMap, simple) {
 	constexpr static Hash<K, 0, l, 2> hashclass{};
 	constexpr static SimpleCompressedHashMapConfig s = SimpleCompressedHashMapConfig{nr_bytes, 1u << l};
 	using HM = SimpleCompressedHashMap<K, V, s, Hash<K, 0, l, 2>>;
+	static_assert(HashMapAble<HM>);
 
 	HM hm = HM{};
 	hm.info();
@@ -35,6 +36,22 @@ TEST(HashMap, simple) {
 	}
 }
 
+
+/// decreasing and random values (negative deltas wrap around)
+TEST(HashMap, decreasing_values) {
+	constexpr uint32_t l = 4;
+	constexpr uint32_t nr_bytes = 128;
+	constexpr static SimpleCompressedHashMapConfig s = SimpleCompressedHashMapConfig{nr_bytes, 1u << l};
+	using HM = SimpleCompressedHashMap<K, V, s, Hash<K, 0, l, 2>>;
+	HM hm = HM{};
+	const V values[] = {1000000, 5, 4000000000u, 0, 77, 76, 4294967295u, 1};
+	for (const V v : values) { hm.insert(3, v); }
+	V *out = nullptr;
+	uint32_t nr = 0;
+	hm.decompress(&out, nr, 3);
+	ASSERT_EQ(nr, 8u);
+	for (uint32_t j = 0; j < nr; ++j) { EXPECT_EQ(out[j], values[j]) << j; }
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

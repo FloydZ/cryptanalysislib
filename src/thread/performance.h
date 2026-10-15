@@ -1,7 +1,7 @@
 #pragma once 
 
-// apple doesnt provide jthread!
-#ifndef __APPLE__
+#include <cstddef>
+#include <string>
 #include <thread>
 
 // NOTE only available on unix
@@ -11,6 +11,18 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+#if defined(__linux__)
+#include <sys/syscall.h>
+#elif defined(__APPLE__)
+#include <pthread.h>
+#endif
+
+// `RUSAGE_THREAD` is Linux-only; elsewhere fall back to process-wide usage
+#ifndef RUSAGE_THREAD
+#define RUSAGE_THREAD RUSAGE_SELF
+#endif
+
+#include <version>
 
 #include <rfl.hpp>
 #include <rfl/json.hpp>
@@ -24,23 +36,26 @@ namespace cryptanalysislib {
 		using default_function_type = std::function<void()>;
 #endif
 
-		/// TODO: apple does not suport jthread
-#ifdef __APPLE__
-		using default_thread_type = std::thread;
-#else
+		/// NOTE: `std::jthread` only if the standard library has it, e.g.
+		/// 	older libc++ (Apple clang) does not.
+#ifdef __cpp_lib_jthread
 		using default_thread_type = std::jthread;
+#else
+		using default_thread_type = std::thread;
 #endif
 	};// namespace details
 
 
 
-///
+/// NOTE: non-static members, so a custom config can be passed, e.g.
+/// 	`constexpr static SchedulerConfig c{.enable_remote_view = true};`.
+/// 	Before, both were `constexpr static` and fixed to `false`.
 class SchedulerConfig {
 public:
-	constexpr static bool enable_try_block = false;
-	constexpr static bool enable_remote_view = false;
+	const bool enable_try_block = false;
+	const bool enable_remote_view = false;
 };
-constexpr static SchedulerConfig schedulerConfig;
+inline constexpr SchedulerConfig schedulerConfig;
 }; // end namespace cryptanalysislib
 
 
@@ -73,12 +88,33 @@ namespace cryptanalysislib {
 	public:
 		rusage__ data;
 
-		///// get the needed values
-		void gather() noexcept {
+		/// kernel thread id of the thread, which called `gather` last
+		uint64_t tid = 0;
+
+		/// get the needed values
+		/// NOTE: `getrusage` only fails for an invalid `who` or pointer. In
+		/// 	that case all values are zeroed.
+		/// \return false if the values could not be gathered
+		bool gather() noexcept {
+			tid = current_tid();
 			if (getrusage(RUSAGE_THREAD, (rusage *) &data) != 0) {
-				// TODO: what happen in this case
-				assert(false);
+				data = rusage__{};
+				return false;
 			}
+			return true;
+		}
+
+		/// \return the kernel thread id of the calling thread
+		[[nodiscard]] static inline uint64_t current_tid() noexcept {
+#if defined(__linux__)
+			return uint64_t(syscall(SYS_gettid));
+#elif defined(__APPLE__)
+			uint64_t t = 0;
+			pthread_threadid_np(nullptr, &t);
+			return t;
+#else
+			return 0;
+#endif
 		}
 
 		/// \return maximum resident set size
@@ -173,7 +209,7 @@ namespace cryptanalysislib {
 		int number_active_threads = 0;
 		int number_enqueud_tasks = 0;
 
-		// TODO more information: like: tid
+		// NOTE: the thread ids are in `SchedulerThreadLoad::tid`
 	};
 
 	/// Manager class
@@ -203,7 +239,11 @@ namespace cryptanalysislib {
 			bzero((char *) &serv_addr, sizeof(serv_addr));
 			serv_addr.sun_family = AF_UNIX;
 			strcpy(serv_addr.sun_path, socket_path);
-			const int servlen = strlen(serv_addr.sun_path) + sizeof(serv_addr.sun_family);
+			// NOTE: `sun_path` does not start at `sizeof(sun_family)` on BSD/macOS
+			// 	(`sun_len` precedes the 1 byte `sun_family`). Before, the address
+			// 	was one byte too short there, i.e. the last character of the
+			// 	path was cut off, and the server's `unlink` missed the stale file.
+			const socklen_t servlen = offsetof(struct sockaddr_un, sun_path) + strlen(serv_addr.sun_path);
 
 		    const int one = 1;
 		    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int)) < 0) {
@@ -211,12 +251,14 @@ namespace cryptanalysislib {
 		    	return;
 		    }
 
-		    if (unlinkat(sockfd, socket_path, 0) < -1) {
-		    	std::cerr << "unlinkat failed" << std::endl;
-		    	return;
-		    }
-
 			if (server) {
+				// NOTE: only the server removes a stale socket file. Before, this
+				// 	was done by the client too, which deleted the server's socket
+				// 	right before `connect` (and `< -1` never failed).
+				if ((unlink(socket_path) < 0) && (errno != ENOENT)) {
+					std::cerr << "unlink failed" << std::endl;
+					return;
+				}
 
 				if (bind(sockfd, (struct sockaddr *) &serv_addr, servlen) < 0) {
 					std::cout << "ERROR: binding socket" << std::endl;
@@ -240,18 +282,34 @@ namespace cryptanalysislib {
 						exit(1);
 					}
 
-					// TODO with fork etc we can handle multiple streams, but for now
-					// its fine
+					// NOTE: exactly one client (the scheduler) is served, `serve()`
+					// 	returns once it disconnects. Several clients would need an
+					// 	`accept` loop with a stop condition (or `fork`).
+					// NOTE: a stream socket has no message boundaries: several
+					// 	messages can arrive in one `read`, or one message in
+					// 	several. Each message ends with '\n' (see `send`). Before,
+					// 	every `read` was parsed as one document, and two merged
+					// 	messages aborted via `.value()`.
+					std::string pending;
 					while (true) {
-						memset(buf, (char) 0, buffer_size);
-						const uint32_t n = read(newsockfd, buf, buffer_size);
-						if (n == 0) { break; }
-						assert(n < buffer_size);
-						std::cout << "recv: " << std::endl;
-						std::cout << buf << std::endl;
+						const ssize_t n = read(newsockfd, buf, buffer_size);
+						if (n <= 0) { break; }
+						pending.append(buf, n);
 
-						schedulerPerformance = rfl::json::read<SchedulerPerformance>(buf).value();
-						// TODO nice printing
+						size_t pos;
+						while ((pos = pending.find('\n')) != std::string::npos) {
+							const std::string msg = pending.substr(0, pos);
+							pending.erase(0, pos + 1);
+							const auto res = rfl::json::read<SchedulerPerformance>(msg);
+							if (!res) {
+								std::cout << "ERROR: parsing: " << res.error().what() << std::endl;
+								std::cout << msg << std::endl;
+								continue;
+							}
+
+							schedulerPerformance = res.value();
+							print();
+						}
 					}
 
 					std::cout << "server closing" << std::endl;
@@ -275,6 +333,7 @@ namespace cryptanalysislib {
 			std::cout << "#Active Threads: " << schedulerPerformance.number_active_threads << std::endl;
 			std::cout << "#Enqueud Tasks: " << schedulerPerformance.number_enqueud_tasks << std::endl;
 			for (const auto &s: schedulerPerformance.schedulerThreadLoad) {
+				std::cout << "Thread Id: " << s.tid << std::endl;
 				std::cout << "UserTime: " << s.usertime() << std::endl;
 				std::cout << "SystemTime: " << s.systime() << std::endl;
 				std::cout << "Max Resident Set Size: " << s.maxrss() << std::endl;
@@ -310,13 +369,20 @@ namespace cryptanalysislib {
 
 		/// write the gathered benchmark information.
 		void send() noexcept {
-			const auto data = rfl::json::write(schedulerPerformance);
+			const std::string data = rfl::json::write(schedulerPerformance);
 			std::cout << "sending data:" << std::endl;
 			std::cout << data << std::endl;
 
-			const int k = write(sockfd, data.data(), data.size());
-			if (k < 0) {
-				std::cout << "Error writing" << std::endl;
+			// NOTE: '\n' terminates a message, the JSON itself contains none
+			const std::string msg = data + '\n';
+			size_t written = 0;
+			while (written < msg.size()) {
+				const ssize_t k = write(sockfd, msg.data() + written, msg.size() - written);
+				if (k < 0) {
+					std::cout << "Error writing" << std::endl;
+					return;
+				}
+				written += k;
 			}
 		}
 
@@ -347,5 +413,3 @@ namespace cryptanalysislib {
 		}
 	};
 }
-
-#endif

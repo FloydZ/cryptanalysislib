@@ -67,10 +67,13 @@ namespace cryptanalysislib {
 											 typename InputIt::value_type init) noexcept {
         using T = typename std::iterator_traits<InputIt>::value_type;
 
-		// For contiguous arrays of arithmetic types, use SIMD-accelerated implementation
-		if constexpr (std::is_arithmetic_v<T>) {
-		    const size_t n = std::distance(first, last);
-		    return internal::accumulate_simd_int_plus(first, n, init);
+		// For contiguous arrays of unsigned integers, use SIMD-accelerated implementation
+		if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<InputIt>) {
+		    const size_t n = last - first;
+		    if (n == 0) {
+		        return init;
+		    }
+		    return internal::accumulate_simd_int_plus(&(*first), n, init);
 		}
 		
 		// Generic implementation for all other cases
@@ -100,7 +103,7 @@ namespace cryptanalysislib {
 #endif
 	constexpr InputIt::value_type accumulate(InputIt first,
 						                     const InputIt last,
-						                     const typename InputIt::value_type init,
+						                     typename InputIt::value_type init,
 						                     BinaryOperation op) {
 		for (; first != last; ++first) {
 			init = op(std::move(init), *first);

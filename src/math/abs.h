@@ -21,7 +21,9 @@ namespace cryptanalysislib::math {
     constexpr static inline T abs_branchless(T a, T b) noexcept {
         constexpr static uint32_t BITS = sizeof(T) * 8u;
         T d1 = b - a;
-        T d2 = (d1 & (T)( (long)d1 >> (BITS-1u)) ) << 1u;
+        // NOTE: arithmetic shift in the signed type of T: `(long)d1` zero
+        //  extended unsigned 32 bit values, the mask was 0/1, not 0/-1
+        T d2 = (d1 & (T)( (std::make_signed_t<T>)d1 >> (BITS-1u)) ) << 1u;
         return  d1 - d2;  // == (b - d) - (a + d);
     }
 
@@ -60,7 +62,12 @@ namespace cryptanalysislib::math {
 	    requires std::is_arithmetic_v<T>
 #endif
 	constexpr bool feq(T x, T y) {
-		return abs(x - y) <= std::numeric_limits<T>::epsilon();
+		// NOTE: relative tolerance (4 ulps); with an absolute epsilon the
+		// iterations in `log`, `sqrt` and `cbrt` never terminated for |x| > 2,
+		// as neighbouring doubles are further apart than epsilon there
+		const T ax = abs(x), ay = abs(y);
+		const T m = ax > ay ? ax : ay;
+		return abs(x - y) <= T{4} * std::numeric_limits<T>::epsilon() * m;
 	}
 
 }

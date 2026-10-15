@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include "alloc/alloc.h"
+#include "selectionsort.h"
 
 // Merge the (sorted) arrays
 //   A[] := f[0], f[1], ..., f[na-1]  and  B[] := f[na], f[na+1], ..., f[na+nb-1]
@@ -65,10 +66,10 @@ constexpr void merge_sort(Type *f, size_t n, Type *tmp=nullptr) noexcept {
     Allocator allocator;
     Type *t = tmp;
     // if (tmp==nullptr)  t = new Type[n];
-    if (tmp == nullptr) { allocator.allocate(n); }
+    if (tmp == nullptr) { t = allocator.allocate(n); }
     merge_sort_rec(f, n, t);
     // if (tmp==nullptr)  delete [] t;
-    if (tmp == nullptr) { allocator.deallocate(tmp, n); }
+    if (tmp == nullptr) { allocator.deallocate(t, n); }
 }
 
 template <typename Type>
@@ -109,8 +110,8 @@ constexpr void merge_sort4(Type *f, size_t n, Type *tmp=nullptr) noexcept {
     Allocator allocator;
     Type *t = tmp;
     // if (tmp==nullptr)  t = new Type[n];
-    if (tmp == nullptr) { allocator.allocate(n); }
-    merge_sort_rec(f, n, t);
+    if (tmp == nullptr) { t = allocator.allocate(n); }
+    merge_sort_rec4(f, n, t);
     // if (tmp==nullptr)  delete [] t;
-    if (tmp == nullptr) { allocator.deallocate(tmp, n); }
+    if (tmp == nullptr) { allocator.deallocate(t, n); }
 }

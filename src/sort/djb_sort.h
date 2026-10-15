@@ -879,7 +879,7 @@ static void int32_sort_2power(int32 *x,long long n,int flagdown)
   }
 }
 
-void int32_sort(int32 *x,long long n)
+inline void int32_sort(int32 *x,long long n)
 { long long q,i,j;
 
   if (n <= 8) {

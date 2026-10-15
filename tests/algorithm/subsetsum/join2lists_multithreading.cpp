@@ -51,14 +51,18 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2_multithreaded) {
 	generate_subsetsum_instance(target, weights, A, n);
 
 	Tree t{1, A, 0};
-	t.join2lists_on_iT_v2
+	const size_t found = t.join2lists_on_iT_v2
 	    <k_lower, k_higher, 100, nthreads, chunks>
 	    (par_if(true), out, l1, l2, target);
 
 
 	auto right=true;
 	int wrong=0;
-	for(uint64_t i = 0; i < out.load(); ++i) {
+	// NOTE: each chunk writes into its own block of `out`
+	size_t out_load = 0;
+	for (uint32_t tid = 0; tid < chunks; ++tid) {
+	out_load += out.load(tid);
+	for(uint64_t i = out.start_pos(tid); i < out.start_pos(tid) + out.load(tid); ++i) {
 		Label test_recalc1(0), test_recalc2(0), test_recalc3(0);
 		A.mul(test_recalc3, out[i].value);
 		// NOTE: the full length
@@ -82,6 +86,7 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2_multithreaded) {
 		out[i].recalculate_label(A);
 		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, k_lower, k_higher));
 	}
+	}
 
 
 	Label el{};
@@ -95,14 +100,15 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_v2_multithreaded) {
 		}
 	}
 
-	EXPECT_GT(out.load(), 0);
+	EXPECT_EQ(found, out_load);
+	EXPECT_GT(out_load, 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
 	if constexpr (n == 16) {
-		EXPECT_GT(out.load(), 1u<<3);
-		EXPECT_LT(out.load(), 1u<<7);
+		EXPECT_GT(out_load, 1u<<3);
+		EXPECT_LT(out_load, 1u<<7);
 	}
-	EXPECT_EQ(out.load(), num);
+	EXPECT_EQ(out_load, num);
 }
 
 int main(int argc, char **argv) {

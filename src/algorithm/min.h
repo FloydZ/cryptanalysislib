@@ -4,6 +4,7 @@
 #include "apply.h"
 
 #include <concepts>
+#include <iterator>
 #include <cstdint>
 #include <cstdlib>
 #include <limits.h>
@@ -11,10 +12,7 @@
 
 #include "simd/simd.h"
 #include "thread/thread.h"
-
-
-/// TODO parallel version of min_element
-/// TODO simd version of min_element
+#include "algorithm/find.h"
 
 namespace cryptanalysislib {
     /// Configuration for min algorithms with SIMD and threading settings
@@ -38,7 +36,9 @@ namespace cryptanalysislib {
                                  const T b) {
             constexpr static size_t BITS = sizeof(T) * 8u;
             T d = b - a;
-            d &= (T)( (long)d >> (BITS-1) );
+            // NOTE: arithmetic shift in the signed type of T: `(long)d` zero
+            //  extended unsigned 32 bit values, the mask was 0/1, not 0/-1
+            d &= (T)( (std::make_signed_t<T>)d >> (BITS-1) );
             return  a + d;
         }
     
@@ -50,11 +50,13 @@ namespace cryptanalysislib {
     	/// \return Minimum value from a[0], ..., a[n-1]
     	template<typename T,
                  const AlgorithmMinConfig &config = algorithmMinConfig>
+            requires std::unsigned_integral<T>
     	[[nodiscard]] constexpr static inline T min_simd_uXX(const T *a,
     														 const size_t n) noexcept {
     		using S = SIMDSelector<T>;
     
-    		T m = 0;
+    		// start at the largest value of T
+    		T m = T(~T(0));
     		auto p = S::set1(m);
     
             constexpr size_t t = S::LIMBS;
@@ -81,6 +83,18 @@ namespace cryptanalysislib {
         }
     } // end namespace internal
 
+	/// \return the smaller of the two values (`a` if they are equal)
+	/// NOTE: iterator types are excluded, so `min(first, last)` always
+	///		selects the range algorithm below.
+	/// \param a[in]: first value
+	/// \param b[in]: second value
+	template<typename T>
+	    requires (!std::input_or_output_iterator<T>)
+	[[nodiscard]] constexpr inline T min(const T &a,
+	                                       const T &b) noexcept {
+		return (b < a) ? b : a;
+	}
+
 	/// Finds minimum element in a range (sequential version)
 	/// \tparam Iterator Forward iterator type for the range
 	/// \tparam config Algorithm configuration (default: algorithmMinConfig)
@@ -95,19 +109,21 @@ namespace cryptanalysislib {
 	[[nodiscard]] constexpr static inline Iterator::value_type min(Iterator start,
 																   Iterator end) noexcept {
 		using T = Iterator::value_type;
-		const size_t len = std::distance(start, end);
-		if (std::is_integral_v<T> && (len >= config.min_size_simd)) {
-			return min_simd_uXX(&(*start), len);
-		}
-
-		T k = *start;
-		for (size_t i = 1; i < len; i++) {
-			if (*(start+i) < *(start + k)) [[unlikely]] {
-				k = i;
+		if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<Iterator>) {
+			const size_t len = end - start;
+			if (len >= config.min_size_simd) {
+				return internal::min_simd_uXX(&(*start), len);
 			}
 		}
 
-		return k;
+		T m = *start;
+		for (++start; start != end; ++start) {
+			if (*start < m) [[unlikely]] {
+				m = *start;
+			}
+		}
+
+		return m;
 	}
 
 	/// Finds minimum element in a range (parallel version)
@@ -155,12 +171,27 @@ namespace cryptanalysislib {
 		return m;
 	}
 
-/// TODO doc
+/// Finds the first smallest element (like `std::min_element`)
+/// \tparam ForwardIt Forward iterator type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \return Iterator to the first smallest element, last if the range is empty
 template<class ForwardIt>
 ForwardIt min_element(ForwardIt first,
                       ForwardIt last) {
     if (first == last) {
         return last;
+    }
+
+    // SIMD: minimum via `min_simd_uXX`, then its first occurrence via the
+    // SIMD `find`
+    using T = std::iter_value_t<ForwardIt>;
+    if constexpr (std::unsigned_integral<T> && std::contiguous_iterator<ForwardIt>) {
+        const size_t len = static_cast<size_t>(last - first);
+        if (len >= algorithmMinConfig.min_size_simd) {
+            const T m = internal::min_simd_uXX<T>(std::to_address(first), len);
+            return cryptanalysislib::find(first, last, m);
+        }
     }
  
     ForwardIt smallest = first;
@@ -174,7 +205,13 @@ ForwardIt min_element(ForwardIt first,
     return smallest;
 }
 
-/// TODO doc
+/// Finds the first smallest element w.r.t. `comp` (like `std::min_element`)
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Compare less-than comparison, `comp(a, b)` true iff a < b
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param comp[in]: comparison function
+/// \return Iterator to the first smallest element, last if the range is empty
 template<class ForwardIt, 
          class Compare>
 ForwardIt min_element(ForwardIt first,
@@ -193,6 +230,49 @@ ForwardIt min_element(ForwardIt first,
     }
  
     return smallest;
+}
+
+/// Finds the first smallest element (parallel version): the smallest
+/// element of every chunk, then the smallest of those, ties resolved to the
+/// earliest chunk, i.e. the same result as the sequential version.
+/// \param policy[in]: Execution policy specifying parallelization strategy
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \return Iterator to the first smallest element, last if the range is empty
+template <class ExecPolicy,
+          class RandIt,
+          const AlgorithmMinConfig &config = algorithmMinConfig>
+#if __cplusplus > 201709L
+requires std::random_access_iterator<RandIt>
+#endif
+RandIt min_element(ExecPolicy &&policy,
+                   RandIt first,
+                   RandIt last) noexcept {
+    const auto size = static_cast<size_t>(std::distance(first, last));
+    const uint32_t nthreads = should_par(policy, config, size);
+    if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+        return cryptanalysislib::min_element(first, last);
+    }
+
+    auto futures = internal::parallel_chunk_for_1(
+        std::forward<ExecPolicy>(policy),
+        first, last,
+        [](RandIt chunk_first, RandIt chunk_last) {
+            return cryptanalysislib::min_element(chunk_first, chunk_last);
+        },
+        static_cast<RandIt *>(nullptr),
+        1, nthreads);
+
+    // chunks are in order: only a strictly smaller value replaces `best`
+    RandIt best = futures[0].get();
+    for (size_t i = 1; i < futures.size(); i++) {
+        const RandIt c = futures[i].get();
+        if (*c < *best) {
+            best = c;
+        }
+    }
+
+    return best;
 }
 
 }; // end namespace cryptanalysislib

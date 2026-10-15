@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <concepts>
 #include <cstddef>
 #include <vector>
@@ -15,11 +16,32 @@ private:
 	using type = T;
 	using value_type = T;
 
+	/// NOTE: `front_` and `back_` grow monotonically, so the position in
+	///		the ring buffer is `index & capacityMask_`
+	template<class Q, class R>
+	struct Iterator {
+		using iterator_category = std::forward_iterator_tag;
+		using difference_type = std::ptrdiff_t;
+		using value_type = T;
+		using reference = R;
+
+		constexpr Iterator(Q *q, const std::size_t i) noexcept : q_(q), i_(i) {}
+		constexpr reference operator*() const noexcept { return q_->queue_[i_ & q_->capacityMask_]; }
+		constexpr Iterator &operator++() noexcept { i_ += 1; return *this; }
+		constexpr Iterator operator++(int) noexcept { Iterator t = *this; i_ += 1; return t; }
+		constexpr friend bool operator==(const Iterator &a, const Iterator &b) noexcept { return a.i_ == b.i_; }
+		constexpr friend bool operator!=(const Iterator &a, const Iterator &b) noexcept { return a.i_ != b.i_; }
+
+	private:
+		Q *q_;
+		std::size_t i_;
+	};
+
 public:
-	[[nodiscard]] constexpr inline auto begin() noexcept { return queue_.begin() + front_; }
-	[[nodiscard]] constexpr inline auto end() noexcept { return queue_.begin() + back_; }
-	[[nodiscard]] constexpr inline auto begin() const noexcept { return queue_.begin() + front_; }
-	[[nodiscard]] constexpr inline auto end() const noexcept { return queue_.begin() + back_; }
+	[[nodiscard]] constexpr inline auto begin() noexcept { return Iterator<spsc_fixed_queue, T &>(this, front_.load(std::memory_order_acquire)); }
+	[[nodiscard]] constexpr inline auto end() noexcept { return Iterator<spsc_fixed_queue, T &>(this, back_.load(std::memory_order_acquire)); }
+	[[nodiscard]] constexpr inline auto begin() const noexcept { return Iterator<const spsc_fixed_queue, const T &>(this, front_.load(std::memory_order_acquire)); }
+	[[nodiscard]] constexpr inline auto end() const noexcept { return Iterator<const spsc_fixed_queue, const T &>(this, back_.load(std::memory_order_acquire)); }
 
 	/// NOTE: always rounds up to the next power of two.
 	/// \param capacity
@@ -41,28 +63,31 @@ public:
 	///
 	/// \return
 	constexpr inline auto pop() noexcept -> type {
-	    std::size_t front = front_;
-	    type ret = std::move(queue_[front++ & capacityMask_]);
-	    front_ = front;
+	    std::size_t front = front_.load(std::memory_order_relaxed);
+	    type ret = static_cast<type &&>(queue_[front++ & capacityMask_]);
+	    front_.store(front, std::memory_order_release);
 	    return ret;
 	}
 
 	/// /param value
 	/// /return
 	constexpr inline std::size_t pop(type & value) noexcept {
-		auto front = front_;
-		auto size = (back_ - front);
-		value = std::move(queue_[front++ & capacityMask_]);
-		front_ = front;
+		auto front = front_.load(std::memory_order_relaxed);
+		auto size = (back_.load(std::memory_order_acquire) - front);
+		value = static_cast<type &&>(queue_[front++ & capacityMask_]);
+		front_.store(front, std::memory_order_release);
 		return size;
 	}
 
 	/// \param value
 	/// \return
 	constexpr inline std::size_t try_pop(type & value) noexcept {
-		if (auto front = front_, size = (back_ - front); size > 0){
-			value = std::move(queue_[front++ & capacityMask_]);
-			front_ = front;
+		// NOTE: acquire `back_`, so the element written by the producer is visible
+		const std::size_t front = front_.load(std::memory_order_relaxed);
+		const std::size_t size = back_.load(std::memory_order_acquire) - front;
+		if (size > 0) {
+			value = static_cast<type &&>(queue_[front & capacityMask_]);
+			front_.store(front + 1, std::memory_order_release);
 			return size;
 		}
 		return 0;
@@ -73,9 +98,10 @@ public:
 	/// \return
 	template <typename T_>
 	constexpr inline bool push(T_ && value) noexcept {
-		if (std::size_t back = back_; (back - front_) < capacity_){
-			queue_[back++ & capacityMask_] = std::forward<T_>(value);
-			back_ = back;
+		// NOTE: release `back_`, so the consumer sees the written element
+		if (std::size_t back = back_.load(std::memory_order_relaxed); (back - front_.load(std::memory_order_acquire)) < capacity_){
+			queue_[back++ & capacityMask_] = static_cast<T_ &&>(value);
+			back_.store(back, std::memory_order_release);
 			return true;
 		}
 		return false;
@@ -86,9 +112,9 @@ public:
 	/// \return
 	template <typename ... Ts>
 	constexpr inline bool emplace(Ts && ... args) noexcept {
-		if (std::size_t back = back_; (back - front_) < capacity_) {
-			queue_[back++ & capacityMask_] = T(std::forward<Ts>(args) ...);
-			back_ = back;
+		if (std::size_t back = back_.load(std::memory_order_relaxed); (back - front_.load(std::memory_order_acquire)) < capacity_) {
+			queue_[back++ & capacityMask_] = T(static_cast<Ts &&>(args) ...);
+			back_.store(back, std::memory_order_release);
 			return true;
 		}
 		return false;
@@ -96,17 +122,17 @@ public:
 
 	/// \return
 	constexpr inline T const &front() const noexcept{
-		return queue_[front_ & capacityMask_];
+		return queue_[front_.load(std::memory_order_relaxed) & capacityMask_];
 	}
 
 	/// \return
 	constexpr inline T &front() noexcept {
-		return queue_[front_ & capacityMask_];
+		return queue_[front_.load(std::memory_order_relaxed) & capacityMask_];
 	}
 
 	/// \return
 	[[nodiscard]] constexpr inline bool empty() const noexcept {
-		return back_ == front_;
+		return back_.load(std::memory_order_acquire) == front_.load(std::memory_order_acquire);
 	}
 
 	/// \return
@@ -116,20 +142,23 @@ public:
 
 	/// \return
 	[[nodiscard]] std::size_t size() const noexcept {
-		return back_ - front_;
+		return back_.load(std::memory_order_acquire) - front_.load(std::memory_order_acquire);
 	}
 
 	/// \return
 	constexpr inline std::size_t discard() noexcept {
-		queue_[front_ & capacityMask_] = {};
-		front_ = front_ + 1;
-		return (back_ - front_);
+		const std::size_t front = front_.load(std::memory_order_relaxed);
+		queue_[front & capacityMask_] = {};
+		front_.store(front + 1, std::memory_order_release);
+		return (back_.load(std::memory_order_acquire) - (front + 1));
 	}
 
 
 private:
-	std::size_t volatile front_;
-	std::size_t volatile back_;
+	// NOTE: atomics instead of `volatile`: `volatile` does not order the
+	// 	element accesses on weakly ordered CPUs (e.g. ARM)
+	std::atomic<std::size_t> front_;
+	std::atomic<std::size_t> back_;
 
 	std::size_t capacity_;
 	std::size_t capacityMask_;

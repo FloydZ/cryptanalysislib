@@ -25,7 +25,7 @@ TEST(ConstVectorQueue, simple) {
 
 	for (uint32_t t = 0; t < 1000; t++) {
 		for (uint32_t i=0; i<N; i++) {
-			q.push(i);
+			EXPECT_TRUE(q.push(i));
 		}
 
 		for (uint32_t i=0; i<N; i++) {

@@ -131,9 +131,9 @@ public:
 	template<typename Hash>
 	constexpr void sort(Hash &hash, const size_t s, const size_t e) noexcept {
 		assert(e <= size());
-		ska_sort(__data.begin() + s,
-		         __data.begin() + e,
-		         hash);
+		cryptanalysislib::sort(__data.begin() + s,
+		                       __data.begin() + e,
+		                       hash);
 	}
 
 	/// \param i lower coordinate in the label used as the sorting index
@@ -143,51 +143,78 @@ public:
 		using T = LabelContainerType;
 		using Limb = LabelLimbType;
 
-		const uint64_t lower = T::round_down_to_limb(i);
-		const uint64_t upper = T::round_down_to_limb(j);
-
-		if (lower == upper) {
-			const uint64_t mask = T::higher_mask(i) & T::lower_mask(j);
-
+		// NOTE: the bit-mask based code below treats `i` and `j` as bit
+		// 	positions, which is only correct for binary labels. For q != 2 the
+		// 	coordinates [i, j) are packed via `hash(i, j)` (`qbits` bits each).
+		if constexpr (T::q != 2) {
+			assert(Element::is_hashable(i, j));
 			if constexpr (USE_STD_SORT) {
 				std::sort(__data.begin(),
 				          __data.end(),
-				          [lower, mask](const auto &e1, const auto &e2) {
-				          		// TODO this is not correct for q != 2
-					          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
+				          [i, j](const auto &e1, const auto &e2) {
+					          return e1.label.hash(i, j) < e2.label.hash(i, j);
 				          });
 			} else {
-				ska_sort(__data.begin(),
-				         __data.end(),
-				         [lower, mask](const Element &e) {
-					         return e.label_ptr(lower) & mask;
-				         });
+				cryptanalysislib::sort(__data.begin(),
+				                       __data.end(),
+				                       [i, j](const Element &e) {
+					                       return e.label.hash(i, j);
+				                       });
 			}
 		} else {
-			const Limb j_mask = T::lower_mask(j);
-			const Limb i_mask = T::higher_mask(i);
-			const uint32_t i_shift = i % (sizeof(Limb) * 8u);
-			const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
+			// NOTE: the sort key is a single limb
+			assert((j - i) <= (sizeof(LabelLimbType) * 8u));
 
+			// NOTE: `j` is exclusive, so the last used limb is the one of `j - 1`.
+			const uint64_t lower = T::round_down_to_limb(i);
+			const uint64_t upper = T::round_down_to_limb(j - 1u);
 
-			if constexpr (USE_STD_SORT) {
-				std::sort(__data.begin(),
-				          __data.end(),
-				          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
-					          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) ^
-					                             ((e1.label_ptr(upper) & j_mask) >> j_shift);
-					          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) ^
-					                             ((e2.label_ptr(upper) & j_mask) >> j_shift);
+			if (lower == upper) {
+				// NOTE: `lower_mask2(j)` is all ones for `j % 64 == 0`
+				const uint64_t mask = T::higher_mask(i) & T::lower_mask2(j);
 
-					          return data1 < data2;
-				          });
+				if constexpr (USE_STD_SORT) {
+					std::sort(__data.begin(),
+					          __data.end(),
+					          [lower, mask](const auto &e1, const auto &e2) {
+						          return (e1.label_ptr(lower) & mask) < (e2.label_ptr(lower) & mask);
+					          });
+				} else {
+					cryptanalysislib::sort(__data.begin(),
+					                       __data.end(),
+					                       [lower, mask](const Element &e) {
+						                       return e.label_ptr(lower) & mask;
+					                       });
+				}
 			} else {
-				ska_sort(__data.begin(),
-				         __data.end(),
-				         [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
-					         return ((e.label_ptr(lower) & i_mask) >> i_shift) ^
-					                ((e.label_ptr(upper) & j_mask) >> j_shift);
-				         });
+				const Limb j_mask = T::lower_mask2(j);
+				const Limb i_mask = T::higher_mask(i);
+				// NOTE: as the range crosses a limb and is at most one limb wide,
+				// 	`0 < i_shift`, so both shifts are < 64. The bits of the upper
+				// 	limb are the high bits of the key: shifted left.
+				const uint32_t i_shift = i % (sizeof(Limb) * 8u);
+				const uint32_t j_shift = (sizeof(Limb) * 8u) - i_shift;
+
+
+				if constexpr (USE_STD_SORT) {
+					std::sort(__data.begin(),
+					          __data.end(),
+					          [lower, upper, i_mask, j_mask, i_shift, j_shift](const auto &e1, const auto &e2) {
+						          const Limb data1 = ((e1.label_ptr(lower) & i_mask) >> i_shift) |
+						                             ((e1.label_ptr(upper) & j_mask) << j_shift);
+						          const Limb data2 = ((e2.label_ptr(lower) & i_mask) >> i_shift) |
+						                             ((e2.label_ptr(upper) & j_mask) << j_shift);
+
+						          return data1 < data2;
+					          });
+				} else {
+					cryptanalysislib::sort(__data.begin(),
+					                       __data.end(),
+					                       [lower, upper, i_mask, j_mask, i_shift, j_shift](const Element &e) {
+						                       return ((e.label_ptr(lower) & i_mask) >> i_shift) |
+						                              ((e.label_ptr(upper) & j_mask) << j_shift);
+					                       });
+				}
 			}
 		}
 	}
@@ -231,7 +258,9 @@ public:
 	                                                const uint32_t k_higher,
 	                                                const uint32_t tid) noexcept {
 		uint64_t end_index;
-		uint64_t start_index = search_level(e, k_lower, k_higher, tid);
+		// NOTE: the list is not split per thread
+		(void)tid;
+		uint64_t start_index = search_level(e, k_lower, k_higher);
 		if (start_index == uint64_t(-1)) {
 			return std::pair<uint64_t, uint64_t>(-1, -1);
 		}

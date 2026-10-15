@@ -208,12 +208,12 @@ public:
 	template<typename Hash>
 	void sort(const uint32_t tid = 0) noexcept {
 		const size_t start = start_pos(tid);
-		const size_t end = start_pos(tid);
+		const size_t end = end_pos(tid);
 		auto hash = [](const LabelType &e) -> uint64_t {
 			return e.hash();
 		};
-		ska_sort(__data_label.begin() + start,
-		         __data_label.begin() + end, hash);
+		cryptanalysislib::sort(__data_label.begin() + start,
+		                       __data_label.begin() + end, hash);
 	}
 
 	/// zero a list

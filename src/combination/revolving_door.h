@@ -1,10 +1,12 @@
-#pragma once 
+#pragma once
 
+#include <cassert>
 #include <stdint.h>
 #include <stdlib.h>
+#include <iostream>
 
-#include "algorithm/max.h"
-#include "algorithm/min.h"
+#include "combination/enumerator.h"
+
 
 /// Class for generating combinations in minimal-change order using the revolving-door algorithm
 /// Implements Algorithm R, "revolving-door combinations", from Knuth's TAOCP 4A/1, pp.363
@@ -95,7 +97,7 @@ public:
 	/// Constructor for the revolving-door combination generator
 	/// \param n[in]: total number of elements (must be >= 1)
 	/// \param k[in]: subset size (must be 1 <= k <= n)
-	explicit combination_revdoor(const T n,
+	explicit constexpr combination_revdoor(const T n,
                                  const T k) noexcept {
 		n_ = n;  // (n ? n : 1);
 		k_ = k;
@@ -104,7 +106,7 @@ public:
 	}
 
 	/// Destructor frees allocated memory
-	~combination_revdoor() noexcept { delete [] c_; }
+	constexpr ~combination_revdoor() noexcept { delete [] c_; }
 
 	/// Sets the combination to the first one in the sequence
 	constexpr void first() noexcept {
@@ -116,64 +118,90 @@ public:
     /// \return pointer to the current combination array
 	constexpr const T* data() const noexcept { return c_; }
 
-    /// TODO constexpr not working as there are gotos.
+    /// \return pointer to the current combination array (`k` elements)
+	constexpr const T* current() const noexcept { return c_; }
+
 	/// Advances to the next combination in the revolving-door sequence
+	/// \return true if a next combination exists, false if at the end (unchanged)
+	constexpr bool next() noexcept {
+		uint32_t k1 = 0, k2 = 0;
+		return next(&k1, &k2);
+	}
+
+	/// not implemented: Algorithm R only steps forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
+	}
+
+	/// Advances to the next combination in the revolving-door sequence
+	/// (Knuth, TAOCP 7.2.1.3, Algorithm R)
 	/// \param k1[out]: bit position to be cleared (element removed)
 	/// \param k2[out]: bit position to be set (element added)
 	/// \return true if a next combination exists, false if at the end
-	/* constexpr */ bool next(uint32_t *k1,
-                              uint32_t *k2 ) noexcept{
+	constexpr bool next(uint32_t *k1,
+	                    uint32_t *k2) noexcept {
+		// k == 0: the empty set is the only combination
+		if (k_ == 0) {
+			return false;
+		}
+
 		T j = 1;
 		// R3: [Easy case?]
-		// odd k (try to increase)
-		if ( k_ & 1 ) {
+		bool try_decrease;
+		if (k_ & 1) {
+			// odd k (try to increase)
 			const T c = c_[0] + 1;
-			if ( c < c_[1] )  {
+			if (c < c_[1]) {
 				*k1 = c_[0];
 				c_[0] = c;
 				*k2 = c;
 				return true;
-			} else { goto R4; }
+			}
+			try_decrease = true;  // -> R4
 		} else {
 			// even k (try to decrease)
 			const T c = c_[0];
-			if ( c )  {
-				*k1 = cryptanalysislib::max(c_[0], c-1);
-				*k2 = cryptanalysislib::min(c_[0], c-1);
-				c_[0] = c-1;
-				return true;
-			} else {
-				goto R5;
-			}
-		}
-
-	R4:  // R4: [Try to decrease]
-		if ( j==k_ )  return false;
-		if ( c_[j] > j ) {
-			*k1 = c_[j];
-			*k2 = j-1;
-			c_[j] = c_[j-1];
-			c_[j-1] = j-1;
-			return true;
-		}
-		++j;
-
-	R5:  // R5: [Try to increase]
-		if ( j==k_ ) { return false; }
-
-		{
-			T c = c_[j] + 1;
-			// can read sentinel
-			if ( c < c_[j+1] ) {
-				*k1 = c_[j-1];
-				*k2 = c;
-				c_[j-1] = c - 1;
-				c_[j] = c;
+			if (c) {
+				*k1 = c;
+				*k2 = c - 1;
+				c_[0] = c - 1;
 				return true;
 			}
+			try_decrease = false; // -> R5
 		}
-		++j;
-		goto R4;
+
+		while (true) {
+			if (try_decrease) {
+				// R4: [Try to decrease]
+				if (j == k_) { return false; }
+				if (c_[j] > j) {
+					*k1 = c_[j];
+					*k2 = j - 1;
+					c_[j] = c_[j - 1];
+					c_[j - 1] = j - 1;
+					return true;
+				}
+				++j;
+			}
+
+			// R5: [Try to increase]
+			if (j == k_) { return false; }
+			{
+				const T c = c_[j] + 1;
+				// can read sentinel
+				if (c < c_[j + 1]) {
+					*k1 = c_[j - 1];
+					*k2 = c;
+					c_[j - 1] = c - 1;
+					c_[j] = c;
+					return true;
+				}
+			}
+			++j;
+			try_decrease = true;
+		}
 	}
 
     /// Prints the current combination as a delta set

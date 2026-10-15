@@ -21,13 +21,17 @@ namespace cryptanalysislib::popcount {
 		requires std::is_integral<T>::value
 #endif
 	constexpr inline uint32_t popcount(const T data) noexcept {
-		if constexpr(sizeof(T) < 8) {
-			return __builtin_popcountl(data);
+		// NOTE: count the bits of the value in its own width; a signed value
+		// must not be sign-extended (popcount<int8_t>(-1) has to be 8, not 64)
+		if constexpr(sizeof(T) <= 4) {
+			using U = std::make_unsigned_t<T>;
+			return __builtin_popcount((uint32_t)(U)data);
 		} else if constexpr(sizeof(T) == 8) {
-			return  __builtin_popcountll(data);
+			return  __builtin_popcountll((uint64_t)data);
 		} else if constexpr(sizeof(T) == 16) {
-			return  __builtin_popcountll((uint64_t )data) +
-					__builtin_popcountll(data >> 64u);
+			const unsigned __int128 d = (unsigned __int128)data;
+			return  __builtin_popcountll((uint64_t)d) +
+					__builtin_popcountll((uint64_t)(d >> 64u));
 		} else {
 			assert(false);
             return 0;
@@ -45,7 +49,7 @@ namespace cryptanalysislib::popcount {
 #endif
 	constexpr uint64_t popcount(const T *__restrict__ data, 
 						  		const size_t size) noexcept {
-		uint32_t sum = 0;
+		uint64_t sum = 0;
 		for (size_t i = 0; i < size; ++i) {
 			sum += popcount<T>(data[i]);
 		}

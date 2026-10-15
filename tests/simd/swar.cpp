@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
-#include "simd/simd.h"
+#include "simd/swar.h"
+
+using ::testing::InitGoogleTest;
 
 TEST(swar, simple) {
-	constexpr auto expect = [](bool cond) { if (not cond) { void failed(); failed(); } };
+	const auto expect = [](const bool cond) { EXPECT_TRUE(cond); };
 
 	using u8 = uint8_t;
 	using u16 = uint16_t;

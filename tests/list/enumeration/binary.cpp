@@ -154,13 +154,19 @@ TEST(Chase, p3) {
 		uint32_t y = x;
 		for (uint32_t i = 0; i < p; ++i) {
 			const uint32_t ctz = __builtin_ctz(y);
-			//EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
+			EXPECT_EQ(true, (ctz == rows[0]) || (ctz == rows[1]) || (ctz == rows[2]));
 			y ^= 1u << ctz;
 		}
+		// the bijection gives exactly the positions of the set bits
+		EXPECT_EQ((1u << rows[0]) | (1u << rows[1]) | (1u << rows[2]), x) << ctr;
+		// every element has weight p and lives in the first nn bits
+		EXPECT_EQ(__builtin_popcount(x), p);
+		EXPECT_LT(x, 1u << nn);
 		ctr += 1;
 	});
 
-	EXPECT_EQ(ctr-1, bc(nn, p));
+	// the first element (x = 7) is not reported, same as for p = 1, 2
+	EXPECT_EQ(ctr, bc(nn, p));
 }
 
 TEST(Chase, first) {
@@ -169,8 +175,8 @@ TEST(Chase, first) {
 	uint16_t epos1, epos2;
 	Combinations_Binary_Chase<T, n, w> c;
 
-	uint64_t *w1 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs),
-	         *w2 = (uint64_t *)calloc(sizeof(uint64_t), element_limbs);
+	uint64_t *w1 = (uint64_t *)calloc(element_limbs, sizeof(uint64_t)),
+	         *w2 = (uint64_t *)calloc(element_limbs, sizeof(uint64_t));
 
 	*w1 = (1u << w) -1u;
 	c.left_step(w2, &epos1, &epos2);
@@ -268,6 +274,88 @@ TEST(F2, two_lists) {
 
 		EXPECT_EQ(L1.data_label(i).is_zero(), false);
 		EXPECT_EQ(L2.data_label(i).is_zero(), false);
+	}
+}
+
+/// several enumerations in a row with the same object produce the same
+/// sequence of changes
+template<const uint32_t nn, const uint32_t p>
+static void check_repeated() {
+	chase_t<nn, p> c;
+	std::vector<std::pair<uint16_t, uint16_t>> first, second;
+	c.enumerate([&](uint16_t a, uint16_t b) { first.emplace_back(a, b); });
+	c.enumerate([&](uint16_t a, uint16_t b) { second.emplace_back(a, b); });
+	EXPECT_EQ(first.size(), bc(nn, p) - 1u);
+	EXPECT_EQ(first, second);
+}
+
+TEST(Chase, repeated) {
+	check_repeated<20, 1>();
+	check_repeated<20, 2>();
+	check_repeated<12, 3>();
+}
+
+/// \return the integer encoded in the coordinates [start, start+len) of `v`
+template<class V>
+static uint64_t to_int(const V &v, const uint32_t start, const uint32_t len) {
+	uint64_t r = 0;
+	for (uint32_t i = 0; i < len; ++i) {
+		r |= uint64_t(bool(v.get(start + i))) << i;
+	}
+	return r;
+}
+
+TEST(F2, lexicographic_single_list) {
+	constexpr size_t ls = BinaryLexicographicEnumerator<List, n, w>::size();
+	static_assert(ls == sum_bc(n, w));
+	List L(ls);
+	Matrix HT;
+	HT.random();
+	BinaryLexicographicEnumerator<List, n, w> enumerator{HT};
+	enumerator.run(&L, nullptr);
+	EXPECT_EQ(L.load(), ls);
+
+	// strictly increasing counter values, all weights in [1, w]
+	uint64_t prev = 0;
+	for (size_t i = 0; i < ls; ++i) {
+		const auto wt = L.data_value(i).popcnt();
+		EXPECT_GE(wt, 1);
+		EXPECT_LE(wt, w);
+		const uint64_t c = to_int(L.data_value(i), 0, n);
+		EXPECT_GT(c, prev);
+		prev = c;
+	}
+}
+
+/// the counter crosses the limb boundary at coordinate 64
+TEST(F2, lexicographic_limb_boundary) {
+	constexpr uint32_t nn = 80, nl = 8, ww = 3, base = 60;
+	using V2 = BinaryVector<nn, T>;
+	using M2 = FqMatrix<T, nn, nn, q, true>;
+	using E2 = Element_T<V2, V2, M2>;
+	using L2 = List_T<E2>;
+	using Enum = BinaryLexicographicEnumerator<L2, nl, ww>;
+
+	constexpr size_t ls = Enum::size();
+	L2 L(ls);
+	M2 HT;
+	HT.random();
+	Enum enumerator{HT};
+	enumerator.run(&L, nullptr, 0, base);
+
+	uint64_t prev = 0;
+	for (size_t i = 0; i < ls; ++i) {
+		const auto &v = L.data_value(i);
+		const auto wt = v.popcnt();
+		EXPECT_GE(wt, 1);
+		EXPECT_LE(wt, ww);
+
+		// nothing outside of [base, base + nl)
+		EXPECT_EQ(to_int(v, 0, base), 0);
+		EXPECT_EQ(to_int(v, base + nl, nn - base - nl), 0);
+		const uint64_t c = to_int(v, base, nl);
+		EXPECT_GT(c, prev);
+		prev = c;
 	}
 }
 

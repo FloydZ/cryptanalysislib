@@ -65,7 +65,7 @@ B63_BENCHMARK(standard_binary_search, nn) {
 	}
 
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += standard_binary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::standard_binary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -78,7 +78,7 @@ B63_BENCHMARK(boundless_binary_search, nn) {
 		search = random_data(data, nn);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += boundless_binary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::boundless_binary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -91,7 +91,7 @@ B63_BENCHMARK(doubletapped_binary_search, nn) {
 		search = random_data(data, nn);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += doubletapped_binary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::doubletapped_binary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -104,7 +104,7 @@ B63_BENCHMARK(monobound_binary_search, nn) {
 		search = random_data(data, nn);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += monobound_binary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::monobound_binary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -117,7 +117,7 @@ B63_BENCHMARK(tripletapped_binary_search, n) {
 		search = random_data(data, n);
 	}
 	for (uint32_t i = 0; i < n; ++i) {
-		pos += tripletapped_binary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::tripletapped_binary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -130,7 +130,7 @@ B63_BENCHMARK(monobound_quaternary_search, nn) {
 		search = random_data(data, n);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += monobound_quaternary_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::monobound_quaternary_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }
@@ -143,7 +143,7 @@ B63_BENCHMARK(Khuong_bin_search, nn) {
 		search = random_data(data, nn);
 	}
 	for (uint32_t i = 0; i < nn; ++i) {
-		pos += Khuong_bin_search(data.data(), SIZE, search);
+		pos += cryptanalysislib::Khuong_bin_search(data.data(), SIZE, search);
 	}
 	B63_KEEP(pos);
 }

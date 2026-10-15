@@ -19,9 +19,12 @@ namespace cryptanalysislib {
 		} else if constexpr(sizeof(T) == 8) {
 			return  __builtin_ffsll(data);
 		} else if constexpr(sizeof(T) == 16) {
-			const auto t = __builtin_ffsll(data);
+			const unsigned __int128 d = (unsigned __int128)data;
+			const auto t = __builtin_ffsll((uint64_t)d);
 			if (!t) {
-				return __builtin_ffsll(data >> 64);
+				// NOTE: bit positions of the upper half start at 64
+				const auto u = __builtin_ffsll((uint64_t)(d >> 64u));
+				return u ? 64u + u : 0u;
 			}
 
 			return t;

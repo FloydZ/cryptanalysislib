@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -21,7 +22,11 @@ struct AvlTreeConfig : public AlignmentConfig {
 };
 constexpr static AvlTreeConfig avlTreeConfig;
 
-/// TODO use allocator class 
+/// \tparam E element type
+/// \tparam Allocator allocator template (STL interface), instantiated with
+/// 	the node type; all nodes are allocated with it (assumed stateless:
+/// 	a default constructed instance is used for every (de)allocation)
+/// \tparam config alignment config
 template <typename E,
           template<class N> class Allocator = cryptanalysislib::allocator,
 		  const AvlTreeConfig &config=avlTreeConfig>
@@ -42,7 +47,7 @@ public:
 	/// \param other[in] The AVL tree to copy
 	constexpr explicit AvlTreeList(const AvlTreeList &other) noexcept : root(other.root) {
 		if (root != &Node::EMPTY_LEAF) {
-			root = new Node(*root);
+			root = Node::create(*root);
 		}
 	}
 
@@ -130,13 +135,13 @@ public:
 		assert(index < size());
 		Node *toDelete = nullptr;
 		root = root->removeAt(index, &toDelete);
-		delete toDelete;
+		Node::destroy(toDelete);
 	}
 
 	/// Deletes all nodes in the tree and resets it to empty state
 	constexpr void clear() noexcept {
 		if (root != &Node::EMPTY_LEAF) {
-			delete root;
+			Node::destroy(root);
 			root = &Node::EMPTY_LEAF;
 		}
 	}
@@ -186,6 +191,25 @@ public:
 		                       right(&EMPTY_LEAF) {}
 
 	public:
+		using NodeAllocator = Allocator<Node>;
+		using NodeTraits = std::allocator_traits<NodeAllocator>;
+
+		/// allocates a node with `Allocator` and constructs it in place
+		template<typename... Args>
+		static Node *create(Args &&...args) noexcept {
+			NodeAllocator a{};
+			Node *n = NodeTraits::allocate(a, 1);
+			return ::new (static_cast<void *>(n)) Node(std::forward<Args>(args)...);
+		}
+
+		/// destructs `n` (and its subtrees) and frees it with `Allocator`
+		static void destroy(Node *n) noexcept {
+			if (n == nullptr) { return; }
+			n->~Node();
+			NodeAllocator a{};
+			NodeTraits::deallocate(a, n, 1);
+		}
+
 		/// Copy constructor for Node
 		/// Creates a deep copy of the node and its children
 		/// 
@@ -196,11 +220,11 @@ public:
 		                          left(other.left),
 		                          right(other.right) {
 			if (left != &EMPTY_LEAF) {
-				left = new Node(*left);
+				left = create(*left);
 			}
 
 			if (right != &EMPTY_LEAF) {
-				right = new Node(*right);
+				right = create(*right);
 			}
 		}
 
@@ -208,9 +232,9 @@ public:
 		/// Recursively deletes all child nodes
 		constexpr ~Node() noexcept {
 			if (left != &EMPTY_LEAF)
-				delete left;
+				destroy(left);
 			if (right != &EMPTY_LEAF)
-				delete right;
+				destroy(right);
 		}
 
 		/// Retrieves the node at the specified position
@@ -238,7 +262,7 @@ public:
 		                         E &&obj) noexcept {
 			assert(index <= size);
 			if (this == &EMPTY_LEAF)// Automatically implies index == 0, because EMPTY_LEAF.size == 0
-				return new Node(std::move(obj));
+				return create(std::move(obj));
 			std::size_t leftSize = left->size;
 			if (index <= leftSize)
 				left = left->insertAt(index, std::move(obj));
@@ -384,7 +408,7 @@ public:
 };
 
 
-template <typename E, const AvlTreeConfig &config>
-typename AvlTreeList<E, config>::Node AvlTreeList<E,config>::Node::EMPTY_LEAF;
+template <typename E, template<class N> class Allocator, const AvlTreeConfig &config>
+typename AvlTreeList<E, Allocator, config>::Node AvlTreeList<E, Allocator, config>::Node::EMPTY_LEAF;
 
 #endif//CRYPTANALYSISLIB_AVL_TREE_H

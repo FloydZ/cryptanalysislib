@@ -57,7 +57,7 @@ public:
 	const size_t list_size = 0;
 
 	// some security things
-	static_assert(Value::length() >= w);
+	static_assert(Value::length >= w);
 	static_assert(n >= w);
 	static_assert(w > 0);
 private:
@@ -109,8 +109,8 @@ public:
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		assert(n + offset <= Value::length());
-		assert(offset + base_offset <= Value::length());
+		assert(n + offset <= Value::length);
+		assert(offset + base_offset <= Value::length);
 		const auto H = HT.transpose();
 
 		// check if the lists are enabled

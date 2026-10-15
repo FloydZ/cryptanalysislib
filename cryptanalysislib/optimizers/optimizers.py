@@ -2,6 +2,7 @@
 """
 """
 
+import inspect
 from typing import List
 from cryptanalysislib.helper import Range
 
@@ -18,8 +19,8 @@ class MetaOptimizer(Optimizer):
     """
     NOTE: this optimizer does not optimize parameters for any particular 
         problem. But instead it optimizes for different `n` another optimizer.
-
-    TODO: check if the names of the ranges matches the names of the arguments
+    NOTE: the names of the ranges must match the names of the constructor
+        arguments of `sub_problem_type`, as they are passed as keywords.
     """
     def __init__(self,
                  sub_problem_type,
@@ -29,6 +30,15 @@ class MetaOptimizer(Optimizer):
         self.parameters = parameters if isinstance(parameters, list) else [parameters]
         self.nr_params = len(self.parameters)
         self.finish = False
+
+        # every range is passed as `name=value` to `sub_problem_type`, so an
+        # unknown name would only fail later inside `__next__`
+        sig = inspect.signature(sub_problem_type)
+        accepts_kwargs = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
+        unknown = [r.name for r in self.parameters if r.name not in sig.parameters]
+        if unknown and not accepts_kwargs:
+            raise ValueError(f"{sub_problem_type.__name__} has no argument(s) "
+                             f"{unknown}; accepted: {list(sig.parameters)}")
 
         # init all parameters
         for i in range(self.nr_params):

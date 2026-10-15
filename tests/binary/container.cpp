@@ -1274,7 +1274,7 @@ TEST(hash, Complex) {
 	using B = BinaryVector<n>;
 	B b;
 	b.random();
-	const auto c = b.hash();
+	[[maybe_unused]] const auto c = b.hash();
 	// using S = decltype(c);
 
 	// NOTE: one day I will adapt the Hash class to this

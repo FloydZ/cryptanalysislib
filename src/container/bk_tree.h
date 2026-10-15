@@ -1,12 +1,19 @@
 #ifndef CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
 #define CRYPTANALYSISLIB_CONTAINER_BK_TREE_H
 
+#include <concepts>
 #include <vector>
 
 #include "alloc/alloc.h"
+#include "math/math.h"
 
-/// TODO add namespace
-/// TODO add concept for T, as T needs a dist functions
+namespace cryptanalysislib {
+
+/// the element type of a BK-tree needs a metric: `T::dist(a, b)`
+template<class T>
+concept BKTreeMetric = requires(const T &a, const T &b) {
+	{ T::dist(a, b) } -> std::convertible_to<uint32_t>;
+};
 
 /// Details: https://dl.acm.org/doi/pdf/10.1145/362003.362025
 template<class T>
@@ -40,9 +47,15 @@ constexpr static BKTreeConfig bkTreeConfig;
 template<class T,
          template<class N> class Allocator = cryptanalysislib::allocator,
 		 const BKTreeConfig &config=bkTreeConfig>
+#if __cplusplus > 201709L
+	requires BKTreeMetric<T>
+#endif
 class BKTree {
 	using node_type = BKTreeNode<T>;
+	// NOTE: the first inserted element becomes the root. Before, a fake
+	// 	zero root took part in every lookup and a real zero was dropped.
 	node_type root = node_type(T());
+	bool empty_ = true;
 
 	/// Prints information about the BK-tree structure
 	/// Outputs the tree name and allocator information in JSON format
@@ -91,41 +104,48 @@ class BKTree {
 
 public:
 	/// Default constructor
-	/// Initializes an empty BK-tree with a zero-initialized root node
-	constexpr BKTree() noexcept {
-		root.data.zero();
-	}
+	/// Initializes an empty BK-tree
+	constexpr BKTree() noexcept = default;
 
 	/// Inserts an element into the BK-tree
 	/// Public interface that delegates to the private recursive implementation
 	/// 
 	/// \param a[in] Element to insert into the tree
 	constexpr void insert(const T &a) noexcept {
+		if (empty_) {
+			root.data = a;
+			empty_ = false;
+			return;
+		}
+
 		_insert(a, root);
 	}
 
 	/// Finds the closest element in the tree to the given query element
 	/// Implements an iterative search algorithm using the triangle inequality property
-	/// Returns 0 if the tree is empty
+	/// Returns `uint32_t(-1)` if the tree is empty
 	/// 
 	/// \param a[in] Query element to find closest match for
 	/// \return Minimum distance found between query and any element in the tree
 	constexpr uint32_t lookup(const T &a) const noexcept {
-		if (root.children.size() == 0) { return 0; }
+		if (empty_) { return uint32_t(-1); }
 
-		std::vector<node_type> S;
-		S.emplace_back(root);
+		// NOTE: pointers, before every visited subtree was deep copied
+		std::vector<const node_type *> S;
+		S.emplace_back(&root);
 		uint32_t d_best = uint32_t(-1);
 
 		while (S.size() > 0) {
-			const auto u = S[S.size() - 1];
+			const node_type *u = S[S.size() - 1];
 			S.pop_back();
-			const uint32_t du = d(a, u.data);
+			const uint32_t du = d(a, u->data);
 			if (du < d_best) { d_best = du; }
 
-			for (size_t i = 0; i < u.children.size(); ++i) {
-				if (std::abs((int32_t)u.duv[i] - (int32_t)du) < (int32_t)d_best) {
-					S.emplace_back(u.children[i]);
+			for (size_t i = 0; i < u->children.size(); ++i) {
+				// NOTE: compare in 64 bit, `uint32_t` distances may not fit `int32_t`
+				const int64_t diff = cryptanalysislib::math::abs((int64_t)u->duv[i] - (int64_t)du);
+				if (diff < (int64_t)d_best) {
+					S.emplace_back(&u->children[i]);
 				}
 			}
 		}
@@ -133,4 +153,5 @@ public:
 		return d_best;
 	}
 };
+} // end namespace cryptanalysislib
 #endif//CRYPTANALYSISLIB_BK_TREE_H

@@ -38,19 +38,19 @@ namespace cryptanalysislib {
 					count += 16;
 				}
 				if (count <= -8) {
-					*(uint64_t *) (out + count) = *(uint64_t *) (in + count);
+					__builtin_memcpy(out + count, in + count, 8);
 					count += 8;
 				}
 				if (count <= -4) {
-					*(uint32_t *) (out + count) = *(uint32_t *) (in + count);
+					__builtin_memcpy(out + count, in + count, 4);
 					count += 4;
 				}
 				if (count <= -2) {
-					*(uint16_t *) (out + count) = *(uint16_t *) (in + count);
+					__builtin_memcpy(out + count, in + count, 2);
 					count += 2;
 				}
 				if (count <= -1) {
-					*(uint8_t *) (out + count) = *(uint8_t *) (in + count);
+					__builtin_memcpy(out + count, in + count, 1);
 				}
 				return;
 			}
@@ -63,15 +63,15 @@ namespace cryptanalysislib {
 					out += 1; in += 1; bytes2 -= 1; t+=1;
 				}
 				if (t & 2u) {
-					*(uint16_t *) out = *(uint16_t *) in;
+					__builtin_memcpy(out, in, 2);
 					out += 2; in += 2; bytes2 -= 2; t+=2;
 				}
 				if (t & 4u) {
-					*(uint32_t *) out = *(uint32_t *) in;
+					__builtin_memcpy(out, in, 4);
 					out += 4; in += 4; bytes2 -= 4; t+=4;
 				}
 				if (t & 8u) {
-					*(uint64_t *) out = *(uint64_t *) in;
+					__builtin_memcpy(out, in, 8);
 					out += 8; in += 8; bytes2 -= 8; t+=8 ;
 				}
 				if (t & 16u) {
@@ -90,7 +90,8 @@ namespace cryptanalysislib {
 			}
 			out += bytes2;
 			in += bytes2;
-			int32_t count = -int32_t((bytes - ctr + t) % 32u);
+			// bytes left after the aligned 32-byte blocks
+			int32_t count = -int32_t(bytes2 - ctr);
 
 			// tail mng
 			if (count <= -16) {
@@ -99,19 +100,19 @@ namespace cryptanalysislib {
 				count += 16;
 			}
 			if (count <= -8) {
-				*(uint64_t *)(out + count) = *(uint64_t *)(in + count);
+				__builtin_memcpy(out + count, in + count, 8);
 				count += 8;
 			}
 			if (count <= -4) {
-				*(uint32_t *)(out + count) = *(uint32_t *)(in + count);
+				__builtin_memcpy(out + count, in + count, 4);
 				count += 4;
 			}
 			if (count <= -2) {
-				*(uint16_t *)(out + count) = *(uint16_t *)(in + count);
+				__builtin_memcpy(out + count, in + count, 2);
 				count += 2;
 			}
 			if (count <= -1) {
-				*(uint8_t *) (out + count)  = *(uint8_t *)(in + count);
+				__builtin_memcpy(out + count, in + count, 1);
 			}
 		}
 

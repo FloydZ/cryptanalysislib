@@ -1,3 +1,6 @@
+#ifndef CRYPTANALYSISLIB_SIMD_AVX2_TERNARY_H
+#define CRYPTANALYSISLIB_SIMD_AVX2_TERNARY_H
+
 #include <immintrin.h>
 // source: https://github.com/WojciechMula/ternary-logic
 
@@ -1891,3 +1894,4 @@ __m256i ternary(const __m256i, const __m256i, const __m256i) {
      return c1;
  }
 
+#endif // CRYPTANALYSISLIB_SIMD_AVX2_TERNARY_H

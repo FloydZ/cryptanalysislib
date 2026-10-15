@@ -16,10 +16,9 @@
 #include "math/math.h"
 
 
-// TODO add namespace, for all the c functions
-// TODO add @lemire binary search in parallel in multiple different lists
-// TODO add `constexpr` where possible
-// TODO add concept to the c functions below to check that `Type` is arithmetic 
+// NOTE: all functions in this file are `constexpr`, the fxt `bsearch`
+// 	family requires `std::is_arithmetic_v<Type>`.
+namespace cryptanalysislib {
 
 
 /// Binary search for an exact value in a sorted array
@@ -32,10 +31,13 @@
 /// \param v[in]: Value to search for
 /// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
-size_t bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch(const Type *f,
                const size_t n,
                const Type v) noexcept {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -59,10 +61,13 @@ size_t bsearch(const Type *f,
 /// \param v[in]: Value to compare against
 /// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_geq(const Type *f, 
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_geq(const Type *f, 
                    const size_t n,
                    const Type v) {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -79,17 +84,20 @@ size_t bsearch_geq(const Type *f,
 }
 
 /// Binary search for the first element less than or equal to a value
-/// NOTE: f[] must be sorted in ascending order.
+/// NOTE: f[] must be sorted in descending order.
 /// 
 /// \param f[in]: Pointer to the sorted array to search in
 /// \param n[in]: Length of the array
 /// \param v[in]: Value to compare against
 /// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_leq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_leq(const Type *f,
                    const size_t n,
                    const Type v) noexcept {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -114,11 +122,14 @@ size_t bsearch_leq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that equals v, or n if no such element exists
 template <typename Type>
-size_t bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch(const Type *f,
                const size_t n, 
                const Type v,
                int (*cmp)(const Type &, const Type &)) {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -143,11 +154,14 @@ size_t bsearch(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that is >= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_geq(const Type *f,
                    const size_t n,
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -164,7 +178,7 @@ size_t bsearch_geq(const Type *f,
 
 /// Binary search for the first element less than or equal to a value using a
 /// custom comparator
-/// NOTE: f[] must be sorted in ascending order according to the comparator
+/// NOTE: f[] must be sorted in descending order according to the comparator
 ///
 /// \param f[in]: Pointer to the sorted array to search in
 /// \param n[in]: Length of the array
@@ -172,11 +186,14 @@ size_t bsearch_geq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Index of first element in f[] that is <= v, or n if no such element exists
 template <typename Type>
-size_t bsearch_leq(const Type *f,
-                   const ulong n, 
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_leq(const Type *f,
+                   const uint64_t n, 
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) noexcept {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -205,17 +222,20 @@ size_t bsearch_leq(const Type *f,
 /// \return Index of first element x in f[] for which |x-v| <= da,
 ///             or n if no such element exists
 template <typename Type>
-ulong bsearch_approx(const Type *f,
-                     const ulong n,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr uint64_t bsearch_approx(const Type *f,
+                     const uint64_t n,
                      const Type v,
                      const Type da) noexcept {
-    if (n <= 1) [[unlikely]] {
-        return 0;
+    // the first element >= v-da is the only candidate: it matches iff it is <= v+da
+    const size_t k = bsearch_geq(f, n, v-da);
+    if ((k < n) && (f[k] <= v+da)) {
+        return k;
     }
 
-    size_t k = bsearch_geq(f, n, v-da);
-    if (k<n) k = bsearch_leq(f+k, n-k, v+da);
-    return k;
+    return n;
 }
 
 /// Binary search for elements approximately equal to a value within a given 
@@ -233,21 +253,21 @@ ulong bsearch_approx(const Type *f,
 /// \return Index of first element x in f[] for which |x-v| <= da according to
 ///         comparator, or n if no such element exists
 template <typename Type>
-size_t bsearch_approx(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t bsearch_approx(const Type *f,
                      const size_t n,
                      const Type v,
                      const Type da,
                      int (*cmp)(const Type &, const Type &)) noexcept {
-    if (n == 0) [[unlikely]] {
-        return 0;
+    // the first element >= v-da is the only candidate: it matches iff it is <= v+da
+    const size_t k = bsearch_geq(f, n, v-da, cmp);
+    if ((k < n) && (cmp(f[k], v+da) <= 0)) {
+        return k;
     }
 
-    size_t k = bsearch_geq(f, n, v-da, cmp);
-    if (k < n) { 
-        k = bsearch_leq(f+k, n-k, v+da, cmp); 
-    }
-
-    return k;
+    return n;
 }
 
 /// Binary search for an exact value in an indirectly sorted array
@@ -259,17 +279,20 @@ size_t bsearch_approx(const Type *f,
 /// \param v[in]: Value to search for
 /// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch(const Type *f,
                    const size_t n, 
-                   const size_t *x,
+                   const uint64_t *x,
                    const Type v) noexcept {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
-    ulong nlo=0, nhi=n-1;
+    uint64_t nlo=0, nhi=n-1;
     while ( nlo != nhi ) {
-        ulong t = (nhi+nlo)/2;
+        uint64_t t = (nhi+nlo)/2;
 
         if ( f[x[t]] < v )  nlo = t + 1;
         else                nhi = t;
@@ -289,11 +312,14 @@ size_t idx_bsearch(const Type *f,
 /// \param v[in]: Value to compare against
 /// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
-                       const ulong *x,
+                       const uint64_t *x,
                        const Type v) noexcept {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -319,12 +345,15 @@ size_t idx_bsearch_geq(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Minimal index i so that f[x[i]] == v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch(const Type *f,
                    const size_t n, 
-                   const ulong *x,
+                   const uint64_t *x,
                    const Type v,
                    int (*cmp)(const Type &, const Type &)) {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
 
@@ -351,17 +380,20 @@ size_t idx_bsearch(const Type *f,
 /// \param cmp[in]: Comparison function that returns negative if a<b, 0 if a==b, positive if a>b
 /// \return Minimal index i so that f[x[i]] >= v, or n if no such i exists
 template <typename Type>
-size_t idx_bsearch_geq(const Type *f,
+#if __cplusplus > 201709L
+	requires std::is_arithmetic_v<Type>
+#endif
+constexpr size_t idx_bsearch_geq(const Type *f,
                        const size_t n,
-                       const ulong *x,
+                       const uint64_t *x,
                        const Type v,
                       int (*cmp)(const Type &, const Type &)) {
-    if (n <= 1) [[unlikely]] {
+    if (n == 0) [[unlikely]] {
         return 0;
     }
-    ulong nlo=0, nhi=n-1;
+    uint64_t nlo=0, nhi=n-1;
     while (nlo != nhi) {
-        ulong t = (nhi+nlo)/2;
+        uint64_t t = (nhi+nlo)/2;
         if ( cmp(f[x[t]], v)<0 )  nlo = t + 1;
         else                      nhi = t;
     }
@@ -372,33 +404,35 @@ size_t idx_bsearch_geq(const Type *f,
 
 /// Binary search implementation based on Paul Khuong's branch-prediction optimized algorithm
 /// See: https://www.pvk.ca/Blog/2012/07/03/binary-search-star-eliminates-star-branch-mispredictions/
-/// NOTE: probably wrong
 /// 
 /// \tparam T Type of elements in the array
 /// \param list[in]: Pointer to the sorted array to search in
 /// \param len_list[in]: Length of the array
 /// \param value[in]: Value to search for
-/// \return Index of the matching element, or -1 if not found or on error
+/// \return Index of the first matching element, or -1 if not found
 template<typename T>
-size_t Khuong_bin_search(const T *list,
+constexpr size_t Khuong_bin_search(const T *list,
                          const size_t len_list,
                          const T value) {
-	if (len_list <= 1) [[unlikely]] {
-		return 0;
+	if (len_list == 0) [[unlikely]] {
+		return -1;
 	}
 
-	uint32_t log = ceil_log2(len_list) - 1;
-	size_t first_mid = len_list - (1UL << log);
-	const T *low = (list[first_mid] < value) ? list + first_mid : list;
-	size_t len = 1UL << log;
+	// branch-free lower bound: the answer is always in [low, low + len]
+	const T *low = list;
+	size_t len = len_list;
+	while (len > 1) {
+		const size_t half = len / 2;
+		low = (low[half] < value) ? low + half : low;
+		len -= half;
+	}
+	low += (*low < value);
 
-	for (uint32_t i = log; i != 0; i--) {
-		len /= 2;
-		T mid = low[len_list];
-		if (mid < value) low += len;
+	if ((low < list + len_list) && (*low == value)) {
+		return low - list;
 	}
 
-	return (*low == value) ? (low - list) : -1;
+	return -1;
 }
 
 /// Eytzinger layout binary search with prefetching optimization
@@ -408,18 +442,17 @@ size_t Khuong_bin_search(const T *list,
 /// \param list[in]: Pointer to the sorted array in Eytzinger layout
 /// \param len[in]: Length of the array
 /// \param x[in]: Value to search for
-/// \return Index of the first element not less than x
+/// \return the first element (value) not less than x, i.e. list[k] of the
+/// 	lower bound k, or `list[0]` (the sentinel) if there is none.
+/// NOTE: `list` is 1-indexed (`list[1..len]`, list[0] is the sentinel). The
+/// 	result was `int` (truncated 64 bit values), and `len == 1` returned 0.
 template<typename T>
 #if __cplusplus > 201709L
 	requires std::is_integral_v<T>
 #endif
-int lower_bound_eytzinger_prefetch(const T *list,
+constexpr T lower_bound_eytzinger_prefetch(const T *list,
                 const size_t len,
                 const T x) {
-	if (len <= 1) [[unlikely]] {
-		return 0;
-	}
-
 	size_t k = 1;
 	while (k <= len) {
 		__builtin_prefetch(list + k * 16);
@@ -438,20 +471,20 @@ int lower_bound_eytzinger_prefetch(const T *list,
 /// \param last[in]: Iterator to the end of the range
 /// \param key_[in]: Value to search for
 /// \param h[in]: Hash function to use for comparison
-/// \return Iterator to the first element greater than key_, or last if not found
+/// \return Iterator to the last element equal to key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt upper_bound_standard_binary_search(ForwardIt first,
+constexpr ForwardIt upper_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
                                              const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
 	const auto count = std::distance(first, last);
-	if (count <= 1) {
-		return first;
+	if (count == 0) {
+		return last;
 	}
 
 	const auto key = h(key_);
@@ -495,14 +528,14 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt lower_bound_standard_binary_search(ForwardIt first,
+constexpr ForwardIt lower_bound_standard_binary_search(ForwardIt first,
                                              ForwardIt last,
                                              const typename ForwardIt::value_type &key_,
                                              Hash h) noexcept {
 	ForwardIt it;
 	using T = typename std::iterator_traits<ForwardIt>::difference_type;
 	T count = std::distance(first, last);
-	if (count <= 1) {
+	if (count == 0) {
 		return first;
 	}
 
@@ -529,11 +562,11 @@ ForwardIt lower_bound_standard_binary_search(ForwardIt first,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t standard_binary_search(const T *array,
+constexpr size_t standard_binary_search(const T *array,
                               const size_t array_size,
                               const T key) noexcept {
-	if (array_size <= 1) {
-		return 0;
+	if (array_size == 0) {
+		return -1;
 	}
 
 	size_t bot = 0, mid, top = array_size - 1;
@@ -567,11 +600,11 @@ size_t standard_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t boundless_binary_search(const T *array,
+constexpr size_t boundless_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
-	if (array_size <= 1) {
-		return 0;
+	if (array_size == 0) {
+		return -1;
 	}
 
 	uint64_t mid = array_size,
@@ -599,11 +632,11 @@ size_t boundless_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t doubletapped_binary_search(const T *array,
+constexpr size_t doubletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   T key) noexcept {
-	if (array_size <= 1) {
-		return 0;
+	if (array_size == 0) {
+		return -1;
 	}
 
 	size_t mid = array_size, bot = 0;
@@ -633,44 +666,37 @@ size_t doubletapped_binary_search(const T *array,
 /// \param last[in]: Iterator to the end of the range
 /// \param key_[in]: Value to search for
 /// \param h[in]: Hash function to use for comparison
-/// \return Iterator to the first element greater than key_, or last if not found
+/// \return Iterator to the last element equal to key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
+constexpr ForwardIt upper_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
                                               const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
-	auto count = std::distance(first, last);
-	const auto key = h(key_);
-	auto bot = first;
-	auto it = first;
-	auto top = last;
-	std::advance(top, -1);
-	if (count == 0) {
+	size_t top = last - first;
+	if (top == 0) {
 		return last;
-    }
-
-	while (count > 1) {
-		const auto midc = count / 2;
-		it = bot;
-
-		std::advance(it, midc);
-		if (key >= h(*it)) {
-			std::advance(bot, midc);
-		}
-
-		std::advance(top, -midc);
-		count = std::distance(first, top);
 	}
 
-	if (key == h(*bot))
-		return bot;
+	const auto key = h(key_);
+	auto bot = first;
+	while (top > 1) {
+		const size_t mid = top / 2;
+		if (key >= h(bot[mid])) {
+			bot += mid;
+		}
+		top -= mid;
+	}
 
-	return bot;
+	if (key == h(*bot)) {
+		return bot;
+	}
+
+	return last;
 }
 
 /// Monobound binary search implementation to find lower bound with hash function
@@ -689,43 +715,27 @@ template<typename ForwardIt,
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
+constexpr ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
                                               ForwardIt last,
                                               const typename ForwardIt::value_type &key_,
                                               Hash h) noexcept {
-	auto count = std::distance(first, last);
+	size_t len = last - first;
+	if (len == 0) {
+		return last;
+	}
+
+	// the answer is always in [bot, bot + len]
 	const auto key = h(key_);
 	auto bot = first;
-	auto it = last;
-	auto top = last;
-	std::advance(top, -1);
-
-	if (count == 0) {
-		return last;
-    }
-
-	while (count > 1) {
-		const auto mid = count / 2;
-		it = top;
-
-		std::advance(it, -mid);
-		if (key <= h(*it)) {
-			std::advance(top, -mid);
+	while (len > 1) {
+		const size_t half = len / 2;
+		if (h(bot[half]) < key) {
+			bot += half;
 		}
-
-		std::advance(bot, mid);
-		count = std::distance(bot, last);
+		len -= half;
 	}
 
-	// move the pointer down
-	if (key == h(*top)) {
-		while (key == h(*top) && (top != first)) {
-			top -= 1;
-		}
-		return top += 1;
-	}
-
-	return last;
+	return bot + (h(*bot) < key);
 }
 
 /// Monobound binary search - typically faster than boundless binary search despite more checks
@@ -735,13 +745,13 @@ ForwardIt lower_bound_monobound_binary_search(ForwardIt first,
 /// \param array[in]: Pointer to the sorted array to search in
 /// \param array_size[in]: Length of the array
 /// \param key[in]: Value to search for
-/// \return Index of the element equal to key, or 0 if not found
+/// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t monobound_binary_search(const T *array,
+constexpr size_t monobound_binary_search(const T *array,
                                const size_t array_size,
                                const T key) noexcept {
 	if (array_size == 0) {
-		return 0;
+		return -1;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -763,47 +773,42 @@ size_t monobound_binary_search(const T *array,
 	return -1;
 }
 
-/// TODO doc
-/// \tparam ForwardIt
-/// \tparam T
-/// \tparam Hash
-/// \param first
-/// \param last
-/// \param key_
-/// \param h
-/// \return
+/// Triple-tapped binary search - performs three comparisons in the final stage
+/// \tparam ForwardIt Forward iterator type
+/// \tparam Hash Hash function type for the value type
+/// \param first[in]: Iterator to the beginning of the range
+/// \param last[in]: Iterator to the end of the range
+/// \param key_[in]: Value to search for
+/// \param h[in]: Hash function to use for comparison
+/// \return Iterator to the last element equal to key_, or last if not found
 template<typename ForwardIt,
          typename Hash>
 #if __cplusplus > 201709L
 requires std::forward_iterator<ForwardIt> and
 		 HashFunction<Hash, typename ForwardIt::value_type>
 #endif
-ForwardIt tripletapped_binary_search(ForwardIt first,
+constexpr ForwardIt tripletapped_binary_search(ForwardIt first,
                                      ForwardIt last,
                                      const typename ForwardIt::value_type &key_,
                                      Hash h) noexcept {
-	std::size_t count = std::distance(first, last);
-	if (count == 0) {
+	size_t top = last - first;
+	if (top == 0) {
 		return last;
 	}
 
+	const auto key = h(key_);
 	auto bot = first;
-	auto top = last;
-	std::advance(top, -1);
-
-	while (count > 3ul) {
-		const size_t mid = count >> 1u;
-		if (key_ >= h(*(bot + mid))) {
-			std::advance(bot, mid);
+	while (top > 3) {
+		const size_t mid = top / 2;
+		if (key >= h(bot[mid])) {
+			bot += mid;
 		}
-
-		std::advance(top, -mid);
-		count = std::distance(first, top);
+		top -= mid;
 	}
 
-	while (count--) {
-		if (key_ == *(bot + count)) {
-			return bot + count;
+	while (top--) {
+		if (key == h(bot[top])) {
+			return bot + top;
 		}
 	}
 
@@ -818,11 +823,11 @@ ForwardIt tripletapped_binary_search(ForwardIt first,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t tripletapped_binary_search(const T *array,
+constexpr size_t tripletapped_binary_search(const T *array,
                                   const size_t array_size,
                                   const T key) noexcept {
 	if (array_size == 0) {
-		return 0;
+		return -1;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -853,11 +858,11 @@ size_t tripletapped_binary_search(const T *array,
 /// \param key[in]: Value to search for
 /// \return Index of the element equal to key, or -1 if not found
 template<typename T>
-size_t monobound_quaternary_search(const T *array,
+constexpr size_t monobound_quaternary_search(const T *array,
                                    const size_t array_size,
                                    const T key) noexcept {
 	if (array_size == 0) {
-		return 0;
+		return -1;
 	}
 
 	uint64_t bot = 0, mid, top = array_size;
@@ -1029,8 +1034,6 @@ template<typename It,
 	return begin + (h(*begin) < v);
 }
 
-namespace cryptanalysislib::search {
-
 	/// Find the first element not less than a value using a hash function
 	/// 
 	/// \tparam It Iterator type
@@ -1094,7 +1097,12 @@ namespace cryptanalysislib::search {
 												    It end,
 												    const typename It::value_type &value,
 												    Hash h) noexcept {
-		return branchless_lower_bound(begin, end, value, h);
+		const It it = branchless_lower_bound(begin, end, value, h);
+		// NOTE: the lower bound is only a match if it is equal to `value`
+		if ((it == end) || (h(*it) != h(value))) {
+			return end;
+		}
+		return it;
 	}
 
 	/// Search for a value in a sorted range using a custom comparator
@@ -1116,7 +1124,13 @@ namespace cryptanalysislib::search {
 												    It end,
 												    const typename It::value_type &value,
 												    Compare cmp) noexcept {
-		return branchless_lower_bound(begin, end, value, cmp);
+		const It it = branchless_lower_bound(begin, end, value, cmp);
+		// NOTE: the lower bound is only a match if it is equal to `value`,
+		// 	i.e. `!(value < *it)`
+		if ((it == end) || cmp(value, *it)) {
+			return end;
+		}
+		return it;
 	}
 
 	/// Search for a value in a sorted range using default less-than comparison
@@ -1126,8 +1140,7 @@ namespace cryptanalysislib::search {
 	/// \param end[in]: Iterator to the end of the range
 	/// \param value[in]: Value to search for
 	/// \return Iterator to the matching element, or end if not found
-	template<typename It,
-			 typename Compare>
+	template<typename It>
 #if __cplusplus > 201709L
 	requires std::forward_iterator<It>
 #endif
@@ -1135,7 +1148,7 @@ namespace cryptanalysislib::search {
 												    It end,
 												    const typename It::value_type &value) noexcept {
 		using T = It::value_type;
-		return binary_search(begin, end, value, std::less<T>());
+		return cryptanalysislib::binary_search(begin, end, value, std::less<T>());
 	}
 
 	namespace internal {
@@ -1162,21 +1175,23 @@ namespace cryptanalysislib::search {
 			using T = It::value_type;
 			using FF = It(*)(It, It, const T&, Compare);
 
-			static FF out;
-			static bool set = false;
-			if (set) [[likely]] {
-				return std::invoke(out, begin, end, value, cmp);
-			}
-
-			set = true;
-
 			// NOTE dont specify as const
 			static FF functions[] = {
 				branchless_lower_bound<It, Compare>
 			};
 
-			generic_dispatch(out, functions, 1, begin, end, value, cmp);
-			return binary_search_dispatch(begin, end, value, cmp);
+			// NOTE: the first call benchmarks all candidates once, the result
+			// 	is a function local static, whose initialisation is thread safe.
+			// 	Before, `set` was published before `out` (a concurrent first
+			// 	call jumped to `nullptr`) and only `functions[0]` was measured.
+			static const FF out = [&]() noexcept {
+				FF best = functions[0];
+				generic_dispatch(best, functions, sizeof(functions)/sizeof(functions[0]),
+				                 begin, end, value, cmp);
+				return best;
+			}();
+
+			return std::invoke(out, begin, end, value, cmp);
 		}
 
 		/// Dispatches to the most efficient binary search implementation with hash function
@@ -1201,15 +1216,6 @@ namespace cryptanalysislib::search {
 			using T = It::value_type;
 			using FF = It(*)(It, It, const T&, Hash);
 
-			static FF out;
-			static bool set = false;
-
-			if (set) [[likely]] {
-				return std::invoke(out, begin, end, value, h);
-			}
-
-			set = true;
-
 			// NOTE dont specify as const
 			static FF functions[] = {
 				branchless_lower_bound<It, Hash>,
@@ -1218,12 +1224,71 @@ namespace cryptanalysislib::search {
 				tripletapped_binary_search<It, Hash>,
 			};
 
-			const auto d = generic_dispatch(out, functions, 1, begin, end, value, h);
-			return binary_search_dispatch(begin, end, value, h);
+			// NOTE: the first call benchmarks all candidates once, the result
+			// 	is a function local static, whose initialisation is thread safe.
+			// 	Before, `set` was published before `out` (a concurrent first
+			// 	call jumped to `nullptr`) and only `functions[0]` was measured.
+			static const FF out = [&]() noexcept {
+				FF best = functions[0];
+				generic_dispatch(best, functions, sizeof(functions)/sizeof(functions[0]),
+				                 begin, end, value, h);
+				return best;
+			}();
+
+			return std::invoke(out, begin, end, value, h);
 		}
 
 
 	};
+
+	/// lower bound of `N` keys in `N` different sorted arrays at once:
+	/// out[i] = index of the first element >= keys[i] in arrays[i], or
+	/// lengths[i] if there is none.
+	/// The `N` (branchless) binary searches are interleaved in lock step, so
+	/// the CPU can overlap their cache misses (memory level parallelism),
+	/// instead of waiting for each search after the other.
+	/// Source: D. Lemire, "Parallel binary search" / "How fast can you do
+	/// 	binary searches in several arrays at once?"
+	/// \tparam N number of simultaneous searches
+	/// \tparam T element type
+	/// \param arrays[in]: N sorted (ascending) arrays
+	/// \param lengths[in]: their lengths
+	/// \param keys[in]: keys[i] is searched in arrays[i]
+	/// \param out[out]: result indices
+	template<const size_t N, typename T>
+#if __cplusplus > 201709L
+		requires std::totally_ordered<T>
+#endif
+	constexpr void lower_bound_multiple(const T *const *arrays,
+	                                    const size_t *lengths,
+	                                    const T *keys,
+	                                    size_t *out) noexcept {
+		static_assert(N > 0);
+		const T *base[N];
+		size_t n[N];
+		size_t maxn = 0;
+		for (size_t i = 0; i < N; ++i) {
+			base[i] = arrays[i];
+			n[i] = lengths[i];
+			maxn = n[i] > maxn ? n[i] : maxn;
+		}
+
+		while (maxn > 1) {
+			maxn = 0;
+			for (size_t i = 0; i < N; ++i) {
+				const size_t half = n[i] / 2u;
+				if (half) {
+					base[i] = (base[i][half] < keys[i]) ? base[i] + half : base[i];
+					n[i] -= half;
+				}
+				maxn = n[i] > maxn ? n[i] : maxn;
+			}
+		}
+
+		for (size_t i = 0; i < N; ++i) {
+			out[i] = size_t(base[i] - arrays[i]) + size_t((n[i] == 1u) && (base[i][0] < keys[i]));
+		}
+	}
 };
 
 #endif

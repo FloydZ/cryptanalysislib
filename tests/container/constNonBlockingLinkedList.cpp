@@ -233,6 +233,26 @@ TEST(ConstFreeList, MultiThreaded) {
 	}
 }
 
+/// ConstFreeList with an explicitly given allocator
+TEST(ConstFreeList, allocator) {
+	ConstFreeList<uint64_t, cryptanalysislib::allocator> l;
+	for (uint64_t i = 0; i < 100; ++i) { l.insert(i); }
+	EXPECT_TRUE(l.contains(42));
+	EXPECT_FALSE(l.contains(1000));
+	l.clear();
+	EXPECT_FALSE(l.contains(42));
+}
+
+/// FreeList with an explicitly given allocator
+TEST(FreeList, allocator) {
+	FreeList<uint64_t, cryptanalysislib::allocator> l;
+	for (uint64_t i = 1; i <= 100; ++i) { EXPECT_EQ(l.insert(i), 0); }
+	EXPECT_EQ(l.size(), 100u);
+	for (uint64_t i = 1; i <= 100; ++i) { EXPECT_EQ(l.contains(i), 1); }
+	EXPECT_EQ(l.remove(50), 0);
+	EXPECT_EQ(l.contains(50), 0);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

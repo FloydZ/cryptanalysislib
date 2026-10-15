@@ -30,6 +30,14 @@ If you define `SDEFL_IMPLEMENTATION` before including this file, it will
 compile the implementation . Make sure that you only include
 this file implementation in *one* C or C++ file to prevent collisions.
 
+NOTE: in cryptanalysislib this header always contains the implementation
+(inline functions), `SDEFL_IMPLEMENTATION` is not needed:
+    struct sdefl s;
+    std::vector<uint8_t> out(sdefl_bound(n));
+    const int len = sdeflate(&s, out.data(), in, n, SDEFL_LVL_DEF);
+    // decompress: sinflate(dst, n, out.data(), len) from `compression/inflate.h`
+Tests: `tests/compression/deflate.cpp`, benchmarks: `bench/compression/deflate.cpp`.
+
 ### Benchmark
 
 | Compressor name         | Compression| Decompress.| Compr. size | Ratio |
@@ -533,7 +541,9 @@ static void sdefl_flush(unsigned char **dst,
 	switch (sdefl_blk_type(s, blk_len, item_cnt, freqs, lens)) {
 		case SDEFL_BLK_UCOMPR: {
 			/* uncompressed blocks */
-			int n = sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE);
+			/* NOTE: at least one (empty) block. Before, an empty input wrote
+			 * 	no block at all, i.e. no final block: an invalid stream. */
+			int n = blk_len ? sdefl_div_round_up(blk_len, SDEFL_RAW_BLK_SIZE) : 1;
 			for (i = 0; i < n; ++i) {
 				int fin = is_last && (i + 1 == n);
 				int amount = blk_len < SDEFL_RAW_BLK_SIZE ? blk_len : SDEFL_RAW_BLK_SIZE;
@@ -648,6 +658,10 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	for (n = 0; n < SDEFL_HASH_SIZ; ++n) {
 		s->tbl[n] = SDEFL_NIL;
 	}
+	/* NOTE: `freq` and `seq_cnt` are read before they are written (first
+	 * `sdefl_flush`), so reset them: callers may pass an uninitialized state. */
+	memset(&s->freq, 0, sizeof(s->freq));
+	s->seq_cnt = 0;
 	do {int blk_begin = i;
 		int blk_end = ((i + SDEFL_BLK_MAX) < in_len) ? (i + SDEFL_BLK_MAX) : in_len;
 		while (i < blk_end) {
@@ -705,13 +719,29 @@ sdefl_compr(struct sdefl *s, unsigned char *out, const unsigned char *in,
 	assert(s->bitcnt == 0);
 	return (int)(q - out);
 }
-extern int
+/// Compresses `in` into a raw Deflate (RFC 1951) stream, decompress with
+/// `sinflate` (`compression/inflate.h`) or zlib's `inflate` (window bits -15).
+/// \param s[in]: working memory (~1 MB, better not on the stack), reusable
+/// \param out[out]: at least `sdefl_bound(n)` bytes
+/// \param in[in]: `n` bytes to compress
+/// \param n[in]: number of input bytes
+/// \param lvl[in]: compression level, [SDEFL_LVL_MIN, SDEFL_LVL_MAX], 5 is the default
+/// \return number of bytes written to `out`
+inline int
 sdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	s->bits = s->bitcnt = 0;
 	return sdefl_compr(s, (unsigned char*)out, (const unsigned char*)in, n, lvl);
 }
 
-extern int
+/// Same as `sdeflate`, but with the zlib (RFC 1950) header and the adler32
+/// checksum, decompress with `zsinflate` or zlib's `uncompress`.
+/// \param s[in]: working memory
+/// \param out[out]: at least `sdefl_bound(n)` bytes
+/// \param in[in]: `n` bytes to compress
+/// \param n[in]: number of input bytes
+/// \param lvl[in]: compression level, [SDEFL_LVL_MIN, SDEFL_LVL_MAX]
+/// \return number of bytes written to `out`
+inline int
 zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	int p = 0;
 	unsigned a = 0;
@@ -723,14 +753,17 @@ zsdeflate(struct sdefl *s, void *out, const void *in, int n, int lvl) {
 	q += sdefl_compr(s, q, (const unsigned char*)in, n, lvl);
 
 	/* append adler checksum */
-	a = adler32(1, (const unsigned char*)in, n);
+	a = cryptanalysislib::adler32(1, (const unsigned char*)in, n);
 	for (p = 0; p < 4; ++p) {
 		sdefl_put(&q, s, (a >> 24) & 0xFF, 8);
 		a <<= 8;
 	}
 	return (int)(q - (unsigned char*)out);
 }
-extern int
+/// \param len[in]: number of input bytes
+/// \return upper bound on the output size of `sdeflate`/`zsdeflate` for
+/// 	`len` input bytes (incompressible data is stored in raw blocks)
+inline int
 sdefl_bound(int len) {
 	int max_blocks = 1 + sdefl_div_round_up(len, SDEFL_RAW_BLK_SIZE);
 	int bound = 5 * max_blocks + len + 1 + 4 + 8;

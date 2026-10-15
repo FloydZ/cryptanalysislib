@@ -15,19 +15,40 @@ TYPED_TEST_SUITE_P(TestRingBuffer);
 TYPED_TEST_P(TestRingBuffer, simple) {
     constexpr static size_t s = 127;
     RingBuffer<TypeParam> d(s);
-    for (TypeParam i = 0; i < s; i++) {
-        const size_t ret = d.push(i);
-        EXPECT_EQ(ret, i + 1);
+    EXPECT_EQ(d.capacity(), s);
+    for (size_t i = 0; i < s; i++) {
+        d.insert(TypeParam(i));
+        EXPECT_EQ(d.size(), i + 1);
     }
-    
-    for (TypeParam i = 0; i < s; i++) {
+
+    for (size_t k = 0; k < s; k++) {
         TypeParam t;
-        const size_t ret = d.pop(t);
-        EXPECT_EQ(ret, i + 1);
+        // read returns k+1 on success
+        EXPECT_EQ(d.read(k, t), k + 1);
+        EXPECT_EQ(t, TypeParam(k));
+    }
+
+    TypeParam t;
+    EXPECT_EQ(d.read(s, t), 0);
+}
+
+TYPED_TEST_P(TestRingBuffer, overwrite) {
+    // inserting into a full buffer overwrites the oldest entry
+    constexpr static size_t s = 127, extra = 50;
+    RingBuffer<TypeParam> d(s);
+    for (size_t i = 0; i < s + extra; i++) {
+        d.insert(TypeParam(i));
+    }
+
+    EXPECT_EQ(d.size(), s);
+    for (size_t k = 0; k < s; k++) {
+        TypeParam t;
+        EXPECT_EQ(d.read(k, t), k + 1);
+        EXPECT_EQ(t, TypeParam(k + extra));
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(TestRingBuffer, simple);
+REGISTER_TYPED_TEST_SUITE_P(TestRingBuffer, simple, overwrite);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, TestRingBuffer, MyTypes);
 

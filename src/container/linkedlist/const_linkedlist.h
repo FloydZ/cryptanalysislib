@@ -6,6 +6,7 @@
 #endif
 
 #include <atomic>
+#include <memory>
 #include <cstdlib>
 #include <iostream>
 #include <iterator>
@@ -43,6 +44,22 @@ private:
 			this->data = t.data;
 		}
 	};
+
+	using NodeAllocator = Allocator<Node>;
+	using NodeTraits = std::allocator_traits<NodeAllocator>;
+
+	/// allocates a node with `Allocator` (assumed stateless and thread safe)
+	static Node *create_node(const T &data) noexcept {
+		NodeAllocator a{};
+		Node *n = NodeTraits::allocate(a, 1);
+		return ::new (static_cast<void *>(n)) Node(data);
+	}
+
+	static void destroy_node(Node *n) noexcept {
+		n->~Node();
+		NodeAllocator a{};
+		NodeTraits::deallocate(a, n, 1);
+	}
 
 	struct Iterator {
 	public:
@@ -91,7 +108,8 @@ private:
 	/// allocate the first `LEN` nodes into this buffer,
 	constexpr static bool USE_BUFFER = false;
 	constexpr static size_t LEN = 1024;
-	Node __internal_array[LEN];
+	// NOTE: never used. Before, every list contained `LEN` nodes.
+	Node __internal_array[USE_BUFFER ? LEN : 1];
 
 	/// keep track of the size of the linked list
 	std::atomic<size_t> __size = 0;
@@ -133,8 +151,7 @@ public:
 	/// returns 0 on success. This function cannot fail
 	constexpr int insert_front(const T &data) noexcept {
 		Node *current_head = head.load();
-		// TODO replace with allocator
-		auto new_head = new Node(data);
+		Node *new_head = create_node(data);
 		do {
 			new_head->next.store(current_head);
 		} while (!head.compare_exchange_weak(current_head,
@@ -158,10 +175,12 @@ public:
 		Node *c = head.load(), *next;
 		while (c != nullptr) {
 			next = c->next.load();
-			delete c;
+			destroy_node(c);
 			c = next;
 		}
 
+		// NOTE: otherwise `head` points to a freed node
+		head.store(nullptr);
 		__size = 0;
 	}
 

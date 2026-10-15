@@ -41,7 +41,7 @@ static void upper_bound_standard_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = upper_bound_breaking_linear_search(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::upper_bound_breaking_linear_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 				return e1 & MASK;
 			});
@@ -55,7 +55,7 @@ static void lower_bound_standard_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = lower_bound_standard_binary_search(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::lower_bound_standard_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
 			});
@@ -67,7 +67,7 @@ static void upper_bound_monobound_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = upper_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::upper_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
 			});
@@ -79,7 +79,7 @@ static void lower_bound_monobound_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = lower_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::lower_bound_monobound_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
 			});
@@ -91,7 +91,7 @@ static void tripletapped_binary_search_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = tripletapped_binary_search(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::tripletapped_binary_search(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
 			});
@@ -103,7 +103,7 @@ static void branchless_lower_bound_bench(benchmark::State& state) {
 	uint64_t errors = 0;
 	for (auto _ : state) {
 		const size_t search = rng() % state.range(0);
-		auto v = branchless_lower_bound(data.begin(), data.begin() + state.range(0), data[search],
+		auto v = cryptanalysislib::branchless_lower_bound(data.begin(), data.begin() + state.range(0), data[search],
 			[](const T e1) {
 			  return e1 & MASK;
 			});

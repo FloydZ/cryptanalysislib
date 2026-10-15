@@ -47,6 +47,36 @@ hm.insert(key, value);
 ```
 
 
+ParallelBucketSort:
+===================
+`sort.h`: `ParallelBucketSort<ConfigParallelBucketSort, List, LimbType, IndexType, HashFunction>`,
+a bucket hashmap for the label parts `[b0, b2)` of a `List`, filled by
+multiple threads. The bits `[b0, b1)` select the bucket, the buckets are
+sorted on `[b1, b2)`. Tests: `tests/binary/sort.cpp`.
+
+thashmap:
+=========
+`thashmap.h`: port of https://github.com/glk/thashmap. Unlike the hashmaps
+above it grows, supports deletion, and is ordered: an intrusive radix trie for
+30 bit keys (6 levels of 5 bit sub keys, nodes only store their present
+children), whose nodes come from a `thm_pool` of 4 KiB pages.
+
+```C
+struct elem { uint32_t key; thm_entry entry; };
+using map_t = thashmap<elem, offsetof(elem, entry), offsetof(elem, key)>;
+
+thm_pool pool;
+map_t m(pool);
+elem e{42, {}};
+while (m.insert(&e) == nullptr) { pool.new_block(); } // the pool is full
+thm_bucket *b = m.find(42);                           // all elements with key 42
+for (elem *x = map_t::bucket_first(b); x; x = map_t::bucket_next(x)) { ... }
+thm_cursor c;                                         // ordered iteration
+for (b = m.first(&c); b; b = map_t::next(&c)) { ... }
+m.remove(&e);
+```
+Tests: `tests/container/thashmap.cpp`.
+
 # IMAP
 
 ```C

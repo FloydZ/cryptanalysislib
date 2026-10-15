@@ -9,8 +9,6 @@
 
 #include "helper.h"
 
-// TODO doc and tests
-
 namespace cryptanalysislib {
 	struct config_array {
 		// force the container pointer to be aligned in bytes
@@ -25,15 +23,18 @@ namespace cryptanalysislib {
 	constexpr config_array std_config_array = config_array();
 
 
-	/// \tparam T
-	/// \tparam N
-	/// \tparam config
+	/// Fixed size array whose operations (map, push_back/front, concat,
+	/// slice, insert, mergesort, ...) are all constexpr and return new arrays
+	/// (in the spirit of "constexpr all the things").
+	/// \tparam T element type
+	/// \tparam N number of elements
+	/// \tparam config alignment of the data
 	template<typename T,
 	         size_t N,
 	         const config_array &config = std_config_array>
 	class const_array {
 	public:
-		using const_iterator = const T *const;
+		using const_iterator = const T *;
 		using iterator = T *;
 
 		/// default constructor
@@ -77,12 +78,15 @@ namespace cryptanalysislib {
 			return this->operator[](n);
 		}
 
-		constexpr iterator begin() const noexcept { return &m_data[0]; }
-		constexpr iterator cbegin() const noexcept { return &m_data[0]; }
-		constexpr iterator end() const noexcept { return &m_data[N]; }
-		constexpr iterator cend() const noexcept { return &m_data[N]; }
+		constexpr iterator begin() noexcept { return &m_data[0]; }
+		constexpr const_iterator begin() const noexcept { return &m_data[0]; }
+		constexpr const_iterator cbegin() const noexcept { return &m_data[0]; }
+		constexpr iterator end() noexcept { return &m_data[N]; }
+		constexpr const_iterator end() const noexcept { return &m_data[N]; }
+		constexpr const_iterator cend() const noexcept { return &m_data[N]; }
 
-		// map a function over an const_array (or two)
+		/// map a function over an const_array (or two)
+		/// \return {f(a[0]), ..., f(a[N-1])}
 		template<typename F>
 		constexpr auto map(F &&f) const -> const_array<decltype(f(T{})), N> {
 			return map(std::forward<F>(f), std::make_index_sequence<N>());
@@ -93,44 +97,46 @@ namespace cryptanalysislib {
 			return map(std::forward<F>(f), rhs, std::make_index_sequence<(N > M ? M : N)>());
 		}
 
-		// const_array comparison
+		/// lexicographical comparison
+		/// \return true if *this < rhs
 		template<size_t M>
 		constexpr bool less(const const_array<T, M> &rhs) const {
 			return less_r(rhs.begin(), rhs.end(), 0);
 		}
 
-		// push_back, push_front
+		/// \return a copy with `t` appended
 		constexpr const_array<T, N + 1> push_back(const T &t) const {
 			return push_back(t, std::make_index_sequence<N>());
 		}
 
+		/// \return a copy with `t` prepended
 		constexpr const_array<T, N + 1> push_front(const T &t) const {
 			return push_front(t, std::make_index_sequence<N>());
 		}
 
-		// concatenate two arrays
+		/// \return the concatenation of *this and `a`
 		template<size_t M>
 		constexpr const_array<T, (M + N)> concat(const const_array<T, M> &a) const {
 			return concat(a, std::make_index_sequence<N>(), std::make_index_sequence<M>());
 		}
 
-		///
-		/// \tparam A
-		/// \tparam B
-		/// \return
+		/// \tparam A first index
+		/// \tparam B end index (exclusive)
+		/// \return the elements [A, B)
 		template<size_t A, size_t B>
 		requires (A < B) && (B <= N)
 		constexpr const_array<T, (B - A)> slice() const {
 			return {&m_data[A], std::make_index_sequence<(B - A)>()};
 		}
 
-		// tail (omit first M elements) or init (omit last M elements)
+		/// \return all but the first M elements
 		template<size_t M = 1>
 		requires (M < N)
 		constexpr const_array<T, (N - M)> tail() const {
 			return slice<M, N>();
 		}
 
+		/// \return all but the last M elements
 		template<size_t M = 1>
 		requires (M < N)
 		constexpr const_array<T, (N - M)> init() const {
@@ -141,6 +147,8 @@ namespace cryptanalysislib {
 		template<size_t I, typename = void>
 		struct inserter;
 
+		/// \tparam I position, 0 or N (front or back)
+		/// \return a copy with `t` inserted at position I
 		template<size_t I>
 		constexpr const_array<T, N + 1> insert(const T &t) const {
 			return inserter<I>()(*this, t);
@@ -153,22 +161,23 @@ namespace cryptanalysislib {
 		template<size_t I, size_t J, typename = void>
 		struct merger;
 
-		///
-		/// \tparam F
-		/// \param f
-		/// \return
+		/// stable mergesort
+		/// \tparam F less-than comparison
+		/// \param f comparison function
+		/// \return a sorted copy
 		template<typename F>
 		constexpr const_array<T, N> mergesort(F &&f) const {
 			return sorter<N>::sort(*this, std::forward<F>(f));
 		}
 
-		///
-		/// \tparam P
-		/// \param p
-		/// \return
+		/// stable partition
+		/// \tparam P unary predicate
+		/// \param p predicate
+		/// \return a copy, the elements with p(x) == true first
 		template<typename P>
 		constexpr const_array<T, N> partition(P &&p) const {
-			return mergesort(pred_to_less_t<P>(p));
+			// NOTE: forward, a named `p` does not bind to `P &&`
+			return mergesort(pred_to_less_t<P>(std::forward<P>(p)));
 		}
 
 		///
@@ -194,13 +203,14 @@ namespace cryptanalysislib {
 		constexpr auto map(F &&f, const const_array<U, M> &rhs, std::index_sequence<Is...>) const
 		-> const_array<decltype(f(T{}, U{})), sizeof...(Is)> {
 			return const_array<decltype(f(T{}, U{})), sizeof...(Is)>
-					{f(m_data[Is], rhs.m_data[Is])...};
+					{f(m_data[Is], rhs[Is])...}; // NOTE: `rhs.m_data` is private for U != T
 		}
 
 		constexpr bool less_r(const T *b, const T *e, size_t i) const {
 			return b == e ? false :         // other has run out
 			       i == N ? true :          // this has run out
 			       m_data[i] < *b ? true :  // elementwise less
+			       *b < m_data[i] ? false : // elementwise greater
 			       less_r(b + 1, e, i + 1); // recurse
 		}
 

@@ -26,10 +26,10 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 	// using LoadType = typename HML0::load_type;
 	HML0 *hm = new HML0{};
 
-	join2lists_on_iT_v2<k_lower, k_upper, bucketsize, nthreads, chunks>(policy, out, hm, L1, L2, target);
+	const size_t ret = join2lists_on_iT_v2<k_lower, k_upper, bucketsize, nthreads, chunks>(policy, out, hm, L1, L2, target);
 
 	delete hm;
-	return out.load();
+	return ret;
 }
 
 template<class List,
@@ -59,6 +59,12 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 		return join2lists_on_iT_v2<k_lower, k_upper>(out, L1, L2, *hm, target);
 	}
 
+	// NOTE: each chunk `tid` writes its matches into its own block
+	// 	[out.start_pos(tid), out.start_pos(tid) + out.load(tid)) of `out`
+	assert(out.threads() == chunks);
+	assert(L1.threads() == chunks);
+	assert(L2.threads() == chunks);
+
 	auto &task_pool = *policy.pool();
 	std::vector<std::future<size_t>> futures;
 	for (size_t tid = 0; tid < chunks; tid++) {
@@ -80,6 +86,7 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 			LabelType sigma_t;
 			LoadType load = 0;
 			size_t out_load = 0;
+			const size_t out_start = out.start_pos(tid);
 			const size_t out_size = out.size(tid);
 			const size_t spos = L1.start_pos(tid);
 			const size_t epos = L1.end_pos(tid);
@@ -88,15 +95,16 @@ size_t Tree_T<List, config>::join2lists_on_iT_v2(ExecPolicy &&policy,
 
 				size_t s = hm->find(sigma_t.value(), load);
 				for (size_t k = s; k < s + load; ++k) {
+					if (out_load == out_size) { goto finish; }
 					const size_t j = hm->ptr(k);
 
-					ElementType::template sub<k_lower, k_upper, -1u>(out[out_load], L1[i], L2[j]);
-
+					// NOTE: a collision means L1[i] + L2[j] == target on [k_lower, k_upper)
+					ElementType::template add<k_lower, k_upper, -1u>(out[out_start + out_load], L1[i], L2[j]);
 					out_load += 1;
-					if (out_load == out_size) { goto finish; }
 				}
 			}
 		finish:
+			out.set_load(out_load, tid);
 			return out_load;
 		}));
 	}

@@ -25,7 +25,7 @@ static const int kTestSize = 300;
 
 static char data[kDataSize];
 
-static int errors = 0;  // global error count
+[[maybe_unused]] static int errors = 0;  // global error count
 
 // Initialize data to pseudorandom values.
 void setup() {

@@ -16,12 +16,12 @@ namespace detail {
     {
         std::vector<V1> new_loopers;
 
-        auto r2 = rhs.rng;
+        auto r2 = rhs.rang;
         bool included = false;
         for (auto&& l : loopers) {
             std::visit(
                 [&](auto&& lhs) {
-                    auto r1 = lhs.rng;
+                    auto r1 = lhs.rang;
 
                     if (r1.start == r2.start && r1.end == r2.end) {
                         // Equal ranges

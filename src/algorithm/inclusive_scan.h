@@ -91,8 +91,10 @@ namespace cryptanalysislib {
 						OutputIt d_first,
 						const typename InputIt::value_type init,
 						BinaryOp op) noexcept {
+		// NOTE: the parallel `prefixsum` starts with the `ExecPolicy` template
+		// 	argument (`<InputIt, OutputIt, BinaryOp, config>` did not compile)
 		return algorithm::prefixsum
-			<InputIt, OutputIt, BinaryOp, config>
+			<ExecPolicy, InputIt, OutputIt, BinaryOp, config>
 			(std::forward<ExecPolicy>(policy), first1, last1, d_first, init, op);
 	}
 } // end namespace cryptanalysislib

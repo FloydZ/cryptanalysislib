@@ -7,8 +7,11 @@
 #include <iostream>
 #include <random>
 #include <set>
+#include <vector>
 
 #include "container/btree_set.h"
+
+using namespace cryptanalysislib;
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -166,6 +169,24 @@ TEST(BTreeSet, RemoveRandom) {
 					throw std::runtime_error("Contain test mismatch");
 			}
 		}
+	}
+}
+
+/// iteration in ascending order, against std::set, for several degrees
+TEST(BTreeSet, iterator) {
+	for (const uint32_t degree : {2u, 3u, 7u, 30u}) {
+		BTreeSet<long> b(degree);
+		std::set<long> e;
+		EXPECT_TRUE(b.begin() == b.end());
+		for (int i = 0; i < 5000; ++i) {
+			const long v = long(randGen() % 3000);
+			if (randGen() % 4) { b.insert(v); e.insert(v); } else { b.erase(v); e.erase(v); }
+		}
+		std::vector<long> got(b.begin(), b.end());
+		EXPECT_EQ(got, std::vector<long>(e.begin(), e.end())) << degree;
+		size_t c = 0;
+		for (const long x : b) { (void)x; ++c; }
+		EXPECT_EQ(c, e.size());
 	}
 }
 

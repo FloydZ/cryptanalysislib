@@ -21,13 +21,14 @@ TEST(upper_bound_linear_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
-	auto a = upper_bound_linear_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::upper_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
-			 return e1 == e2;
+			 return e1 < e2;
 		}
 	);
 
-	EXPECT_EQ(solution_index, distance(data.begin(), a));
+	// first element greater than `search`
+	EXPECT_EQ(solution_index + NR_SOLS, distance(data.begin(), a));
 }
 
 TEST(lower_bound_linear_search, simple) {
@@ -35,9 +36,9 @@ TEST(lower_bound_linear_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
-	auto a = lower_bound_linear_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::lower_bound_linear_search(data.begin(), data.end(), search,
 		[](const T &e1, const T &e2) -> bool {
-			 return e1 == e2;
+			 return e1 < e2;
 		}
 	);
 
@@ -49,7 +50,7 @@ TEST(upper_bound_breaking_linear_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
-	auto a = upper_bound_breaking_linear_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::upper_bound_breaking_linear_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1;
 		}
@@ -63,13 +64,34 @@ TEST(lower_bound_breaking_linear_search, simple) {
 	size_t solution_index;
 	T search = cryptanalysislib::random_data(data, solution_index, SIZE, NR_SOLS, MASK);
 
-	auto a = lower_bound_breaking_linear_search(data.begin(), data.end(), search,
+	auto a = cryptanalysislib::lower_bound_breaking_linear_search(data.begin(), data.end(), search,
 		[](const T &e1) -> T {
 		  return e1;
 		}
 	);
 
 	EXPECT_EQ(solution_index, distance(data.begin(), a));
+}
+
+TEST(linear_search, simd) {
+	for (size_t n = 0; n < 150; ++n) {
+		std::vector<uint16_t> data(n);
+		for (size_t i = 0; i < n; ++i) { data[i] = uint16_t(i * 3u + 1u); }
+		for (size_t p = 0; p < n; ++p) {
+			const uint16_t key = data[p];
+			EXPECT_EQ(cryptanalysislib::internal::linear_search_simd(data.data(), n, key), p);
+			EXPECT_EQ(cryptanalysislib::internal::linear_search_dispatch(data.data(), n, key), p);
+			EXPECT_EQ(cryptanalysislib::linear_search(data.begin(), data.end(), key) - data.begin(), (long)p);
+		}
+
+		// not found
+		EXPECT_EQ(cryptanalysislib::internal::linear_search_simd(data.data(), n, uint16_t(0)), n);
+		EXPECT_EQ(cryptanalysislib::linear_search(data.begin(), data.end(), uint16_t(0)), data.end());
+	}
+
+	// non unsigned/contiguous fallback
+	std::vector<int> d{5, -3, 7};
+	EXPECT_EQ(cryptanalysislib::linear_search(d.begin(), d.end(), -3) - d.begin(), 1);
 }
 
 int main(int argc, char **argv) {

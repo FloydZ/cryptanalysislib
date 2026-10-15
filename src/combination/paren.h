@@ -1,5 +1,12 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <type_traits>
+
+#include "algorithm/bits/popcount.h"
+#include "combination/enumerator.h"
+
 /// Class for enumerating parenthesis-like structures in binary representation
 /// Provides utilities for generating, validating, and manipulating binary words
 /// that correspond to valid parenthesis expressions
@@ -11,9 +18,25 @@ private:
     constexpr static size_t BITS = sizeof(T) * 8;
     
     /// Current value in the enumeration
-    T val = first_parenword();
+    T val;
+
+    /// \return the word with the lowest `n` bits set
+    [[nodiscard]] constexpr static inline T first_comb(const T n) noexcept {
+        if (n == 0) { return 0; } // shift with BITS is undefined
+        return T(T(~T(0)) >> (BITS - n));
+    }
+
+    /// \return the lowest unset bit of x (as a mask)
+    [[nodiscard]] constexpr static inline T lowest_zero(const T x) noexcept {
+        const T t = T(~x);
+        return T(t & T(-t));
+    }
 
 public:
+    /// \param n[in]: number of parenthesis pairs to enumerate
+    constexpr explicit enumeration_parenthesis(const T n = 1) noexcept :
+        val(first_parenword(n)) {}
+
     /// Determines if a binary word represents a valid parenthesis structure
     /// 
     /// Binary words < 16, those that are valid
@@ -102,7 +125,8 @@ public:
     /// \param n[in]: number of parenthesis pairs
     /// \return binary word representing the last valid parenthesis structure with n pairs
     constexpr static inline T last_parenword(const T n) noexcept {
-        return  0x5555555555555555UL >> (BITS-2*n);
+        // 0x5555... in the width of T
+        return T(T(T(~T(0)) / 3u) >> (BITS - 2*n));
     }
     
     /// Computes the next parenthesis word in colex (co-lexicographic) order
@@ -134,12 +158,12 @@ public:
             x ^= (b>>1);
             return x;
         } else {
-            const T m0 = -1UL/3;
+            const T m0 = T(std::make_unsigned_t<T>(-1)/3);
             T t = x ^ m0;               // XOR t, x, m0;
             if ( (t&x)==0 )  return 0;      // current is last
             T u = (t-1) ^ t;            // SUBU u, t, 1;  XOR u, t, u;
             T v = x | u;                // OR v, x, u;
-            T y = bit_count( u & m0 );  // SADD y, u, m0;
+            T y = cryptanalysislib::popcount::popcount<T>( u & m0 );  // SADD y, u, m0;
             T w = v + 1;                // ADDU w, v, 1;
             t = v & ~w;                     // ANDN t, v, w;
             y = t >> y;                     // SRU y, t, y;
@@ -148,11 +172,40 @@ public:
         }
     }
 
-    /// Returns the current parenthesis word and advances to the next
-    /// \return current parenthesis word
-    [[nodiscard]] constexpr inline T next() noexcept {
-        const T ret = val;
-        val = next(val);
-        return ret;
+    /// \return the current parenthesis word
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return val;
+    }
+
+    /// Advances to the next parenthesis word
+    /// \return false if the current word is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        const T t = next(val);
+        if (t == 0) { return false; }
+        val = t;
+        return true;
+    }
+
+    /// Moves to the previous parenthesis word: the words are in ascending
+    /// order, so it is the next smaller word with the same number of bits,
+    /// which is a parenthesis word (on average about n+1 steps)
+    /// \return false if the current word is the first one (unchanged)
+    constexpr inline bool previous() noexcept {
+        const T k = T(cryptanalysislib::popcount::popcount<T>(val));
+        if (val == first_parenword(k)) { return false; }
+        T x = val;
+        do {
+            // previous word with the same number of bits: the complement
+            // of the next (colex) word of the complement
+            T y = T(~x);
+            const T r = T(y & T(-y));
+            y = T(y + r);
+            T z = T(y & T(-y));
+            z = T(z - r);
+            while (0 == (z & 1u)) { z >>= 1u; }
+            x = T(~T(y | T(z >> 1u)));
+        } while (!is_parenword(x));
+        val = x;
+        return true;
     }
 };

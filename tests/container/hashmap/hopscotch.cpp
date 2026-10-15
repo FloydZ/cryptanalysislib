@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
+#include <ranges>
+#include <vector>
 
 #include "container/hashmap.h"
 
@@ -54,6 +56,27 @@ TEST(hopscotch, simple) {
 		std::cout << "{" << key_value.first << ", " << key_value.second << "}" << std::endl;
 	}
 
+}
+
+/// range constructor and insert_range
+TEST(hopscotch, ranges) {
+	std::vector<std::pair<int, int>> v;
+	for (int i = 0; i < 1000; ++i) { v.emplace_back(i, i * i); }
+#ifdef __cpp_lib_ranges_to_container
+	hopscotch_map<int, int> m(std::from_range, v);
+	EXPECT_EQ(m.size(), 1000u);
+	for (int i = 0; i < 1000; ++i) { EXPECT_EQ(m.at(i), i * i); }
+#endif
+
+	// a view, duplicates keep the first value
+	auto odd = v | std::views::filter([](const auto &p) { return p.first % 2; });
+	hopscotch_map<int, int> m2;
+	m2.insert_range(odd);
+	m2.insert_range(std::vector<std::pair<int, int>>{{1, -1}, {2000, 4}});
+	EXPECT_EQ(m2.size(), 501u);
+	EXPECT_EQ(m2.at(1), 1);
+	EXPECT_EQ(m2.at(2000), 4);
+	EXPECT_EQ(m2.count(2), 0u);
 }
 
 int main(int argc, char **argv) {

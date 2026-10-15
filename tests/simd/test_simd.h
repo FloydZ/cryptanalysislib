@@ -13,7 +13,8 @@
 }
 
 // the apple compiler cannot handle to much constexpr magic
-#if !defined(__APPLE__)
+// NOTE: same on ARM: the NEON `_Xint8x16_t` calls non-constexpr intrinsics
+#if !defined(__APPLE__) && !defined(USE_ARM)
 TEST(T, set1) {
 	constexpr S t1 = S::set1(0);
 	for (uint32_t i = 0; i < S::LIMBS; ++i) {
@@ -235,78 +236,35 @@ TEST(T, reverse) {
 	}
 }
 
+/// gt/lt/eq for up to 128 lanes, values 0, 1, max-1, max
 TEST(T, compare) {
-	if constexpr (S::LIMBS <= 64) {
-		S t1 = S::set1(1);
-		S t2 = S::set1(0);
-		uint64_t v1 = S::gt(t2, t1);
-		uint64_t v2 = S::lt(t2, t1);
-		uint64_t v3 = S::gt(t1, t2);
-		uint64_t v4 = S::lt(t1, t2);
-
-		uint64_t k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
-		EXPECT_EQ(v1, (S::limb_type)0);
-		EXPECT_EQ(v2, k2);
-		EXPECT_EQ(v3, k2);
-		EXPECT_EQ(v4, (S::limb_type)0);
-
+	using L = typename S::limb_type;
+	constexpr L values[4] = {L(0), L(1), L(-2ll), L(-1ll)};
+	alignas(64) L a[S::LIMBS], b[S::LIMBS];
+	for (uint32_t r = 0; r < 100; ++r) {
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
-			t2.d[i] = 1;
-
-			k2 ^= 1ull << i;
-
-			v1 = S::gt(t2, t1);
-			v2 = S::lt(t2, t1);
-			v3 = S::gt(t1, t2);
-			v4 = S::lt(t1, t2);
-
-			EXPECT_EQ(v1, (S::limb_type)0);
-			EXPECT_EQ(v2, k2);
-			EXPECT_EQ(v3, k2);
-			EXPECT_EQ(v4, (S::limb_type)0);
+			a[i] = values[rng() % 4u];
+			b[i] = values[rng() % 4u];
 		}
-
-
-		t1 = S::set1((S::limb_type)-1ull);
-		t2 = S::set1(0);
-		v1 = S::gt(t2, t1);
-		v2 = S::lt(t2, t1);
-		v3 = S::gt(t1, t2);
-		v4 = S::lt(t1, t2);
-
-		k2 = S::LIMBS == 64 ? -1ull : (1ull << (S::LIMBS)) - 1ull;
-		EXPECT_EQ(v1, (S::limb_type)0);
-		EXPECT_EQ(v2, k2);
-		EXPECT_EQ(v3, k2);
-		EXPECT_EQ(v4, (S::limb_type)0);
-
-		// NOTE: only valid test if unsigned
+		const S t1 = S::template load<false>(a), t2 = S::template load<false>(b);
+		const auto g = S::gt(t1, t2);
+		const auto l = S::lt(t1, t2);
+		const auto e = S::eq(t1, t2);
 		for (uint32_t i = 0; i < S::LIMBS; ++i) {
-			t2.d[i] = 1;
-
-			v1 = S::gt(t2, t1);
-			v2 = S::lt(t2, t1);
-			v3 = S::gt(t1, t2);
-			v4 = S::lt(t1, t2);
-
-			EXPECT_EQ(v1, (S::limb_type)0);
-			EXPECT_EQ(v2, k2);
-			EXPECT_EQ(v3, k2);
-			EXPECT_EQ(v4, (S::limb_type)0);
+			EXPECT_EQ(bool((g >> i) & 1u), a[i] > b[i]);
+			EXPECT_EQ(bool((l >> i) & 1u), a[i] < b[i]);
+			EXPECT_EQ(bool((e >> i) & 1u), a[i] == b[i]);
 		}
 	}
 }
 
 TEST(T, move) {
-	if constexpr ((S::LIMBS <= 64) && ((S::LIMBS * sizeof(S::limb_type)) <= 64)) {
-		S t1 = S::set1(0);
-		uint64_t val = 0;
-		for (uint32_t i = 0; i < S::LIMBS; ++i) {
-			const uint64_t ret = S::move(t1);
-			EXPECT_EQ(ret, val);
-
-			t1[i] = (S::limb_type)-1ull;
-			val ^= 1ull << i;
+	S t1 = S::set1(0);
+	for (uint32_t i = 0; i < S::LIMBS; ++i) {
+		t1[i] = (S::limb_type)-1ull;
+		const auto m = S::move(t1);
+		for (uint32_t j = 0; j < S::LIMBS; ++j) {
+			EXPECT_EQ(bool((m >> j) & 1u), j <= i);
 		}
 	}
 }

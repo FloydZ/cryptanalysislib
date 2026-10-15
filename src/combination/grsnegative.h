@@ -1,8 +1,46 @@
 #pragma once
 
+#include <cstdint>
+
+#include "combination/enumerator.h"
+
 /// Class for computing the Golay-Rudin-Shapiro sequence (OEIS A020985)
 /// The sequence determines whether the GRS value is negative at a given index
+/// As an enumerator: grs_negative_q(k) for k = 0, 1, 2, ...
 class gsr_negative {
+    /// current index
+    uint64_t k = 0;
+    /// grs_negative_q(k)
+    uint64_t g = 0;
+
+public:
+    /// \return grs_negative_q(index())
+    [[nodiscard]] constexpr inline uint64_t current() const noexcept {
+        return g;
+    }
+
+    /// \return the current index
+    [[nodiscard]] constexpr inline uint64_t index() const noexcept {
+        return k;
+    }
+
+    /// moves to the next index
+    /// \return false at the index 2^64 - 1 (unchanged)
+    constexpr inline bool next() noexcept {
+        if (k == ~uint64_t(0)) { return false; }
+        g = grs_next(k, g);
+        k += 1;
+        return true;
+    }
+
+    /// moves to the previous index
+    /// \return false at the index 0 (unchanged)
+    constexpr inline bool previous() noexcept {
+        if (k == 0) { return false; }
+        k -= 1;
+        g = grs_negative_q(k);
+        return true;
+    }
 
 /// Determines whether the Golay-Rudin-Shapiro sequence is negative for a given index
 /// Returns 1 for indices where the GRS value is negative
@@ -14,9 +52,9 @@ class gsr_negative {
 /// Algorithm: counts bit pairs modulo 2
 /// \param x[in]: index to check
 /// \return 1 if GRS value is negative at index x, 0 otherwise
-static inline ulong grs_negative_q(ulong x)
+constexpr static inline uint64_t grs_negative_q(uint64_t x)
 {
-    return  parity( x & (x>>1) );
+    return  __builtin_parityll( x & (x>>1) );
 }
 // -------------------------
 
@@ -26,14 +64,12 @@ static inline ulong grs_negative_q(ulong x)
 /// \param k[in]: current index
 /// \param g[in]: current GRS value at index k
 /// \return GRS value at index k+1
-static inline ulong grs_next(ulong k, ulong g)
+constexpr static inline uint64_t grs_next(uint64_t k, uint64_t g)
 {
-#if BITS_PER_LONG > 32
-    const ulong cm = 0x5555555555555554UL;  // 64-bit version
-#else
-    const ulong cm = 0x55555554UL;
-#endif
-    ulong h = ~k;  h &= -h;  // == lowest_zero(k);
+    // NOTE: `BITS_PER_LONG` is not defined here (the 32 bit mask was always
+    //  used), the arguments are 64 bit
+    const uint64_t cm = 0x5555555555555554UL;
+    uint64_t h = ~k;  h &= -h;  // == lowest_zero(k);
     g ^= ( ((h&cm) ^ ((k>>1)&h)) !=0 );
     return  g;
 }

@@ -19,12 +19,13 @@ template<typename T>
 
 
 /// Set the value of a specific bit in an array of type T
+/// NOTE: `data` was `const T *` (the function writes to it, did not compile)
 /// \tparam T Type of the array elements
 /// \param data [in,out]: Pointer to the array to modify
 /// \param pos [in]: Bit position to set
 /// \param bit [in]: Boolean value to set
 template<typename T>
-constexpr static inline void set_bit(const T *data,
+constexpr static inline void set_bit(T *data,
 									 const uint32_t pos,
 									 const bool bit) noexcept {
 	constexpr uint32_t RADIX = sizeof(T) * 8;

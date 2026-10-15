@@ -112,6 +112,21 @@ TEST(bc, avx512) {
 }
 #endif
 
+// the sign flag only takes space for signed big ints
+static_assert(sizeof(big_int<4, uint64_t>) == sizeof(std::array<uint64_t, 4>));
+static_assert(sizeof(big_int<4, uint64_t, true>) > sizeof(std::array<uint64_t, 4>));
+
+TEST(math, is_power_of_two) {
+	using namespace cryptanalysislib::math;
+	static_assert(!is_power_of_two(0) && is_power_of_two(1) && is_power_of_two(2) && !is_power_of_two(3));
+	static_assert(is_power_of_two_v<64> && !is_power_of_two_v<48>);
+	for (uint64_t i = 0; i < 64; ++i) {
+		EXPECT_TRUE(is_power_of_two(1ull << i));
+		if (i > 1) { EXPECT_FALSE(is_power_of_two((1ull << i) + 1ull)); }
+	}
+	EXPECT_FALSE(is_power_of_two(-4));
+}
+
 TEST(big_int, simple) {
 	BigInt one = BigInt{1};
 	BigInt zero = BigInt{};
@@ -129,19 +144,37 @@ TEST(big_int, simple) {
 	EXPECT_EQ(tmp == one, true);
 }
 
-//TEST(big_int, binom) {
-//	const auto b1 = binomial<1, T, 1u, 1u>();
-//	EXPECT_EQ(b1[0], 1);
-//	const auto b2 = binomial<2, T, 2u, 2u>();
-//	EXPECT_EQ(b2[0], 1);
-//
-//	const auto b3 = binomial<1, T, 256, 2u>();
-//	EXPECT_EQ(b3[0], 32640);
-//
-//	// Number is too big:w
-//	constexpr auto b4 = binomial<1, T, 1024, 7u>();
-//	EXPECT_EQ(b4[0], 229479463334370304);
-//}
+TEST(big_int, add) {
+	using B = big_int<2, uint64_t>;
+	constexpr B a{~0ull}, b{1ull};
+	// usable at compile time
+	constexpr auto c = B::add(a, b);
+	static_assert(c[0] == 0 && c[1] == 1 && c[2] == 0);
+
+	// different lengths and carry into the extra limb
+	big_int<3, uint64_t> d{};
+	d[0] = ~0ull; d[1] = ~0ull; d[2] = ~0ull;
+	const auto e = B::add(d, b);
+	static_assert(std::is_same_v<std::remove_cvref_t<decltype(e)>, big_int<4, uint64_t>>);
+	EXPECT_EQ(e[0], 0ull);
+	EXPECT_EQ(e[1], 0ull);
+	EXPECT_EQ(e[2], 0ull);
+	EXPECT_EQ(e[3], 1ull);
+}
+
+TEST(big_int, binom) {
+	const auto b1 = binomial<2, T, 1u, 1u>();
+	EXPECT_EQ(b1[0], 1);
+	const auto b2 = binomial<2, T, 2u, 2u>();
+	EXPECT_EQ(b2[0], 1);
+
+	const auto b3 = binomial<2, T, 256, 2u>();
+	EXPECT_EQ(b3[0], 32640);
+
+	// Number is too big:w
+	constexpr auto b4 = binomial<2, T, 1024, 7u>();
+	EXPECT_EQ(b4[0], 229479463334370304);
+}
 int main(int argc, char **argv) {
 	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);

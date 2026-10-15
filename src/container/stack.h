@@ -56,7 +56,7 @@ public:
    
     /// \return capacity
     constexpr size_t capacity() const noexcept { 
-        return p_;
+        return s_;
     }
 
     /// Add element z on top of stack.
@@ -73,7 +73,7 @@ public:
         x_[p_] = z;
         ++p_;
 
-        return  s_;
+        return  p_;
     }
 
     /// Retrieve top entry and remove it.
@@ -124,7 +124,7 @@ private:
     void grow() noexcept {
         if constexpr (gq_ != 0) {
             const size_t ns = s_ + gq_;  // new size
-            // TODO x_ = ReAlloc<Type>(x_, ns, s_);
+            x_ = cryptanalysislib::reallocate(allocator, x_, s_, ns);
             s_ = ns;
         }
     }

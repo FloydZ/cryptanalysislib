@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <numeric>
+#include <vector>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -54,6 +56,50 @@ TEST(prefix_sum, u32_simd_avx512) {
 }
 #endif
 
+/// checks `f` against a scalar prefix sum for all sizes [0, 80]. Each input
+/// is allocated with its exact size, so ASan catches out of bounds accesses.
+template<typename T, typename F>
+static void check_all_sizes(F f) {
+	for (size_t n = 0; n <= 80; n++) {
+		T *v = new T[n + (n == 0)];
+		std::vector<T> e(n);
+		for (size_t i = 0; i < n; i++) { e[i] = v[i] = T(i * 7 + 3); }
+		for (size_t i = 1; i < n; i++) { e[i] += e[i - 1]; }
+
+		f(v, n);
+		for (size_t i = 0; i < n; i++) {
+			EXPECT_EQ(e[i], v[i]) << "n=" << n << " i=" << i;
+		}
+		delete[] v;
+	}
+}
+
+TEST(prefix_sum, all_sizes) {
+#ifdef USE_AVX2
+	check_all_sizes<int32_t>([](int32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_i32_avx2(v, n); });
+	check_all_sizes<int32_t>([](int32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_i32_avx2_v2(v, n); });
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_avx2(v, n); });
+#endif
+#ifdef USE_AVX512F
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_avx512(v, n); });
+#endif
+#ifdef USE_ARM
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_u32_neon(v, n); });
+#endif
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { prefixsum<uint32_t>(v, n); });
+	check_all_sizes<uint8_t>([](uint8_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint8_t>(v, n); });
+	check_all_sizes<uint16_t>([](uint16_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint16_t>(v, n); });
+	check_all_sizes<uint32_t>([](uint32_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint32_t>(v, n); });
+	check_all_sizes<uint64_t>([](uint64_t *v, size_t n) { cryptanalysislib::algorithm::internal::prefixsum_uXX_simd<uint64_t>(v, n); });
+	check_all_sizes<uint64_t>([](uint64_t *v, size_t n) { prefixsum<uint64_t>(v, n); });
+}
+
+TEST(prefix_sum, empty_range) {
+	std::vector<uint32_t> v;
+	prefixsum(v.begin(), v.end());
+	EXPECT_TRUE(v.empty());
+}
+
 TEST(avx, prefixsum) {
 	constexpr size_t s = 65;
 	uint32_t *d1 = (uint32_t *)malloc(s * sizeof(uint32_t));
@@ -73,6 +119,25 @@ TEST(avx, prefixsum) {
 	EXPECT_EQ(d1[i], d2[i]);
 	}
 	free(d1); free(d2);
+}
+
+/// the generic `prefixsum` overloads (with an operation) against std::inclusive_scan
+TEST(Prefixsum, op_overloads) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(13), size_t(100000)}) {
+		std::vector<uint32_t> in(s), e(s), o(s + 1, 0xdeadu);
+		for (size_t i = 0; i < s; ++i) { in[i] = (uint32_t)(i * 2654435761u); }
+		const auto op = [](const uint32_t a, const uint32_t b) { return a ^ b; };
+		std::inclusive_scan(in.begin(), in.end(), e.begin(), op);
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(in.begin(), in.end(), o.begin(), op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+		EXPECT_EQ(o[s], 0xdeadu);
+
+		std::inclusive_scan(in.begin(), in.end(), e.begin(), op, 3u);
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(in.begin(), in.end(), o.begin(), 3u, op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+		EXPECT_EQ(cryptanalysislib::algorithm::prefixsum(par_if(true), in.begin(), in.end(), o.begin(), 3u, op), o.begin() + s);
+		for (size_t i = 0; i < s; ++i) { ASSERT_EQ(o[i], e[i]) << i; }
+	}
 }
 
 int main(int argc, char **argv) {

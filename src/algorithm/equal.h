@@ -33,9 +33,16 @@ namespace cryptanalysislib {
 	constexpr bool equal(InputIt1 first1,
 						 InputIt1 last1,
 						 InputIt2 first2) noexcept {
-		if constexpr (std::is_same_v<InputIt1, InputIt2>) {
-			const auto size = static_cast<size_t>(std::distance(first1, last1));
-			return cryptanalysislib::memcmp(&(*first1), &(*first2), size);
+		using T = typename std::iterator_traits<InputIt1>::value_type;
+		if constexpr (std::is_same_v<InputIt1, InputIt2> &&
+		              std::contiguous_iterator<InputIt1> &&
+		              std::is_integral_v<T>) {
+			// NOTE: `memcmp` returns `true` if the ranges differ
+			const size_t size = static_cast<size_t>(last1 - first1);
+			if (size == 0) {
+				return true;
+			}
+			return !cryptanalysislib::memcmp(&(*first1), &(*first2), size);
 		}
 
 	    for (; first1 != last1; ++first1, ++first2) {
@@ -78,19 +85,23 @@ namespace cryptanalysislib {
 				(first1, last1, first2);
 		}
 
-		using T = uint32_t;
+		// every chunk compares against the matching chunk of the second range
+		auto chunk = [first1, first2](RandIt1 b, RandIt1 e) noexcept -> bool {
+			return cryptanalysislib::equal<RandIt1, RandIt2, config>(b, e, first2 + (b - first1));
+		};
 
 		auto futures = internal::parallel_chunk_for_1(
 			std::forward<ExecPolicy>(policy),
-			first1, last1,
-			cryptanalysislib::equal<RandIt1, RandIt2, config>,
+			first1, last1, chunk,
 			(bool *)0,
-			1, nthreads, first2);
+			1, nthreads);
 
-		return (bool)std::reduce(
-			internal::get_wrap(futures.begin()),
-			internal::get_wrap(futures.end()), (T)0,
-			std::plus<T>());
+		// the ranges are equal iff every chunk is equal
+		bool ret = true;
+		for (auto &f : futures) {
+			ret &= f.get();
+		}
+		return ret;
 	}
 } // end namespace cryptanalysislib
 #endif //EQUAL_H

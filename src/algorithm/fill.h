@@ -17,9 +17,8 @@ namespace cryptanalysislib {
     constexpr static AlgorithmFillConfig algorithmFillConfig;
 
     
-    namespace internal {
-        // TODO implement SIMD algorithms
-    };
+    // NOTE: `fill`/`fill_n` use `cryptanalysislib::memset`, which is the
+    // 	SIMD (TxN_t) implementation, so no separate SIMD kernels are needed
     
 	/// Fills a range with a specified value (sequential version)
 	/// \tparam Iterator Forward iterator type for the range
@@ -36,8 +35,19 @@ namespace cryptanalysislib {
 	 				    Iterator last,
 	 				    const typename Iterator::value_type& value) noexcept {
         using T = Iterator::value_type;
-		const size_t s = static_cast<size_t>(std::distance(first, last));
-		cryptanalysislib::memset<T>(&(*first), value, s);
+		// NOTE: `memset` writes [first, last) as an array: only for contiguous
+		// 	iterators, and `first` must not be dereferenced for an empty range
+		if constexpr (std::contiguous_iterator<Iterator>) {
+			const size_t s = static_cast<size_t>(last - first);
+			if (s == 0) {
+				return;
+			}
+			cryptanalysislib::memset<T>(&(*first), value, s);
+		} else {
+			for (; first != last; ++first) {
+				*first = value;
+			}
+		}
     }
 
 	/// Fills n elements with a specified value (sequential version)

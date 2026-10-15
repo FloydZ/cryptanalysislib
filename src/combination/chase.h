@@ -6,16 +6,9 @@
 #include <vector>
 #include <cassert>
 
+#include "combination/enumerator.h"
 #include "math/math.h"
-
-#if __cplusplus > 201709L
-/// functions/fields an enumerator must implement
-/// \tparam Enumerator
-template<typename Enumerator>
-concept EnumeratorAble = requires(Enumerator e) {
-	e.step();
-};
-#endif
+#include "memory/memory.h"
 
 /// \return number of elements in the gray code
 template<const uint32_t w, const uint32_t q>
@@ -75,6 +68,15 @@ class Combinations_Binary_Chase {
 
 	// number of bits in one limb
 	constexpr static uint32_t RADIX = sizeof(T) * 8;
+
+	/// limbs of the current element of the stateful interface (`start + n` bits)
+	constexpr static uint32_t limbs = (start + n + RADIX - 1u) / RADIX;
+	/// the current element of the stateful interface (`current`, `next`)
+	std::array<T, limbs> cur{};
+	/// true once `left_step` created the first element in `cur`
+	bool started = false;
+	/// true once the end of the sequence was reached
+	bool finished = false;
 
 
 	/// computes a single round of the chase sequence
@@ -137,6 +139,45 @@ public:
 		two_changes_binary_n[0] = n;
 
 		init = true;
+
+		// the first element: the bits [start, start + w)
+		cur.fill(0);
+		for (uint32_t i = 0; i < w; ++i) { write_bit(cur.data(), start + i, 1); }
+		started = false;
+		finished = false;
+	}
+
+	/// \return the current element (the stateful interface `current`/`next`
+	/// 	and `left_step` share the state, do not mix them)
+	[[nodiscard]] constexpr const std::array<T, limbs> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element of the chase sequence
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		if (finished) { return false; }
+		uint16_t pos1, pos2;
+		if (!started) {
+			// creates the first element, which is already in `cur`
+			started = true;
+			left_step<true>(cur.data(), &pos1, &pos2);
+		}
+
+		const std::array<T, limbs> old = cur;
+		if (!left_step<true>(cur.data(), &pos1, &pos2)) {
+			cur = old;
+			finished = true;
+			return false;
+		}
+		return true;
+	}
+
+	/// not implemented: the chase sequence is only generated forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
 	}
 
 	/// computes one step in the cache sequence
@@ -149,6 +190,16 @@ public:
 	bool left_step(T *A,
 	               uint16_t *pos1,
 	               uint16_t *pos2) noexcept {
+		if constexpr (w == 0) {
+			// the only element of weight 0 is the zero vector
+			(void)A;
+			*pos1 = 0;
+			*pos2 = 0;
+			const bool ret = init;
+			init = false;
+			return ret;
+		}
+
 		uint16_t pos = 0;
 		if (!init) {
 			// cleanup of the previous round
@@ -198,7 +249,7 @@ public:
 	constexpr void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                          const size_t listsize = 0) {
 		const size_t size = listsize == 0 ? chase_size : listsize;
-		ret.resize(listsize);
+		ret.resize(size);
 
 		left_step<write>(nullptr, &ret[0].first, &ret[0].second);
 		for (size_t i = 0; i < size; ++i) {
@@ -275,7 +326,56 @@ class Combinations_Fq_Chase {
 	/// stuff for the chase sequence
 	Combinations_Binary_Chase<uint64_t, n, w> chase;
 
+	/// stateful interface (`current`, `next`): the support of the current
+	/// element, its nonzero values (in [1, q-1], the last one changes
+	/// fastest), and the current element
+	Combinations_Binary_Chase<uint64_t, n, w> support;
+	std::array<uint32_t, (w > 0) ? w : 1> vals;
+	std::array<uint32_t, n> cur;
+
+	/// writes the values `vals` to the positions of the support into `cur`
+	constexpr void build_current() noexcept {
+		const auto &s = support.current();
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < n; ++i) {
+			const bool bit = (s[i / 64u] >> (i % 64u)) & 1u;
+			cur[i] = bit ? vals[j++] : 0u;
+		}
+	}
+
 public:
+	/// \return the current element: a vector over F_q of length n and weight w
+	/// 	(the elements are: all supports in chase order, for each support
+	/// 	all nonzero values in lexicographic order)
+	[[nodiscard]] constexpr const std::array<uint32_t, n> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		for (uint32_t i = w; i-- > 0;) {
+			if (vals[i] < qm1) {
+				vals[i] += 1;
+				for (uint32_t j = i + 1; j < w; ++j) { vals[j] = 1; }
+				build_current();
+				return true;
+			}
+		}
+
+		if (!support.next()) { return false; }
+		vals.fill(1);
+		build_current();
+		return true;
+	}
+
+	/// not implemented: the chase sequence is only generated forwards
+	/// \return false
+	constexpr bool previous() noexcept {
+		assert(false);
+		return false;
+	}
+
 	constexpr static size_t chase_size = bc(n, w);
 
 	// the -1u is needed, because we already enumerated the 1...10...0 vector
@@ -329,6 +429,9 @@ public:
 			s[i] = qm1 - 1;
 		}
 		f[n] = n;
+
+		vals.fill(1);
+		build_current();
 	}
 };
 
@@ -338,15 +441,56 @@ template<const uint32_t n,
          const uint32_t q = 2>
 class chase_t {
 	using T = uint16_t;
-	// TODO reset und wie machen wir das wenn wir mehrerer solcher fks hintereinander callen
+	// NOTE: no reset needed: every `enumerate` call starts the enumeration
+	// 	from the beginning (`enumerate1/2` reinitialize `idx`, `enumerate3`
+	// 	keeps its state locally), so it can be called several times in a row
+	// 	(tests/list/enumeration/binary.cpp: Chase.repeated).
 	T idx[16] = {0};
 
 	static_assert(q >= 2);
 	static_assert(p <= 3);
 
+	/// stateful interface (`current`, `next`, `previous`): the rank of the
+	/// current element in the order of `enumerate` and its positions
+	uint64_t rank = 0;
+	T cur[(p > 0) ? p : 1] = {0};
+
 public:
+	/// starts the stateful enumeration at {0, ..., p-1}, the first element
+	/// of `enumerate`
+	constexpr chase_t() noexcept {
+		for (uint32_t i = 0; i < p; ++i) { cur[i] = T(i); }
+	}
+
 	[[nodiscard]] constexpr size_t list_size() const noexcept {
 		return compute_combinations_fq_chase_list_size<n, q, p>();
+	}
+
+	/// \return the `p` positions of the current element (unsorted)
+	[[nodiscard]] constexpr const T *current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next element (in the order of `enumerate`, via `biject`)
+	/// \return false if the current element is the last one (unchanged)
+	bool next() noexcept {
+		if (rank + 1u >= bc(n, p)) { return false; }
+		rank += 1;
+		biject(rank, cur);
+		return true;
+	}
+
+	/// moves to the previous element
+	/// \return false if the current element is the first one (unchanged)
+	bool previous() noexcept {
+		if (rank == 0) { return false; }
+		rank -= 1;
+		if (rank == 0) {
+			for (uint32_t i = 0; i < p; ++i) { cur[i] = T(i); }
+		} else {
+			biject(rank, cur);
+		}
+		return true;
 	}
 
 
@@ -402,38 +546,50 @@ public:
 	/// \return
 	template<typename F>
 	constexpr static inline void enumerate3(T *idx, F &&f) noexcept {
-		idx[1] = 1;
-		idx[2] = 2;
-		for (idx[0] = 0; idx[0] < n;) {
-			enumerate2(idx + 1, f, idx[0] + 1);
-			idx[0] += 1;
-			if (idx[0] >= n - 1) { break; }
-			f(idx[0], idx[0] - 1);
-			idx[1] -= 1;
+		// revolving door order (Knuth, TAOCP 7.2.1.3, Algorithm R) for t = 3,
+		// starting at {0, 1, 2}. Every step removes one index and adds another.
+		// f(added, removed) is called for every step.
+		uint32_t c[4] = {0, 1, 2, n}; // c[3] is a sentinel
+		while (true) {
+			uint32_t k1 = 0, k2 = 0; // k1: removed, k2: added
+			if (c[0] + 1 < c[1]) {
+				// R3: t is odd, try to increase c[0]
+				k1 = c[0];
+				c[0] += 1;
+				k2 = c[0];
+			} else {
+				uint32_t j = 1;
+				bool stepped = false;
+				while (j < 3) {
+					// R4: try to decrease c[j]
+					if (c[j] > j) {
+						k1 = c[j];
+						k2 = j - 1;
+						c[j] = c[j - 1];
+						c[j - 1] = j - 1;
+						stepped = true;
+						break;
+					}
+					j += 1;
+					if (j == 3) { break; }
 
-			for (; idx[2] > idx[0] + 2;) {
-				for (; idx[1] > idx[0] + 1; idx[1] -= 1) {
-					f(idx[1], idx[1] - 1);
+					// R5: try to increase c[j]
+					if (c[j] + 1 < c[j + 1]) {
+						k1 = c[j - 1];
+						k2 = c[j] + 1;
+						c[j - 1] = c[j];
+						c[j] += 1;
+						stepped = true;
+						break;
+					}
+					j += 1;
 				}
 
-				f(idx[2], idx[2] - 1);
-				idx[2] -= 1;
-				idx[1] += 1;
-
-				for (; idx[1] < idx[2]; idx[1] += 1) {
-					f(idx[1], idx[1] - 1);
-				}
-
-				idx[1] -= 1;
-				f(idx[1] - 1, idx[1] + 1);
-				idx[2] -= 1;
-				idx[1] -= 1;
+				if (!stepped) { break; }
 			}
 
-			f(idx[0], idx[0] + 3);
-			idx[0] += 1;
-			idx[1] += 1;
-			idx[2] += 1;
+			idx[0] = c[0]; idx[1] = c[1]; idx[2] = c[2];
+			f(k2, k1);
 		}
 	}
 
@@ -509,28 +665,23 @@ public:
 		}
 
 		if constexpr (p == 3) {
-			constexpr uint64_t np = bc(n - 1, p - 1);
-			constexpr uint64_t n2 = 2 * np;
-			// constexpr uint64_t n22 = 2 * np - 2;
-			constexpr int64_t nnn = (1 - n2) * (1 - n2);
-			const double pos1 = __builtin_sqrt(nnn - double(a << 3));
-			const double pos = (pos1 + n2 - 3.) / 2.;
-			const uint32_t t = 2 * np - __builtin_ceil(pos) - 2;
-			rows[0] = t;
-
-			// TODO not finished const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
-
-			if (a % (np - 1) > 0 || a == 0) {
-				if (t & 1u) {
-					biject2_down<n - 1, p - 1>(a % np, rows + 1);
-				} else {
-					biject2<n - 1, p - 1>(a % np, rows + 1);
-				}
-
-				for (uint32_t i = 0; i < 2; ++i) {
-					rows[i + 1] += 1;
-				}
-			}
+			// `enumerate3` is the revolving door order (Knuth, TAOCP 7.2.1.3,
+			// Algorithm R), whose rank of c3 > c2 > c1 is
+			// 	r = (C(c3+1, 3) - 1) - (C(c2+1, 2) - 1) + c1,
+			// so it is unranked greedily: c3 is the largest c with C(c, 3) <= r,
+			// then the remaining rank C(c3+1, 3) - 1 - r is unranked with t = 2
+			// (and so on).
+			// NOTE: replaces an unfinished closed formula, which was wrong.
+			uint64_t r = a;
+			uint32_t c3 = 2;
+			while (bc(c3 + 1, 3) <= r) { c3 += 1; }
+			r = bc(c3 + 1, 3) - 1 - r;
+			uint32_t c2 = 1;
+			while (bc(c2 + 1, 2) <= r) { c2 += 1; }
+			r = bc(c2 + 1, 2) - 1 - r;
+			rows[0] = uint16_t(r);
+			rows[1] = uint16_t(c2);
+			rows[2] = uint16_t(c3);
 		}
 	}
 };
@@ -545,7 +696,43 @@ class BinaryChaseEnumerator {
 	/// The thing is: we will not create the first element in this list.
 	constexpr static size_t chase_size = bc(n, t) - 1ull;
 
+	/// stateful interface (`current`, `next`, `previous`): the change list,
+	/// the number of applied changes and the current positions
+	std::vector<std::pair<uint16_t, uint16_t>> changes;
+	size_t applied = 0;
+	std::array<uint16_t, t> cur;
+
 public:
+	/// starts the stateful enumeration at the first combination {0, ..., t-1}.
+	/// NOTE: computes the full change list (`size()` entries)
+	BinaryChaseEnumerator() noexcept {
+		changelist(changes);
+		for (uint32_t i = 0; i < t; ++i) { cur[i] = uint16_t(i); }
+	}
+
+	/// \return the `t` positions of the current combination (unsorted)
+	[[nodiscard]] const std::array<uint16_t, t> &current() const noexcept {
+		return cur;
+	}
+
+	/// moves to the next combination: applies the next change
+	/// \return false if the current combination is the last one (unchanged)
+	bool next() noexcept {
+		if (applied == changes.size()) { return false; }
+		const auto [a, b] = changes[applied++];
+		for (auto &c : cur) { if (c == a) { c = b; break; } }
+		return true;
+	}
+
+	/// moves to the previous combination: undoes the last change
+	/// \return false if the current combination is the first one (unchanged)
+	bool previous() noexcept {
+		if (applied == 0) { return false; }
+		const auto [a, b] = changes[--applied];
+		for (auto &c : cur) { if (c == b) { c = a; break; } }
+		return true;
+	}
+
 	constexpr static inline size_t size() noexcept {
 		return chase_size;
 	}
@@ -557,9 +744,11 @@ public:
 	/// separated by only one position.
 	///
 	/// See exercise 45 of Knuth's The art of computer programming volume 4A.
-	/// \param ret
-	/// \param listsize
-	/// \return TODO seems not to be correct,n=5,t=2 errors
+	/// The first combination (not part of the list) has its `t` bits set at
+	/// the positions 0, ..., t-1; every entry (a, b) of the list clears bit
+	/// `a` and sets bit `b`, with |a - b| <= 2.
+	/// \param ret[out]: the list of changes (cleared bit, set bit)
+	/// \param listsize[in]: number of changes, 0 = all (C(n, t) - 1)
 	static void changelist(std::vector<std::pair<uint16_t, uint16_t>> &ret,
 	                       const size_t listsize = 0) noexcept {
 		const size_t size = listsize == 0 ? chase_size : listsize;
@@ -606,9 +795,10 @@ public:
 				 std::pair<uint16_t, uint16_t> tmp{old_val, cur_val};
 				 ret[N-1] = tmp;
 			}
-			//std::memcpy(old_c, c, (t+2) * sizeof(uint16_t));
-			// TODO replace with cryptanalysislib
-			memcpy(old_c, c, 2*(t+2));
+			// NOTE: element count, not bytes. An unqualified `memcpy` with a
+			// 	byte count resolves to `cryptanalysislib::memcpy` (element
+			// 	count) if the namespace is visible, and overflows `old_c`.
+			cryptanalysislib::memcpy(old_c, c, t + 2);
 
 			++N;
 			j = r;

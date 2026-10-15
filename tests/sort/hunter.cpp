@@ -13,6 +13,8 @@ time_t t0 = clock();
 time_t t1 = t0;
 
 /// SorterHunter main routine
+/// NOTE: this search never terminates, so it is built but not registered
+///	with ctest (see tests/sort/CMakeLists.txt)
 int main() {
 	for (u32 n = 0; n < NMUTATIONTYPES; n++) {
 		for (u32 k = 0; k < config.mutation_type_weights[n]; k++)
@@ -28,12 +30,13 @@ int main() {
 	// Initialize set of CEs to pick from //
 	initalphabet();
 
-    std::vector<Pair_t> t(sizeof(config.FixedPrefix));
+    // NOTE: number of elements, not bytes
+    std::vector<Pair_t> t(sizeof(config.FixedPrefix) / sizeof(config.FixedPrefix[0]));
     for (uint32_t i = 0; i < t.size(); i++) {
         t[i] = config.FixedPrefix[i];
     }
-    std::vector<Pair_t> init(sizeof(config.InitialNetwork));
-    for (uint32_t i = 0; i < t.size(); i++) {
+    std::vector<Pair_t> init(sizeof(config.InitialNetwork) / sizeof(config.InitialNetwork[0]));
+    for (uint32_t i = 0; i < init.size(); i++) {
         init[i] = config.InitialNetwork[i];
     }
 	/* Create initial prefix network */

@@ -8,14 +8,16 @@
 #include "algorithm/bits/ffs.h"
 #include "simd/simd.h"
 #include "search/search.h"
-
-// TODO docs for find_first_of and adjacent_find 
-// TODO parallel versions of `find_first_of` and `adjacent_find`
+#include "algorithm/search.h"
 
 namespace cryptanalysislib {
     /// Configuration for find algorithms 
-    // TODO somehow this yields an anonymous unitiialized field element
-	struct AlgorithmFindConfig /* : public AlgorithmConfig */ {
+    /// NOTE: like every config this derives from `AlgorithmConfig`. A
+    /// 	designated initializer (`AlgorithmFindConfig{.x = ...}`) leaves the
+    /// 	base default initialized, which gcc reports with -Wextra as
+    /// 	"missing initializer for member 'AlgorithmFindConfig::AlgorithmConfig'"
+    /// 	(the "anonymous uninitialized field"); it is harmless.
+	struct AlgorithmFindConfig : public AlgorithmConfig {
 		// NOTE multithreaded find is extremly slow
 		const size_t min_size_per_thread = 1048576u;
 
@@ -52,9 +54,10 @@ namespace cryptanalysislib {
 			size_t i = 0;
 			for (; (i+S::LIMBS) <= n; i+=S::LIMBS) {
 				const auto d = S::template load<config.aligned_instructions>(data + i);
-				const auto s = d == t;
+				// NOTE: `s` has one bit per lane, so it must not be truncated to `T`
+				const uint64_t s = uint64_t(d == t);
 				if (s) [[unlikely]] {
-					return i + ffs<T>(s) - 1u;
+					return i + ffs<uint64_t>(s) - 1u;
 				}
 			}
 
@@ -87,18 +90,22 @@ namespace cryptanalysislib {
 		using T = InputIt::value_type;
 		if constexpr (config.assume_sorted) {
 			if constexpr (config.use_interpolation_search) {
-				cryptanalysislib::search::binary_search(first, last, value);
+				cryptanalysislib::binary_search(first, last, value);
 			} else {
-				cryptanalysislib::search::binary_search(first, last, value);
+				cryptanalysislib::binary_search(first, last, value);
 			}
 		}
 
-		if constexpr (std::is_unsigned_v<T>) {
-			const size_t t = internal::find_uXX_simd<T, config>(&(*first),
-											static_cast<size_t>(std::distance(first, last)),
-											value);
-            std::advance(first, t);
-            return first;
+		// NOTE: the SIMD kernel reads [first, last) as an array: only for
+		// 	contiguous iterators (a `std::list` range was read as an array),
+		// 	and `first` must not be dereferenced for an empty range
+		if constexpr (std::is_unsigned_v<T> && std::contiguous_iterator<InputIt>) {
+			const size_t n = static_cast<size_t>(last - first);
+			if (n == 0) {
+				return last;
+			}
+			const size_t t = internal::find_uXX_simd<T, config>(&(*first), n, value);
+            return first + t;
 		}
 
 		for (; first != last; ++first) {
@@ -334,7 +341,7 @@ namespace cryptanalysislib {
      
         ForwardIt1 result = last;
         while (true) {
-            ForwardIt1 new_result = std::search(first, last, s_first, s_last);
+            ForwardIt1 new_result = cryptanalysislib::search(first, last, s_first, s_last);
             if (new_result == last) {
                 break;
             } else {
@@ -363,7 +370,7 @@ namespace cryptanalysislib {
     #if __cplusplus > 201709L
     		requires std::forward_iterator<ForwardIt1> &&
                      std::forward_iterator<ForwardIt2> && 
-    			     std::regular_invocable<BinaryPred, bool>
+    			     std::indirect_binary_predicate<BinaryPred, ForwardIt1, ForwardIt2>
     #endif
     constexpr //< since C++20
     ForwardIt1 find_end(ForwardIt1 first,
@@ -390,7 +397,16 @@ namespace cryptanalysislib {
         return result;
     }
 
-    /// TODO doc
+    /// Finds the first element of [first, last) which equals any element of
+    /// [s_first, s_last) (like `std::find_first_of`)
+    /// \tparam InputIt Input iterator type for the searched range
+    /// \tparam ForwardIt Forward iterator type for the set of candidates
+    /// \param first[in]: Iterator to the beginning of the searched range
+    /// \param last[in]: Iterator to the end of the searched range
+    /// \param s_first[in]: Iterator to the beginning of the candidates
+    /// \param s_last[in]: Iterator to the end of the candidates
+    /// \return Iterator to the first matching element, or last if none
+    ///     (also if the candidate range is empty). O(n*m) comparisons.
     template<class InputIt,
              class ForwardIt>
     InputIt find_first_of(InputIt first,
@@ -404,7 +420,17 @@ namespace cryptanalysislib {
         return last;
     }
 
-    /// TODO doc
+    /// Finds the first element `x` of [first, last) for which `p(x, s)` holds
+    /// for any `s` of [s_first, s_last) (like `std::find_first_of`)
+    /// \tparam InputIt Input iterator type for the searched range
+    /// \tparam ForwardIt Forward iterator type for the set of candidates
+    /// \tparam BinaryPred Binary predicate type, called as p(*it1, *it2)
+    /// \param first[in]: Iterator to the beginning of the searched range
+    /// \param last[in]: Iterator to the end of the searched range
+    /// \param s_first[in]: Iterator to the beginning of the candidates
+    /// \param s_last[in]: Iterator to the end of the candidates
+    /// \param p[in]: Binary predicate, true if the two elements match
+    /// \return Iterator to the first matching element, or last if none
     template<class InputIt,
              class ForwardIt,
              class BinaryPred>
@@ -420,7 +446,12 @@ namespace cryptanalysislib {
         return last;
     }
     
-    /// TODO doc
+    /// Finds the first two consecutive equal elements (like `std::adjacent_find`)
+    /// \tparam ForwardIt Forward iterator type
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \return Iterator to the first element of the first pair `*it == *(it+1)`,
+    ///     or last if there is none
     template<class ForwardIt>
     ForwardIt adjacent_find(ForwardIt first,
                             ForwardIt last) {
@@ -437,7 +468,14 @@ namespace cryptanalysislib {
         return last;
     }
     
-    /// TODO doc
+    /// Finds the first two consecutive elements satisfying `p` (like `std::adjacent_find`)
+    /// \tparam ForwardIt Forward iterator type
+    /// \tparam BinaryPred Binary predicate type, called as p(*it, *(it+1))
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param p[in]: Binary predicate on two consecutive elements
+    /// \return Iterator to the first element of the first pair with
+    ///     `p(*it, *(it+1))`, or last if there is none
     template<class ForwardIt,
              class BinaryPred>
     ForwardIt adjacent_find(ForwardIt first,
@@ -454,6 +492,105 @@ namespace cryptanalysislib {
                 return first;
      
         return last;
+    }
+
+    /// parallel `find_first_of`: the searched range is split into chunks via
+    /// the parallel `find_if`; the candidates are scanned per element
+    /// \param policy[in]: Execution policy
+    /// \param first[in]: Iterator to the beginning of the searched range
+    /// \param last[in]: Iterator to the end of the searched range
+    /// \param s_first[in]: Iterator to the beginning of the candidates
+    /// \param s_last[in]: Iterator to the end of the candidates
+    /// \param p[in]: Binary predicate, true if the two elements match
+    /// \return Iterator to the first matching element, or last if none
+    template<class ExecPolicy,
+             class RandIt,
+             class ForwardIt,
+             class BinaryPred,
+             const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt> &&
+             std::forward_iterator<ForwardIt>
+#endif
+    RandIt find_first_of(ExecPolicy &&policy,
+                         RandIt first,
+                         RandIt last,
+                         const ForwardIt s_first,
+                         const ForwardIt s_last,
+                         BinaryPred p) noexcept {
+        using T = typename RandIt::value_type;
+        return cryptanalysislib::find_if
+            (std::forward<ExecPolicy>(policy), first, last,
+             [s_first, s_last, p](const T &x) {
+                 for (ForwardIt it = s_first; it != s_last; ++it) {
+                     if (p(x, *it)) { return true; }
+                 }
+                 return false;
+             });
+    }
+
+    /// parallel `find_first_of` with `==`
+    template<class ExecPolicy,
+             class RandIt,
+             class ForwardIt,
+             const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+    requires std::random_access_iterator<RandIt> &&
+             std::forward_iterator<ForwardIt>
+#endif
+    RandIt find_first_of(ExecPolicy &&policy,
+                         RandIt first,
+                         RandIt last,
+                         const ForwardIt s_first,
+                         const ForwardIt s_last) noexcept {
+        return cryptanalysislib::find_first_of
+            (std::forward<ExecPolicy>(policy), first, last, s_first, s_last, std::equal_to<>());
+    }
+
+    /// parallel `adjacent_find`: the parallel `find_if` over [first, last-1)
+    /// looks at the element after each element via its address.
+    /// NOTE: therefore only for contiguous iterators
+    /// \param policy[in]: Execution policy
+    /// \param first[in]: Iterator to the beginning of the range
+    /// \param last[in]: Iterator to the end of the range
+    /// \param p[in]: Binary predicate on two consecutive elements
+    /// \return Iterator to the first element of the first pair with
+    ///     `p(*it, *(it+1))`, or last if there is none
+    template<class ExecPolicy,
+             class ContIt,
+             class BinaryPred,
+             const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+    requires std::contiguous_iterator<ContIt>
+#endif
+    ContIt adjacent_find(ExecPolicy &&policy,
+                         ContIt first,
+                         ContIt last,
+                         BinaryPred p) noexcept {
+        if (last - first < 2) {
+            return last;
+        }
+
+        using T = typename ContIt::value_type;
+        const ContIt end = last - 1;
+        const ContIt r = cryptanalysislib::find_if
+            (std::forward<ExecPolicy>(policy), first, end,
+             [p](const T &x) { return p(x, *(&x + 1)); });
+        return r == end ? last : r;
+    }
+
+    /// parallel `adjacent_find` with `==`
+    template<class ExecPolicy,
+             class ContIt,
+             const AlgorithmFindConfig &config = algorithmFindConfig>
+#if __cplusplus > 201709L
+    requires std::contiguous_iterator<ContIt>
+#endif
+    ContIt adjacent_find(ExecPolicy &&policy,
+                         ContIt first,
+                         ContIt last) noexcept {
+        return cryptanalysislib::adjacent_find
+            (std::forward<ExecPolicy>(policy), first, last, std::equal_to<>());
     }
 } // end namespace cryptanalysislib
 #endif //FIND_H

@@ -4,11 +4,12 @@
 #include <cstdlib>
 #include <cstdint>
 
+#include "dispatch.h"
+
 #if defined(USE_AVX2) || defined(USE_AVX512F)
 #include <immintrin.h>
 #endif
 
-// TODO add dispatch function like in `src/search/binary.h`
 // TODO move the internal horizontally addition functions to the simd interface
 
 namespace cryptanalysislib::hash::adler32::internal {
@@ -41,7 +42,7 @@ namespace cryptanalysislib::hash::adler32::internal {
 	/// \param v[in] Vector containing values to be horizontally added
 	/// \return Sum of all 32-bit integers in the vector
 	static uint32_t avx512_hadd_adler32(const __m512i v) noexcept {
-		alignas(32) __m256i b[2];
+		alignas(64) __m256i b[2];
 		_mm512_store_si512((__m512i *)b, v);
 		return avx2_hadd_adler32(b[0]) +
 			   avx2_hadd_adler32(b[1]);
@@ -50,6 +51,8 @@ namespace cryptanalysislib::hash::adler32::internal {
 #endif
 };// namespace cryptanalysislib::hash::adler32::internal
 
+// NOTE: in `cryptanalysislib`, as zlib declares a global `adler32`
+namespace cryptanalysislib {
 /// Updates an Adler-32 checksum with new data
 /// Implements the standard Adler-32 algorithm with optimized loop unrolling
 /// 
@@ -58,8 +61,8 @@ namespace cryptanalysislib::hash::adler32::internal {
 /// \param in[in] Pointer to input data
 /// \param in_len_[in] Length of input data in bytes
 /// \return Updated Adler-32 checksum (b << 16 | a)
-constexpr static uint32_t adler32_update(uint16_t a,
-										 uint16_t b,
+constexpr static uint32_t adler32_update(uint32_t a,
+										 uint32_t b,
                                   		 const uint8_t *in,
                                   		 const size_t in_len_) noexcept {
 	using cryptanalysislib::hash::adler32::internal::MOD;
@@ -129,7 +132,7 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 	using cryptanalysislib::hash::adler32::internal::NMAX;
 	using cryptanalysislib::hash::adler32::internal::avx2_hadd_adler32;
 
-    // TODO make this a function argument? Or move it anywhere useful
+	// NOTE: bytes per AVX2 register, fixed by the algorithm
 	constexpr size_t BLOCK_SIZE = 32u;
 
 	if (in_len < BLOCK_SIZE) {
@@ -148,23 +151,34 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 
 	uint32_t a = val & 0xffffu;
 	uint32_t b = val >> 16u;
-    __m256i p_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, a*blocks);
-    __m256i a_v = _mm256_setzero_si256();
-    __m256i b_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, b);
-	
-	for (uint32_t i = 0; i < blocks; i++) {
-        const __m256i block = _mm256_loadu_si256((__m256i *)(in + i*32));
-        p_v = _mm256_add_epi32(p_v, a_v);
-        a_v = _mm256_add_epi32(a_v, _mm256_sad_epu8(block, zero_v));
-        const __m256i mad = _mm256_maddubs_epi16(block, weights);
-        b_v = _mm256_add_epi32(b_v, _mm256_madd_epi16(mad, one_v));
+
+	// NOTE: at most NMAX bytes are summed up before a and b are reduced,
+	// otherwise the 32-bit lanes overflow.
+	constexpr size_t CHUNK = NMAX / BLOCK_SIZE;
+	size_t blocks_left = blocks;
+	const uint8_t *ptr = in;
+	while (blocks_left) {
+		const size_t nb = blocks_left < CHUNK ? blocks_left : CHUNK;
+		__m256i p_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, a*nb);
+		__m256i a_v = _mm256_setzero_si256();
+		__m256i b_v = _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, b);
+
+		for (size_t i = 0; i < nb; i++) {
+			const __m256i block = _mm256_loadu_si256((__m256i *)ptr);
+			p_v = _mm256_add_epi32(p_v, a_v);
+			a_v = _mm256_add_epi32(a_v, _mm256_sad_epu8(block, zero_v));
+			const __m256i mad = _mm256_maddubs_epi16(block, weights);
+			b_v = _mm256_add_epi32(b_v, _mm256_madd_epi16(mad, one_v));
+			ptr += BLOCK_SIZE;
+		}
+
+		b_v = _mm256_add_epi32(b_v, _mm256_slli_epi32(p_v, 5));
+		a = (a + avx2_hadd_adler32(a_v)) % MOD;
+		b = avx2_hadd_adler32(b_v) % MOD;
+		blocks_left -= nb;
 	}
 
-    b_v = _mm256_add_epi32(b_v, _mm256_slli_epi32(p_v, 5));
-    a += avx2_hadd_adler32(a_v);
-    b  = avx2_hadd_adler32(b_v);
-
-	return adler32_update(a, b, in + blocks*BLOCK_SIZE, blocks_remainder);
+	return adler32_update(a, b, ptr, blocks_remainder);
 }
 #endif
 
@@ -203,23 +217,70 @@ constexpr static uint32_t avx512_adler32(uint32_t val,
 
 	uint32_t a = val & 0xffffu;
 	uint32_t b = val >> 16u;
-    __m512i p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a*blocks);
-    __m512i a_v = _mm512_setzero_si512();
-    __m512i b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b);
 
-	for (uint32_t i = 0; i < blocks; i++) {
-        const __m512i block = _mm512_loadu_si512((__m512i *)(in + i*32));
-        p_v = _mm512_add_epi32(p_v, a_v);
-        a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
-        const __m512i mad = _mm512_maddubs_epi16(block, weights);
-        b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
+	// NOTE: at most NMAX bytes are summed up before a and b are reduced,
+	// otherwise the 32-bit lanes overflow.
+	constexpr size_t CHUNK = NMAX / BLOCK_SIZE;
+	size_t blocks_left = blocks;
+	const uint8_t *ptr = in;
+	while (blocks_left) {
+		const size_t nb = blocks_left < CHUNK ? blocks_left : CHUNK;
+		__m512i p_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, a*nb);
+		__m512i a_v = _mm512_setzero_si512();
+		__m512i b_v = _mm512_set_epi32(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b);
+
+		for (size_t i = 0; i < nb; i++) {
+			// NOTE: 64-byte stride (was 32)
+			const __m512i block = _mm512_loadu_si512((__m512i *)ptr);
+			p_v = _mm512_add_epi32(p_v, a_v);
+			a_v = _mm512_add_epi32(a_v, _mm512_sad_epu8(block, zero_v));
+			const __m512i mad = _mm512_maddubs_epi16(block, weights);
+			b_v = _mm512_add_epi32(b_v, _mm512_madd_epi16(mad, one_v));
+			ptr += BLOCK_SIZE;
+		}
+
+		b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
+		a = (a + avx512_hadd_adler32(a_v)) % MOD;
+		b = avx512_hadd_adler32(b_v) % MOD;
+		blocks_left -= nb;
 	}
 
-    b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
-    a += avx512_hadd_adler32(a_v);
-    b  = avx512_hadd_adler32(b_v);
-
-	return adler32_update(a, b, in + blocks*BLOCK_SIZE, blocks_remainder);
+	return adler32_update(a, b, ptr, blocks_remainder);
 }
 #endif
+
+/// Adler-32 with the fastest available implementation (scalar, AVX2,
+/// AVX-512): on the first call all candidates are benchmarked once on a
+/// fixed 4 KiB buffer (like `binary_search_dispatch` in `search/binary.h`),
+/// the choice is a function local static (thread safe initialization).
+/// \param val[in] initial Adler-32 value (1 for a new checksum)
+/// \param in[in] input data
+/// \param in_len[in] length of the input in bytes
+/// \return the Adler-32 checksum, identical for all implementations
+static inline uint32_t adler32_dispatch(const uint32_t val,
+                                        const uint8_t *in,
+                                        const size_t in_len) noexcept {
+	using FF = uint32_t (*)(uint32_t, const uint8_t *, size_t);
+	static FF functions[] = {
+		adler32,
+#ifdef USE_AVX2
+		avx2_adler32,
+#endif
+#ifdef USE_AVX512F
+		avx512_adler32,
+#endif
+	};
+
+	static const FF best = []() noexcept {
+		static uint8_t buf[4096];
+		for (size_t i = 0; i < sizeof(buf); ++i) { buf[i] = uint8_t(i * 131u + 7u); }
+		FF out = functions[0];
+		generic_dispatch(out, functions, sizeof(functions) / sizeof(functions[0]),
+		                 uint32_t(1), (const uint8_t *)buf, sizeof(buf));
+		return out;
+	}();
+
+	return best(val, in, in_len);
+}
+} // namespace cryptanalysislib
 #endif

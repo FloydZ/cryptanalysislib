@@ -39,10 +39,21 @@ TEST(SubSetSum, dissection) {
 	Matrix AT; AT.random();
 
 	List out{1<<n};
-	Label target;
-	std::vector<uint32_t> weights(n/2);
-	generate_subsetsum_instance(target, weights, AT, n);
-	// TODO: Tree::dissection4(out, target, AT);
+	// NOTE: the base lists of the 4-way dissection enumerate weight `n/8`
+	// 	on each quarter of the coordinates, so the solution is planted with
+	// 	exactly `n/8` ones in each quarter.
+	Label target; target.zero();
+	for (uint32_t qd = 0; qd < 4; ++qd) {
+		std::vector<uint32_t> idx(n/4);
+		for (uint32_t i = 0; i < n/4; ++i) { idx[i] = qd*(n/4) + i; }
+		for (uint32_t i = 0; i < n/8; ++i) {
+			const uint32_t j = i + (uint32_t)(rng() % (n/4 - i));
+			cryptanalysislib::swap(idx[i], idx[j]);
+			Label::add(target, target, AT[0][idx[i]]);
+		}
+	}
+
+	Tree::constexpr_dissection4<0, n/4, n>(out, target, AT);
 
 	EXPECT_GE(out.load(), 1);
 	for (size_t i = 0; i < out.load(); ++i) {

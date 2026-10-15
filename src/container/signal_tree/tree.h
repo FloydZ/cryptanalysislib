@@ -86,7 +86,9 @@ struct default_selector {
 
 
 //=====================================================================
-// TODO: hack.  write better when have time
+/// \return the smallest valid signal tree capacity >= `requested`: the
+/// 	first sizes are limited by the possible node layouts (see `valid`),
+/// 	from 2^17 on every power of two is valid.
 template <std::uint64_t N = 64>
 consteval static std::uint64_t select_tree_size (const std::uint64_t requested) {
     constexpr std::array<std::uint64_t, 16> valid {
@@ -113,7 +115,10 @@ consteval static std::uint64_t select_tree_size (const std::uint64_t requested) 
         }
     }
 
-    return (0x800000000000ull >> std::countl_zero(requested));
+    // the next power of two
+    std::uint64_t p = valid.back();
+    while (p < requested) { p <<= 1u; }
+    return p;
 }
 
 //=============================================================================

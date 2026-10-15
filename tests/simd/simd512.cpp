@@ -16,6 +16,60 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 #ifdef USE_AVX512F
+#ifdef USE_AVX512BW
+TEST(uint16x32_t, all_equal) {
+	alignas(64) uint16_t a[32];
+	for (uint32_t r = 0; r < 1000; ++r) {
+		const uint16_t v = uint16_t(rng());
+		for (uint32_t i = 0; i < 32; ++i) { a[i] = v; }
+		EXPECT_TRUE(uint16x32_t::all_equal(uint16x32_t::load(a)));
+		const uint32_t p = rng() % 32u;
+		a[p] ^= uint16_t(1u << (rng() % 16u));
+		EXPECT_FALSE(uint16x32_t::all_equal(uint16x32_t::load(a)));
+	}
+
+	constexpr bool c = uint16x32_t::all_equal(uint16x32_t::set1(7));
+	static_assert(c);
+}
+#endif
+
+TEST(AVX512, hadd_histogram) {
+	alignas(64) uint64_t a[8], o[8];
+	alignas(64) uint32_t b[16], p[16];
+	for (uint32_t r = 0; r < 1000; ++r) {
+		for (uint32_t i = 0; i < 8; ++i) { a[i] = rng(); }
+		for (uint32_t i = 0; i < 16; ++i) { b[i] = uint32_t(rng()); }
+		// small nibble alphabet, so that the histogram is not mostly 1
+		if (r & 1u) {
+			for (uint32_t i = 0; i < 8; ++i) { a[i] &= 0x3333333333333333ull; }
+			for (uint32_t i = 0; i < 16; ++i) { b[i] &= 0x33333333u; }
+		}
+		const uint8_t nib = uint8_t(rng() % 4u);
+		const uint64x8_t va = uint64x8_t::load(a);
+		const uint32x16_t vb = uint32x16_t::load(b);
+
+		auto ref64 = [&](const uint64_t x, const uint32_t bits) {
+			uint64_t s = 0;
+			for (uint32_t k = 0; k < 64; k += bits) { s += (x >> k) & ((1ull << bits) - 1ull); }
+			return s;
+		};
+		auto nibs = [&](const uint64_t x, const uint32_t n) {
+			uint64_t c = 0;
+			for (uint32_t k = 0; k < n; ++k) { c += ((x >> (4u*k)) & 0xFu) == nib; }
+			return c;
+		};
+
+		uint64x8_t::store(o, uint64x8_t::hadd_epu8(va));  for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 8)); }
+		uint64x8_t::store(o, uint64x8_t::hadd_epu16(va)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 16)); }
+		uint64x8_t::store(o, uint64x8_t::hadd_epu32(va)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], ref64(a[i], 32)); }
+		uint64x8_t::store(o, uint64x8_t::histogram_epi4(va, nib)); for (uint32_t i = 0; i < 8; ++i) { EXPECT_EQ(o[i], nibs(a[i], 16)); }
+
+		uint32x16_t::store(p, uint32x16_t::hadd_epu8(vb));  for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], ref64(b[i], 8)); }
+		uint32x16_t::store(p, uint32x16_t::hadd_epu16(vb)); for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], ref64(b[i], 16)); }
+		uint32x16_t::store(p, uint32x16_t::histogram_epi4(vb, nib)); for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(p[i], nibs(b[i], 8)); }
+	}
+}
+
 TEST(uint8x64_t, TTrandom) {
 	uint8x64_t t1 = uint8x64_t::random();
 
@@ -181,9 +235,16 @@ TEST(uint8x64_t, popcnt) {
 	}
 
 
+	// NOTE: leading zeros of 0b00000100. Was 2, the trailing zeros, which
+	// 	the former implementation computed (now `tzcnt`).
 	auto t3 = uint8x64_t::lzcnt(t1);
 	for (uint32_t i = 0; i < 64; ++i) {
-		EXPECT_EQ(t3.v8[i], 2);
+		EXPECT_EQ(t3.v8[i], 5);
+	}
+
+	auto t4 = uint8x64_t::tzcnt(t1);
+	for (uint32_t i = 0; i < 64; ++i) {
+		EXPECT_EQ(t4.v8[i], 2);
 	}
 }
 

@@ -2,6 +2,7 @@
 #define CRYPTANALYSISLIB_SORT_SORTING_NETWORK_H
 
 #include <cstdint>
+#include <type_traits>
 
 // code original from djb_sort
 #ifdef USE_AVX
@@ -26,8 +27,8 @@ do { 								\
   asm( 								\
     "cmpl %1,%0\n\t" 				\
     "mov %0,%2\n\t" 				\
-    "cmovb %1,%0\n\t" 				\
-    "cmovb %2,%1\n\t" 				\
+    "cmova %1,%0\n\t" 				\
+    "cmova %2,%1\n\t" 				\
     : "+r"(a), "+r"(b), "=r"(temp1) \
     : 								\
     : "cc" 							\
@@ -36,16 +37,18 @@ do { 								\
 #else
 #define int32_MINMAX(a,b)	\
 do {                     	\
-    int32_t tmp = a;     	\
-    a = a < b ? a : b;   	\
-	b = a > b ? tmp : b; 	\
+    const int32_t tmpa = a;	\
+    const int32_t tmpb = b;	\
+    a = tmpa < tmpb ? tmpa : tmpb;	\
+    b = tmpa < tmpb ? tmpb : tmpa;	\
 }while(0)
 
 #define uint32_MINMAX(a,b)	\
 do {                     	\
-    uint32_t tmp = a;    	\
-    a = a < b ? a : b;   	\
-	b = a > b ? tmp : b; 	\
+    const uint32_t tmpa = a;	\
+    const uint32_t tmpb = b;	\
+    a = tmpa < tmpb ? tmpa : tmpb;	\
+    b = tmpa < tmpb ? tmpb : tmpa;	\
 }while(0)
 #endif
 
@@ -55,8 +58,10 @@ do {                     	\
 template<typename T>
 static inline void sort_minmax_branchless(T &a, T &b) {
     constexpr static uint32_t BITS = sizeof(T) * 8u;
+    using ST = std::make_signed_t<T>;
     T d = b - a;
-    d &= (T)( (long)d >> (BITS-1) );
+    // all ones if b < a, zero otherwise
+    d &= (T)( (ST)d >> (BITS-1) );
     a += d;
     b -= d;
 }
@@ -72,29 +77,29 @@ static inline void sortingnetwork_sort_i32x8(int32_t *x){
 	int32_t x7 = x[7];
 
 	/* odd-even sort instead of bitonic sort */
-	int32_MINMAX(x1,x0);
-	int32_MINMAX(x3,x2);
-	int32_MINMAX(x2,x0);
-	int32_MINMAX(x3,x1);
-	int32_MINMAX(x2,x1);
+	int32_MINMAX(x0,x1);
+	int32_MINMAX(x2,x3);
+	int32_MINMAX(x0,x2);
+	int32_MINMAX(x1,x3);
+	int32_MINMAX(x1,x2);
 
-	int32_MINMAX(x5,x4);
-	int32_MINMAX(x7,x6);
-	int32_MINMAX(x6,x4);
-	int32_MINMAX(x7,x5);
-	int32_MINMAX(x6,x5);
+	int32_MINMAX(x4,x5);
+	int32_MINMAX(x6,x7);
+	int32_MINMAX(x4,x6);
+	int32_MINMAX(x5,x7);
+	int32_MINMAX(x5,x6);
 
-	int32_MINMAX(x4,x0);
-	int32_MINMAX(x6,x2);
-	int32_MINMAX(x4,x2);
+	int32_MINMAX(x0,x4);
+	int32_MINMAX(x2,x6);
+	int32_MINMAX(x2,x4);
 
-	int32_MINMAX(x5,x1);
-	int32_MINMAX(x7,x3);
-	int32_MINMAX(x5,x3);
+	int32_MINMAX(x1,x5);
+	int32_MINMAX(x3,x7);
+	int32_MINMAX(x3,x5);
 
-	int32_MINMAX(x2,x1);
-	int32_MINMAX(x4,x3);
-	int32_MINMAX(x6,x5);
+	int32_MINMAX(x1,x2);
+	int32_MINMAX(x3,x4);
+	int32_MINMAX(x5,x6);
 
 	x[0] = x0;
 	x[1] = x1;
@@ -117,29 +122,29 @@ static inline void sortingnetwork_sort_u32x8(uint32_t *x){
 	uint32_t x7 = x[7];
 
 	/* odd-even sort instead of bitonic sort */
-	uint32_MINMAX(x1,x0);
-	uint32_MINMAX(x3,x2);
-	uint32_MINMAX(x2,x0);
-	uint32_MINMAX(x3,x1);
-	uint32_MINMAX(x2,x1);
+	uint32_MINMAX(x0,x1);
+	uint32_MINMAX(x2,x3);
+	uint32_MINMAX(x0,x2);
+	uint32_MINMAX(x1,x3);
+	uint32_MINMAX(x1,x2);
 
-	uint32_MINMAX(x5,x4);
-	uint32_MINMAX(x7,x6);
-	uint32_MINMAX(x6,x4);
-	uint32_MINMAX(x7,x5);
-	uint32_MINMAX(x6,x5);
+	uint32_MINMAX(x4,x5);
+	uint32_MINMAX(x6,x7);
+	uint32_MINMAX(x4,x6);
+	uint32_MINMAX(x5,x7);
+	uint32_MINMAX(x5,x6);
 
-	uint32_MINMAX(x4,x0);
-	uint32_MINMAX(x6,x2);
-	uint32_MINMAX(x4,x2);
+	uint32_MINMAX(x0,x4);
+	uint32_MINMAX(x2,x6);
+	uint32_MINMAX(x2,x4);
 
-	uint32_MINMAX(x5,x1);
-	uint32_MINMAX(x7,x3);
-	uint32_MINMAX(x5,x3);
+	uint32_MINMAX(x1,x5);
+	uint32_MINMAX(x3,x7);
+	uint32_MINMAX(x3,x5);
 
-	uint32_MINMAX(x2,x1);
-	uint32_MINMAX(x4,x3);
-	uint32_MINMAX(x6,x5);
+	uint32_MINMAX(x1,x2);
+	uint32_MINMAX(x3,x4);
+	uint32_MINMAX(x5,x6);
 
 	x[0] = x0;
 	x[1] = x1;

@@ -5,6 +5,7 @@
 
 #include "simd/simd.h"
 #include "algorithm/algorithm.h"
+#include "algorithm/bits/ffs.h"
 
 namespace cryptanalysislib {
 
@@ -18,7 +19,7 @@ namespace cryptanalysislib {
 
     namespace internal {
         
-        // TODO test 
+        /// NOTE: tests in `tests/algorithm/mismatch.cpp`
         /// SIMD-optimized mismatch finding for integral arrays
         /// \tparam T Integral type for array elements
         /// \tparam config Algorithm configuration (default: algorithmMismatchConfig)
@@ -35,20 +36,22 @@ namespace cryptanalysislib {
             using S = SIMDSelector<T>;
             
             constexpr size_t t = S::LIMBS;
+            static_assert(t <= 64);
+            // one bit per lane
+            constexpr uint64_t full = (t == 64) ? uint64_t(-1ull) : ((1ull << t) - 1ull);
             size_t i = 0;
             
             // SIMD loop - process S::LIMBS elements at a time
             for (; (i + t) <= n; i += t) {
                 const auto d1 = S::template load<config.aligned_instructions>(data1 + i);
                 const auto d2 = S::template load<config.aligned_instructions>(data2 + i);
-                const auto cmp = d1 == d2;
+                const uint64_t cmp = uint64_t(d1 == d2) & full;
                 
                 // If comparison result is not all ones (i.e., there's a mismatch)
-                if (!cmp) [[unlikely]] {
+                if (cmp != full) [[unlikely]] {
                     // Find the first mismatch within this SIMD chunk
-                    // We need to invert the comparison result to find mismatches
-                    const auto mismatch_mask = ~cmp;
-                    return i + ffs<T>(mismatch_mask) - 1u;
+                    const uint64_t mismatch_mask = (~cmp) & full;
+                    return i + ffs<uint64_t>(mismatch_mask) - 1u;
                 }
             }
             
@@ -60,6 +63,42 @@ namespace cryptanalysislib {
             }
             
             return n; // Arrays are equal
+        }
+        /// Parallel search for the first index k < n with !p(first1[k], first2[k]).
+        /// Every chunk works on absolute offsets into both ranges.
+        /// \return k, or n if the first n elements match
+        template<class ExecPolicy,
+                 class InputIt1,
+                 class InputIt2,
+                 class BinaryPred>
+        size_t mismatch_parallel(ExecPolicy &&policy,
+                                 InputIt1 first1,
+                                 const size_t n,
+                                 InputIt2 first2,
+                                 BinaryPred p,
+                                 const uint32_t nthreads) noexcept {
+            auto chunk = [first1, first2, n, p](InputIt1 b, InputIt1 e) noexcept -> size_t {
+                const size_t off = static_cast<size_t>(b - first1);
+                InputIt2 b2 = first2 + off;
+                for (size_t k = off; b != e; ++b, ++b2, ++k) {
+                    if (!p(*b, *b2)) {
+                        return k;
+                    }
+                }
+                return n;
+            };
+
+            auto futures = internal::parallel_chunk_for_1(policy, first1, first1 + n,
+                                                          chunk, (size_t *)nullptr, 1, nthreads);
+            // wait for every chunk and keep the smallest mismatch index
+            size_t ret = n;
+            for (auto &f : futures) {
+                const size_t k = f.get();
+                if (k < ret) {
+                    ret = k;
+                }
+            }
+            return ret;
         }
     } // end namespace internal
 
@@ -98,12 +137,15 @@ namespace cryptanalysislib {
     /// \param last1[in]: Iterator to the end of the first range
     /// \param first2[in]: Iterator to the beginning of the second range
     /// \return Pair of iterators pointing to the first mismatch
+    /// NOTE: `ExecPolicy` is constrained, otherwise the 4 iterator call
+    /// 	`mismatch(first1, last1, first2, last2)` is ambiguous with this one
     template<class ExecPolicy,
              class InputIt1, 
              class InputIt2,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2>
 #endif
     constexpr std::pair<InputIt1, InputIt2>
@@ -120,18 +162,9 @@ namespace cryptanalysislib {
                 (first1, last1, first2);
 		}
 
-        auto ret = std::make_pair(last1, first2);
-        auto futures = internal::parallel_chunk_for_2(
-                            std::forward<ExecPolicy>(policy), 
-                            first1, last1, last1,
-                            cryptanalysislib::mismatch<InputIt1, InputIt2, config>,
-                            ret, nthreads);
-        internal::get_futures(futures);
-        for (auto &future : futures) {
-            if (future.first != first2) {
-                return future;
-            }
-        }
+        const size_t k = internal::mismatch_parallel(policy, first1, static_cast<size_t>(size),
+                                                     first2, [](const auto &a, const auto &b) { return a == b; }, nthreads);
+        return {first1 + k, first2 + k};
     }
     
     /// Finds first mismatch between two ranges using custom predicate (sequential version)
@@ -185,7 +218,8 @@ namespace cryptanalysislib {
              class BinaryPred,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2> &&
     			 std::regular_invocable<BinaryPred,
 									const typename InputIt1::value_type&,
@@ -206,18 +240,9 @@ namespace cryptanalysislib {
                 (first1, last1, first2, p);
 		}
 
-        auto ret = std::make_pair(last1, first2);
-        auto futures = internal::parallel_chunk_for_2(
-                            std::forward<ExecPolicy>(policy), 
-                            first1, last1, last1,
-                            cryptanalysislib::mismatch<InputIt1, InputIt2, BinaryPred, config>,
-                            ret, nthreads, p);
-        internal::get_futures(futures);
-        for (auto &future : futures) {
-            if (future.first != first2) {
-                return future;
-            }
-        }
+        const size_t k = internal::mismatch_parallel(policy, first1, static_cast<size_t>(size),
+                                                     first2, p, nthreads);
+        return {first1 + k, first2 + k};
     }
 
     /// Finds first mismatch between two full ranges using default equality (sequential version)
@@ -264,7 +289,8 @@ namespace cryptanalysislib {
              class InputIt2,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2>
 #endif
     constexpr std::pair<InputIt1, InputIt2>
@@ -282,18 +308,12 @@ namespace cryptanalysislib {
                 (first1, last1, first2, last2);
 		}
 
-        auto ret = std::make_pair(last1, first2);
-        auto futures = internal::parallel_chunk_for_2(
-                            std::forward<ExecPolicy>(policy), 
-                            first1, last1, last1,
-                            cryptanalysislib::mismatch<InputIt1, InputIt2, config>,
-                            ret, nthreads, last2);
-        internal::get_futures(futures);
-        for (auto &future : futures) {
-            if (future.first != first2) {
-                return future;
-            }
-        }
+        const auto n1 = last1 - first1;
+        const auto n2 = last2 - first2;
+        const size_t n = static_cast<size_t>(n1 < n2 ? n1 : n2);
+        const size_t k = internal::mismatch_parallel(policy, first1, n,
+                                                     first2, [](const auto &a, const auto &b) { return a == b; }, nthreads);
+        return {first1 + k, first2 + k};
     }
     
     /// Finds first mismatch between two full ranges using custom predicate (sequential version)
@@ -350,7 +370,8 @@ namespace cryptanalysislib {
              class BinaryPred,
              const AlgorithmMismatchConfig config=algorithmMismatchConfig>
 #if __cplusplus > 201709L
-		requires std::random_access_iterator<InputIt1> &&
+		requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<InputIt1> &&
                  std::random_access_iterator<InputIt2> &&
     			 std::regular_invocable<BinaryPred,
 									const typename InputIt1::value_type&,
@@ -372,17 +393,11 @@ namespace cryptanalysislib {
                 (first1, last1, first2, last2, p);
 		}
 
-        auto ret = std::make_pair(last1, first2);
-        auto futures = internal::parallel_chunk_for_2(
-                            std::forward<ExecPolicy>(policy), 
-                            first1, last1, last1,
-                            cryptanalysislib::mismatch<InputIt1, InputIt2, BinaryPred, config>,
-                            ret, nthreads, last2, p);
-        internal::get_futures(futures);
-        for (auto &future : futures) {
-            if (future.first != first2) {
-                return future;
-            }
-        }
+        const auto n1 = last1 - first1;
+        const auto n2 = last2 - first2;
+        const size_t n = static_cast<size_t>(n1 < n2 ? n1 : n2);
+        const size_t k = internal::mismatch_parallel(policy, first1, n,
+                                                     first2, p, nthreads);
+        return {first1 + k, first2 + k};
     }
 }; // end namespace

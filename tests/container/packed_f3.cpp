@@ -298,31 +298,38 @@ TEST(kAryPackedContainer3, add128_T) {
 	EXPECT_EQ(true, correct128(t, row1, row2));
 }
 
-// TODO currently there is the transition from avx2 to generic simd
-// TEST(kAryPackedContainer3, add256_T) {
-//     using S = Row::S;
-// 	S row1 = S::set1(0),
-// 	  row2 = S::set1(0),
-// 	  t;
-// 
-// 	t = Row::add256_T(row1, row2);
-// 	EXPECT_EQ(true, correct256(t, row1, row2));
-// 
-// 	// set it to one
-// 	row1 = uint64x4_t::setr(6148914691236517205u, 6148914691236517205u, 6148914691236517205u, 6148914691236517205u);
-// 	t = Row::add256_T(row1, row2);
-// 	EXPECT_EQ(true, correct256(t, row1, row2));
-// 
-// 	// set it to two
-// 	row1 = uint64x4_t::setr(12297829382473034410u, 12297829382473034410u, 12297829382473034410u, 12297829382473034410u);
-// 	t = Row::add256_T(row1, row2);
-// 	EXPECT_EQ(true, correct256(t, row1, row2));
-// 
-// 	row1 = uint64x4_t::setr(12297829382473034410u, 12297829382473034410u, 12297829382473034410u, 12297829382473034410u);
-// 	row2 = uint64x4_t::setr(6148914691236517205u, 6148914691236517205u, 6148914691236517205u, 6148914691236517205u);
-// 	t = Row::add256_T(row1, row2);
-// 	EXPECT_EQ(true, correct256(t, row1, row2));
-// }
+/// `add256_T` on `Row::S` (the generic SIMD type, 256 or 512 bit), lane-wise
+/// against `Row::add`.
+TEST(kAryPackedContainer3, add256_T) {
+	using S = Row::S;
+	constexpr uint32_t L = S::LIMBS;
+	// a random limb of 32 numbers in {0, 1, 2}
+	auto random_limb = []() {
+		uint64_t x = 0;
+		for (uint32_t i = 0; i < 32; i++) { x |= uint64_t(rng() % 3u) << (2u * i); }
+		return x;
+	};
+
+	for (uint32_t r = 0; r < 1000; ++r) {
+		alignas(64) uint64_t a[L], b[L];
+		for (uint32_t i = 0; i < L; i++) {
+			a[i] = (r == 0) ? 0 : random_limb();
+			b[i] = (r == 1) ? 0 : random_limb();
+		}
+
+		const S t = Row::add256_T(S::template load<false>(a), S::template load<false>(b));
+		for (uint32_t i = 0; i < L; i++) {
+			Row r1, r2, r3;
+			r1.__data[0] = a[i];
+			r2.__data[0] = b[i];
+			Row::add(r3, r1, r2);
+			const uint64_t ti = t.d[i];
+			for (uint32_t j = 0; j < 32; j++) {
+				EXPECT_EQ((ti >> (2u * j)) & 3u, r3.get(j));
+			}
+		}
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

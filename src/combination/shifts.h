@@ -1,6 +1,10 @@
-#pragma once 
+#pragma once
+
+#include <cassert>
+#include <cstdint>
 
 #include "colex.h"
+#include "combination/enumerator.h"
 
 /// Class for generating bit combinations in shifts-order
 /// Provides utilities for enumerating combinations that differ by shifts and splits
@@ -11,16 +15,16 @@ template<typename T, const uint32_t n, const uint32_t k>
 class bit_comb_shifts {
 public:
     /// Current combination
-    ulong x_;
+    uint64_t x_;
     
     /// How far the combination has been shifted to the right
-    ulong s_;
+    uint64_t s_;
     
     /// Parameters for the combinations (n choose k)
-    ulong n_, k_;
+    uint64_t n_, k_;
     
     /// Last combination in the sequence
-    ulong last_;
+    uint64_t last_;
     
     /// Co-lexicographic enumerator for combinations
     enumeration_colex<T, n, k> e;
@@ -34,7 +38,7 @@ public:
 
     /// Sets the combination to the first one in the shifts-order sequence
     /// \return the first combination
-    ulong first() {
+    uint64_t first() {
         s_ = 0;
         x_ =  e.last_comb();
 
@@ -44,34 +48,48 @@ public:
         return x_;
     }
 
+    /// \return the current combination
+    [[nodiscard]] uint64_t current() const noexcept {
+        return x_;
+    }
+
+    /// not implemented: the shifts-order is only generated forwards
+    /// \return false
+    bool previous() noexcept {
+        assert(false);
+        return false;
+    }
+
     /// Advances to the next combination in shifts-order
     /// A shifts-order traversal either shifts the current combination right
     /// or performs a split operation when a right shift is not possible
-    /// \return the next combination, or 0 if at the end of the sequence
-    ulong next()
+    /// \return false if the current combination is the last one (unchanged)
+    bool next()
     {
+        // NOTE: checked first, for k == 0 the only combination is 0
+        if ( x_ == last_ )  return false;  // combination was last
+
         if ( 0==(x_&1) ) {
             // Easy case: right shift is possible (rightmost bit is 0)
             ++s_;
             x_ >>= 1;
-            return  x_;
+            return  true;
         } else {
             // Splitting cases (rightmost bit is 1)
-            if ( x_ == last_ )  return 0;  // combination was last
 
             x_ <<= s_;  s_ = 0;  // shift back to the left
-            ulong b = x_ & -x_;  // lowest bit (rightmost 1)
+            uint64_t b = x_ & -x_;  // lowest bit (rightmost 1)
 
             if ( b!=1UL ) {
                 // Simple split: lowest bit is not at position 0
                 x_ -= (b>>1);  // move rightmost bit to the right
-                return x_;
+                return true;
             } else { 
                 // Complex split: lowest bit is at position 0
                 // Split second block and attach first
-                ulong t = __builtin_ctzll(x_);  // block of ones at lower end
+                uint64_t t = (x_ ^ (x_ + 1u)) >> 1u;  // block of ones at lower end (as a mask)
                 x_ ^= t;  // remove block
-                ulong b2 = x_ & -x_;  // (second) lowest bit
+                uint64_t b2 = x_ & -x_;  // (second) lowest bit
 
                 b2 >>= 1;
                 x_ -= b2;  // move bit to the right
@@ -84,7 +102,7 @@ public:
                 // Alternative: attach block using bit-scan operations
                 x_ |= ( t << (highest_one_idx(b2)-highest_one_idx(t)-1) );
 #endif
-                return x_;
+                return true;
             }
         }
     }

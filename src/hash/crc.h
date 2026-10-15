@@ -4,9 +4,20 @@
 #include <cstdint>
 #include <cstdlib>
 
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
+#include <immintrin.h>
+#endif
 
-// TODO add dispatch function like in `src/search/binary.h`
-// TODO add namespace and stuff
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+#include <arm_acle.h>
+#endif
+
+#include "dispatch.h"
+
+/// CRC32 with the zlib/IEEE polynomial (reflected 0xEDB88320): table based,
+/// SSE4.2+PCLMUL folding, NEON (`__crc32*`), and the CRC32C (Castagnoli)
+/// `option_14_golden_amd`. `crc32_dispatch` picks the fastest zlib CRC32.
+namespace cryptanalysislib::hash {
 
 const uint32_t crc32_tab[] = {
 	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
@@ -67,13 +78,13 @@ constexpr static uint32_t crc32(const uint8_t *buf,
 	return crc ^ ~0U;
 }
 
-#ifdef USE_PCLMULDQD
-#include <immintrin.h>
-
-// SSE4.2+PCLMUL
-uint32_t static sse42_crc32(const unsigned char *buf,
-    						const size_t len,
-    						const uint32_t crc) noexcept {
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
+// SSE4.2+PCLMUL folding kernel (from chromium/zlib `crc32_sse42_simd_`).
+// NOTE: requires len >= 64 and len % 16 == 0; `crc` is the raw (inverted)
+//	crc state, and the raw state is returned
+uint32_t static sse42_crc32_fold(const unsigned char *buf,
+    						     const size_t len,
+    						     const uint32_t crc) noexcept {
     // Definitions of the bit-reflected domain constants k1,k2,k3, etc and
     // the CRC32+Barrett polynomials given at the end of the paper.
     static const uint64_t __attribute__((aligned(16))) k1k2[] = { 0x0154442bd4, 0x01c6e41596 };
@@ -196,37 +207,74 @@ uint32_t static sse42_crc32(const unsigned char *buf,
      */
     return _mm_extract_epi32(x1, 1);
 }
+
+/// CRC32 (zlib polynomial), same convention as the scalar `crc32(buf, size, crc)`
+/// \param buf[in]: input
+/// \param len[in]: number of bytes
+/// \param crc[in]: initial crc value (0 for a fresh computation)
+/// \return crc32 of `buf`
+uint32_t static sse42_crc32(const unsigned char *buf,
+    						size_t len,
+    						const uint32_t crc) noexcept {
+	// NOTE: the folding kernel only handles multiples of 16 bytes (and at
+	// least 64); the remaining bytes are processed with the table. (The kernel
+	// used to be called directly: it read 64 bytes for len < 64 and ignored
+	// the last len % 16 bytes.)
+	uint32_t state = ~crc;
+	if (len >= 64) {
+		const size_t chunk = len & ~(size_t)15u;
+		state = sse42_crc32_fold(buf, chunk, state);
+		buf += chunk;
+		len -= chunk;
+	}
+
+	while (len--) {
+		state = crc32_tab[(state ^ *buf++) & 0xFF] ^ (state >> 8);
+	}
+
+	return ~state;
+}
 #endif
 
 
-#ifdef USE_NEON
-#include <arm_neon.h>
-#include <arm_acle.h>
-#include <stdint.h>
-#include <stddef.h>
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+/// CRC32 (zlib polynomial) via the ARMv8 CRC32 instructions, same convention
+/// as the scalar `crc32(buf, size, crc)`
+/// \param buf[in]: input
+/// \param len[in]: number of bytes
+/// \param crc[in]: initial crc value (0 for a fresh computation)
+/// \return crc32 of `buf`
+static inline uint32_t neon_crc32(const uint8_t *buf,
+                                  size_t len,
+                                  const uint32_t crc_) noexcept {
+	uint32_t crc = ~crc_;
 
-uint32_t crc32(uint32_t crc, uint8_t *buf, size_t len) {
-    crc = ~crc;
+	// NOTE: `buf` may not be aligned, so the words are loaded via memcpy
+	while (len >= 8) {
+		uint64_t t;
+		__builtin_memcpy(&t, buf, 8);
+		crc = __crc32d(crc, t);
+		len -= 8;
+		buf += 8;
+	}
 
-    while (len >= 8) {
-        crc = __crc32d(crc, *(uint64_t*)buf);
-        len -= 8;
-        buf += 8;
-    }
+	if (len & 4) {
+		uint32_t t;
+		__builtin_memcpy(&t, buf, 4);
+		crc = __crc32w(crc, t);
+		buf += 4;
+	}
+	if (len & 2) {
+		uint16_t t;
+		__builtin_memcpy(&t, buf, 2);
+		crc = __crc32h(crc, t);
+		buf += 2;
+	}
+	if (len & 1) {
+		crc = __crc32b(crc, *buf);
+	}
 
-    if (len & 4) {
-        crc = __crc32w(crc, *(uint32_t*)buf);
-        buf += 4;
-    }
-    if (len & 2) {
-        crc = __crc32h(crc, *(uint16_t*)buf);
-        buf += 2;
-    }
-    if (len & 1) {
-        crc = __crc32b(crc, *buf);
-    }
-
-    return ~crc;
+	return ~crc;
 }
 #endif
 
@@ -263,7 +311,7 @@ crcB = _mm_crc32_u64(crcB, *(uint64_t*)(pB - 8*(i)));
 
 /// Source: https://github.com/komrad36/CRC/tree/master/CRC
 /// OPTION 14
-uint32_t option_14_golden_amd(const void* M,
+inline uint32_t option_14_golden_amd(const void* M,
 							  uint32_t bytes,
 							  uint32_t prev/* = 0*/) noexcept {
 	constexpr uint32_t g_lut_amd[] = {
@@ -348,4 +396,38 @@ uint32_t option_14_golden_amd(const void* M,
 #undef CRC_ITERS_128_TO_2
 
 #endif
+
+/// CRC32 (zlib polynomial) with the fastest available implementation (table,
+/// SSE4.2+PCLMUL or the ARMv8 CRC32 instructions): on the first call the candidates are benchmarked once
+/// on a fixed 4 KiB buffer (like `binary_search_dispatch`), the choice is a
+/// function local static (thread safe initialization).
+/// \param buf[in]: input
+/// \param size[in]: number of bytes
+/// \param crc[in]: initial crc value (0 for a fresh computation)
+/// \return crc32 of `buf`, identical for all implementations
+static inline uint32_t crc32_dispatch(const uint8_t *buf,
+                                      const size_t size,
+                                      const uint32_t crc) noexcept {
+	using FF = uint32_t (*)(const uint8_t *, size_t, uint32_t);
+	static FF functions[] = {
+		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return crc32(b, n, c); },
+#if defined(USE_PCLMUL) && defined(USE_SSE41)
+		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return sse42_crc32(b, n, c); },
+#endif
+#if defined(USE_ARM) && defined(__ARM_FEATURE_CRC32)
+		[](const uint8_t *b, size_t n, uint32_t c) noexcept { return neon_crc32(b, n, c); },
+#endif
+	};
+
+	static const FF best = []() noexcept {
+		static uint8_t data[4096];
+		for (size_t i = 0; i < sizeof(data); ++i) { data[i] = uint8_t(i * 131u + 7u); }
+		FF out = functions[0];
+		generic_dispatch(out, functions, sizeof(functions) / sizeof(functions[0]),
+		                 (const uint8_t *)data, sizeof(data), uint32_t(0));
+		return out;
+	}();
+	return best(buf, size, crc);
+}
+} // end namespace cryptanalysislib::hash
 #endif

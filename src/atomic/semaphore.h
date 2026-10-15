@@ -1,49 +1,93 @@
 #ifndef CRYPTANALYSISLIB_ATOMIC_SEMAPHORE_H
 #define CRYPTANALYSISLIB_ATOMIC_SEMAPHORE_H
 
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
 #include <semaphore.h>
+#endif
 #include <cassert>
+#include <cerrno>
 
 #include "helper.h"
 
-// just a wrapper around the normal glib semaphore
+namespace cryptanalysislib {
+/// just a wrapper around the POSIX semaphore (`sem_t`, unnamed, not shared
+/// between processes), initialized with 0
+/// NOTE: macOS does not implement unnamed POSIX semaphores (`sem_init` fails
+/// 	with ENOSYS), so a libdispatch semaphore is used there instead.
 struct semaphore_wrapper {
 private:
+#ifdef __APPLE__
+	dispatch_semaphore_t sem;
+
+	inline void create() noexcept {
+		sem = dispatch_semaphore_create(0);
+		assert(sem != nullptr);
+	}
+
+	inline void close() noexcept {
+		dispatch_release(sem);
+	}
+#else
 	sem_t sem;
 
 	inline void create() noexcept {
 		int err = sem_init(&sem, 0, 0);
 		assert(err == 0);
+		(void)err;
 	}
 
 	inline void close() noexcept {
 		sem_destroy(&sem);
 	}
+#endif
 
 public:
-	///
+	/// creates the semaphore with the value 0
 	semaphore_wrapper() noexcept {
 		create();
 	}
 
-	///
+	semaphore_wrapper(const semaphore_wrapper &) = delete;
+	semaphore_wrapper &operator=(const semaphore_wrapper &) = delete;
+
+	/// destroys the semaphore
 	~semaphore_wrapper() noexcept {
 		close();
 	}
 
-	///
+	/// blocks until the value is > 0, then decrements it
 	inline void wait() noexcept {
-		int err = sem_wait(&sem);
+#ifdef __APPLE__
+		dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER);
+#else
+		int err;
+		// NOTE: `sem_wait` returns early with EINTR if a signal arrives
+		do { err = sem_wait(&sem); } while ((err != 0) && (errno == EINTR));
 		assert(err == 0);
+		(void)err;
+#endif
 	}
 
-	///
-	inline void signal(int cnt) {
+	/// increments the value `cnt` times, i.e. wakes up `cnt` waiters
+	inline void signal(int cnt) noexcept {
 		while (cnt-- > 0) {
+#ifdef __APPLE__
+			dispatch_semaphore_signal(sem);
+#else
 			sem_post(&sem);
+#endif
 		}
 	}
 };
+} // end namespace cryptanalysislib
+
+// NOTE: the following coroutine semaphore is an unfinished port of
+// 	libcoro's `coro::semaphore` (missing `acquire_result`, members, includes,
+// 	member functions defined in the wrong scope, non-inline globals in a
+// 	header): it does not compile, so it is disabled until it is finished.
+#if 0
 
 
 // #include "coro/semaphore.hpp"
@@ -211,5 +255,6 @@ namespace cryptographic::atomic
     }
     } // end class
 } // end namespace
+#endif // the unfinished coroutine semaphore
 
 #endif

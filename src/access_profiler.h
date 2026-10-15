@@ -26,14 +26,14 @@ namespace cryptanalysislib {
         	size_t size;
         };
         
-        std::mutex pagemutex;
+        inline std::mutex pagemutex;
         
         // maps page addresses to the type that page belongs to
-        std::unordered_map<uintptr_t, type_t> pagemap;
+        inline std::unordered_map<uintptr_t, type_t> pagemap;
         
-        std::mutex typemutex;
-        std::unordered_map<std::type_info const*, std::uint8_t> typemap;
-        int next_typeidx = 0;
+        inline std::mutex typemutex;
+        inline std::unordered_map<std::type_info const*, std::uint8_t> typemap;
+        inline int next_typeidx = 0;
         
         struct access_t {
         	int size;
@@ -41,14 +41,14 @@ namespace cryptanalysislib {
         };
         
         enum { max_types = 300 };
-        std::vector<struct access_t> _access;
+        inline std::vector<struct access_t> _access;
         // when the sigsegv handler unprotects a page and enters
         // single step mode, it saves the page that was unprotected
         // here, and protects it again in the single step handler
         // (i.e. one instruction later)
-        pthread_key_t last_page = 0;
+        inline pthread_key_t last_page = 0;
 
-        int type_idx(std::type_info const* ti, int size) {
+        inline int type_idx(std::type_info const* ti, int size) {
         	std::lock_guard<std::mutex> l(typemutex);
         	auto i = typemap.find(ti);
         	if (i != typemap.end()) return i->second;
@@ -61,7 +61,7 @@ namespace cryptanalysislib {
         	return next_typeidx-1;
         }
         
-        void* allocate_instrumented_type(int size, int type) {
+        inline void* allocate_instrumented_type(int size, int type) {
         	if (type == -1) return malloc(size);
         
         	// round up to even page
@@ -87,7 +87,7 @@ namespace cryptanalysislib {
         	return buf;
         }
 
-        void free_instrumented_type(void* buf, int size, int type) {
+        inline void free_instrumented_type(void* buf, int size, int type) {
         	if (type == -1) {
         		free(buf);
         		return;
@@ -109,8 +109,31 @@ namespace cryptanalysislib {
         	free(buf);
         }
 
-        void segv_handler(int, siginfo_t *info, void* uap) {
+        /// sets (`on`) or clears the x86 trap flag in the interrupted context,
+        /// so that exactly one instruction is executed before `SIGTRAP`
+        /// NOTE: before, this was only done on 32 bit macOS. On x86-64 the
+        /// 	page stayed unprotected after the first access, so only the
+        /// 	first access per page was recorded.
+        inline void set_single_step(void *uap, const bool on) noexcept {
         	ucontext_t* uc = (ucontext_t*)uap;
+        	constexpr unsigned long trap_flag = 0x100;
+#if defined(__APPLE__) && defined(__x86_64__)
+        	if (on) { uc->uc_mcontext->__ss.__rflags |= trap_flag; }
+        	else    { uc->uc_mcontext->__ss.__rflags &= ~trap_flag; }
+#elif defined(__APPLE__) && defined(__i386__)
+        	if (on) { uc->uc_mcontext->__ss.__eflags |= trap_flag; }
+        	else    { uc->uc_mcontext->__ss.__eflags &= ~trap_flag; }
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__i386__))
+        	if (on) { uc->uc_mcontext.gregs[REG_EFL] |= trap_flag; }
+        	else    { uc->uc_mcontext.gregs[REG_EFL] &= ~trap_flag; }
+#else
+        	// no single stepping available: the page stays unprotected after
+        	// its first access, i.e. only the first access is recorded
+        	(void)uc; (void)on;
+#endif
+        }
+
+        inline void segv_handler(int, siginfo_t *info, void* uap) {
         
         	uintptr_t page_addr = uintptr_t(info->si_addr);
         	page_addr &= ~4095;
@@ -146,23 +169,15 @@ namespace cryptanalysislib {
         	// know which page to protect again
         	pthread_setspecific(last_page, (void*)page_addr);
         
-        	// turn on single step TODO
-#ifdef __LP64__
-        	// uc->uc_mcontext.__ss.__rflags |= 0x100;
-#else
-        	uc->uc_mcontext->__ss.__eflags |= 0x100;
-#endif
+        	// turn on single step
+        	set_single_step(uap, true);
         }
         
-        void single_step_handler(int signo, siginfo_t* info, void* uap) {
-        	ucontext_t* uc = (ucontext_t*)uap;
-        
+        inline void single_step_handler(int signo, siginfo_t* info, void* uap) {
+        	(void)signo; (void)info;
+
         	// turn off single step
-#ifdef __LP64__
-        	// uc->uc_mcontext.__ss.__rflags &= ~0x100;
-#else
-        	uc->uc_mcontext->__ss.__eflags &= ~0x100;
-#endif
+        	set_single_step(uap, false);
         
         	void* buf = pthread_getspecific(last_page);
         
@@ -171,7 +186,7 @@ namespace cryptanalysislib {
         }
 
 
-        void init_instrumentation() {
+        inline void init_instrumentation() {
         	pthread_key_create(&detail::last_page, NULL);
         
         	struct sigaction sa;
@@ -187,7 +202,7 @@ namespace cryptanalysislib {
         	_access.resize(max_types);
         }
         
-        void print_report() {
+        inline void print_report() {
         	//FILE* out = fopen("_access_profile.out", "w+");
         	//if (out == nullptr) {
         	//	fprintf(stderr, "failed to open \"_access_profile.out\" "

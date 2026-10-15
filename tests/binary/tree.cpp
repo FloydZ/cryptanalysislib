@@ -156,7 +156,7 @@ TEST(BinaryTreeTest, JoinRandomListsLevel1) {
 }
 
 TEST(BinaryTreeTest, JoinRandomListsLevel2) {
-	unsigned int base_size = 6u;
+	unsigned int base_size = 7u;
 
 	BinaryMatrix A;
 	A.fill(0);
@@ -219,7 +219,11 @@ TEST(BinaryTreeTest, JoinRandomListsLevel2) {
 }
 
 TEST(BinaryTreeTest, JoinRandomListsLevel3) {
-	unsigned int base_size = 5u;
+	// NOTE: each level matches on n/4=5 bits, so with base_size=5 there are
+	// 	~32 expected solutions and `num == 0` happens (~1%); every further bit
+	// 	squares the intermediate lists: base_size=7 makes the brute force
+	// 	below run for hours.
+	unsigned int base_size = 6u;
 
 	BinaryMatrix A;
 	A.random();

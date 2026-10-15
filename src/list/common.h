@@ -4,6 +4,8 @@
 #include "element.h"
 #include "memory/memory.h"
 #include "alloc/alloc.h"
+#include "algorithm/copy.h"
+#include <type_traits>
 
 struct ListConfig : public AlignmentConfig {
 public:
@@ -176,12 +178,14 @@ concept ListAble = requires(List l) {
 #endif
 
 
+/// non-owning, mutable view onto the half-open range [start, end) of a list.
+/// \tparam List any list implementing `ListAble`
 template<class List>
 #if __cplusplus > 201709L
-	// TODO requires ListAble<List>
+	requires ListAble<List>
 #endif
 class Listview_t {
-private:
+public:
 	using Element = typename List::ElementType;
 
 	// needed types
@@ -199,18 +203,23 @@ private:
 	typedef typename Element::LabelDataType LabelDataType;
 
 	typedef typename Element::MatrixType MatrixType;
+
+private:
 	constexpr Listview_t() = default;
 
+	List *list;
 	const size_t start;
 	const size_t end;
-	const List *list ;
 public:
-	constexpr Listview_t(const List *list,
+	/// \param list underlying list, must outlive the view
+	/// \param start first index (inclusive)
+	/// \param end last index (exclusive), must be <= list->size()
+	constexpr Listview_t(List *list,
 						 const size_t start,
-						 const size_t end) :
-			start(start), end(end), list(list) {
-		assert(start < end);
-		assert(end < list->size());
+						 const size_t end) noexcept :
+			list(list), start(start), end(end) {
+		assert(start <= end);
+		assert(end <= list->size());
 	}
 
 	[[nodiscard]] constexpr inline size_t size() const noexcept {
@@ -218,20 +227,24 @@ public:
 	}
 
 	[[nodiscard]] constexpr inline Element &operator[](const size_t i) noexcept {
+		assert(i < size());
 		return list->at(start + i);
 	}
 
 	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
+		assert(i < size());
 		return list->at(start + i);
 	}
 };
 
+/// non-owning, read-only view onto the half-open range [start, end) of a list.
+/// \tparam List any list implementing `ListAble`
 template<class List>
 #if __cplusplus > 201709L
-	//requires ListAble<List>
+	requires ListAble<List>
 #endif
 class Listview_const_t {
-private:
+public:
 	using Element = typename List::ElementType;
 
 	// needed types
@@ -249,17 +262,33 @@ private:
 	typedef typename Element::LabelDataType LabelDataType;
 
 	typedef typename Element::MatrixType MatrixType;
+
+private:
 	constexpr Listview_const_t() = default;
 
+	const List *list;
 	const size_t start;
 	const size_t end;
-	const List *list ;
 public:
+	/// \param list underlying list, must outlive the view
+	/// \param start first index (inclusive)
+	/// \param end last index (exclusive), must be <= list->size()
 	constexpr Listview_const_t(const List *list,
 	                     	   const size_t start,
-	                     	   const size_t end) :
-		list(list), start(start), end(end) {}
+	                     	   const size_t end) noexcept :
+		list(list), start(start), end(end) {
+		assert(start <= end);
+		assert(end <= list->size());
+	}
 
+	[[nodiscard]] constexpr inline size_t size() const noexcept {
+		return end - start;
+	}
+
+	[[nodiscard]] constexpr inline const Element &operator[](const size_t i) const noexcept {
+		assert(i < size());
+		return list->at(start + i);
+	}
 };
 
 template<class Element,
@@ -299,7 +328,7 @@ protected:
 
 public:
 
-	using L = MetaListT<Element, Allocator, listConfig>;
+	using L = MetaListT<Element, Allocator, config>;
 
 	// needed types
 	typedef Element ElementType;
@@ -360,28 +389,30 @@ public:
 	constexpr inline void static copy(MetaListT &out,
 	                                  const MetaListT &in,
 	                                  const uint32_t tid=0) noexcept {
+		// NOTE: both lists must be split into the same number of threads
+		assert(out.threads() == in.threads());
 		out.set_size(in.size());
-		out.set_load(in.load());
-		out.set_threads(in.threads());
 		out.set_thread_block_size(in.thread_block_size());
+		out.set_load(in.load(tid), tid);
 
-		const std::size_t s = tid * in.threads();
-		const std::size_t c = ((tid == in.__threads - 1) ? in.__thread_block_size : in.__size - (in.__threads - 1) * in.__thread_block_size);
-		memcpy(out.__data.data() + s, in.__data.data() + s, c * sizeof(ValueType));
+		// [s, s+c) is the part of the list this thread copies
+		const std::size_t s = in.start_pos(tid);
+		const std::size_t c = in.size(tid);
+		cryptanalysislib::copy(in.__data.begin() + s, in.__data.begin() + s + c, out.__data.begin() + s);
 	}
 
 	/// checks if all elements in the list fulfill the equation:
 	// 				label == value*matrix
 	/// \param m 		the matrix.
 	/// \param rewrite 	if set to true, all labels within each element will we overwritten by the recalculated.
-	/// \return 		true if ech element is correct.
+	/// \return 		true if each element is correct (before a possible rewrite).
 	constexpr bool is_correct(const MatrixType &m,
 							  const bool rewrite = false) noexcept {
-		bool ret = false;
+		bool ret = true;
 		for (size_t i = 0; i < load(); ++i) {
-			ret |= __data[i].is_correct(m, rewrite);
-			if ((ret) && (!rewrite)) {
-				return ret;
+			ret &= __data[i].is_correct(m, rewrite);
+			if ((!ret) && (!rewrite)) {
+				return false;
 			}
 		}
 
@@ -397,7 +428,7 @@ public:
 	/// \param end last index to check
 	/// \return if its sorted
 	[[nodiscard]] constexpr bool is_sorted(const uint64_t k_lower=0,
-										   const uint64_t k_higher=LabelBytes,
+										   const uint64_t k_higher=LabelLENGTH,
 										   const size_t start=0,
 										   const size_t end=-1ull) const noexcept {
 		const size_t end_ = end==-1ull ? load() : end;
@@ -434,11 +465,12 @@ public:
 	[[nodiscard]] constexpr bool is_sorted(const LabelType &t,
 	                                       const bool sub=false,
 	         							   const uint64_t k_lower=0,
-	                                       const uint64_t k_higher=LabelBytes,
+	                                       const uint64_t k_higher=LabelLENGTH,
 	                                       const size_t start=0,
 	                                       const size_t end=-1ull) const noexcept {
-		const size_t end_ = end==-1ull ? load()-1 : end;
-		assert(start < end_);
+		// NOTE: `end_` is exclusive, as in `is_sorted()` above
+		const size_t end_ = end==-1ull ? load() : end;
+		assert(start <= end_);
 
 		auto op = [&t, sub](const LabelType &a){
 			LabelType tmp;
@@ -475,8 +507,9 @@ public:
 	[[nodiscard]] constexpr size_t size(const uint32_t tid) const noexcept {
 		assert(tid < threads());
 
+		// the last thread also handles the remaining elements
 		if (tid == threads() - 1) {
-			return std::max(thread_block_size() * threads(), size());
+			return size() - (thread_block_size() * (threads() - 1));
 		}
 
 		return __thread_block_size;
@@ -519,7 +552,9 @@ public:
 			return 0;
 		}
 
-		return tid * (__data.size() / __threads);
+		// NOTE: not `__data.size()`, which is 0 for lists which manage
+		// their own storage (e.g. `Parallel_List_IndexElement_T`)
+		return tid * thread_block_size();
 	};
 	[[nodiscard]] constexpr inline size_t end_pos(const uint32_t tid=0) const noexcept {
 		assert(tid < threads());
@@ -528,9 +563,9 @@ public:
 		}
 
 		if (tid == threads() - 1) {
-			return std::max(thread_block_size() * tid, size());
+			return size();
 		}
-		return (tid + 1) * (__data.size() / __threads);
+		return (tid + 1) * thread_block_size();
 	};
 
 	/// some setter/getter
@@ -592,18 +627,27 @@ public:
 		return __data[i];
 	}
 
-	[[nodiscard]] constexpr inline Listview_t<L> view(const size_t i,
-	                                             	   const size_t j) noexcept {
-		assert(j <= size());
-		assert(i < j);
-		return Listview_t<L>(this, i, j);
+#ifdef __cpp_explicit_this_parameter
+	/// NOTE: deducing `this`, so the view is typed on the most derived list
+	/// 	(e.g. `List_T`), which is the one satisfying `ListAble`.
+	/// 	Not available without deducing `this` (e.g. gcc 13).
+	/// \param i first index (inclusive)
+	/// \param j last index (exclusive)
+	/// \return `Listview_t` or, if called on a const list, `Listview_const_t`
+	template<class Self>
+	[[nodiscard]] constexpr inline auto view(this Self &self,
+	                                         const size_t i,
+	                                         const size_t j) noexcept {
+		assert(j <= self.size());
+		assert(i <= j);
+		using LL = std::remove_const_t<Self>;
+		if constexpr (std::is_const_v<Self>) {
+			return Listview_const_t<LL>(&self, i, j);
+		} else {
+			return Listview_t<LL>(&self, i, j);
+		}
 	}
-	[[nodiscard]] constexpr inline const Element view(const size_t i,
-	                                                   const size_t j) const noexcept {
-		assert(j <= size());
-		assert(i < j);
-		return Listview_const_t<L>(this, i, j);
-	}
+#endif
 
 	///
 	/// \param e
@@ -735,6 +779,7 @@ public:
 	                     const uint32_t tid = 0) noexcept {
 		assert(i < size());
 		__data.erase(__data.begin() + i);
+		__size -= 1;
 		__load[tid] -= 1;
 	}
 
@@ -769,11 +814,11 @@ public:
 						  const uint32_t tid) noexcept {
 		assert(tid < threads());
 		const size_t sp = start_pos(tid);
-		const size_t ep = start_pos(tid);
+		const size_t ep = sp + size(tid);
 
 		Element e{};
 		set_load(ep - sp, tid);
-		for (size_t i = sp; i < sp; ++i) {
+		for (size_t i = sp; i < ep; ++i) {
 			e.random(m);
 			this->at(i) = e;
 		}
@@ -830,6 +875,15 @@ std::ostream &operator<<(std::ostream &out,
 template<typename List>
 std::ostream &operator<<(std::ostream &out,
                          const Listview_t<List> &obj) {
+	for (size_t i = 0; i < obj.size(); ++i) {
+		out << obj[i] << "\t pos:" << i << "\n";
+	}
+	return out;
+}
+
+template<typename List>
+std::ostream &operator<<(std::ostream &out,
+                         const Listview_const_t<List> &obj) {
 	for (size_t i = 0; i < obj.size(); ++i) {
 		out << obj[i] << "\t pos:" << i << "\n";
 	}

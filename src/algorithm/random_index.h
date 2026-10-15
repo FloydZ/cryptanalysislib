@@ -12,10 +12,10 @@ using namespace cryptanalysislib;
 
 /// Generates a list of random indices within a given range
 /// NOTE:
-/// 	- As long as `max_entry_size` > `len`, every element will
+/// 	- As long as `max_entry - min_entry` > `len`, every element will
 /// 		be chosen uniquely. So there will be no doubles
-///		- if `max_entry_size` <= `len` it will simply choose the
-/// 		the first `len` numbers and place them into the list.
+///		- if `max_entry - min_entry` <= `len`, the elements are chosen
+/// 		uniformly at random, doubles are possible.
 ///
 /// \tparam T type of the entries
 /// \param data [out]: list of random indices, must be pre-allocated
@@ -29,12 +29,15 @@ constexpr void generate_random_indices(T *data,
                                        const T min_entry=0) noexcept {
 	assert(len > 0);
 	assert(max_entry > 1);
+	assert(min_entry < max_entry);
 
-	if (max_entry <= len) {
+	// NOTE: the values are drawn from [min_entry, max_entry)
+	if (size_t(max_entry - min_entry) <= len) {
 		// easy case, in which we have to chose certain elements often
 		for (size_t i = 0; i < len; ++i) {
 			data[i] = rng<T>(min_entry, max_entry);
 		}
+		return;
 	}
 
 	for (uint32_t i = 0; i < len; ++i) {

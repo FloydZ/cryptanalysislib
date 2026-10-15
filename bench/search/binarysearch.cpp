@@ -44,7 +44,7 @@ B63_BENCHMARK(upper_bound_standard_binary_search, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = upper_bound_standard_binary_search(data.begin(), data.end(), data[search],
+		auto v = cryptanalysislib::upper_bound_standard_binary_search(data.begin(), data.end(), data[search],
 		  [](const T &e1) -> T {
 		      return e1 & MASK;
 		  });
@@ -61,7 +61,7 @@ B63_BENCHMARK(lower_bound_standard_binary_search, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = lower_bound_standard_binary_search(data.begin(), data.end(), data[search],
+		auto v = cryptanalysislib::lower_bound_standard_binary_search(data.begin(), data.end(), data[search],
 		   [](const T &e1) -> T {
 		       return e1 & MASK;
 		   });
@@ -78,7 +78,7 @@ B63_BENCHMARK(upper_bound_monobound_binary_search, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = upper_bound_monobound_binary_search(data.begin(), data.end(), data[search],
+		auto v = cryptanalysislib::upper_bound_monobound_binary_search(data.begin(), data.end(), data[search],
 		  [](const T &e1) -> T {
 		      return e1 & MASK;
 		  });
@@ -95,7 +95,7 @@ B63_BENCHMARK(lower_bound_monobound_binary_search, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = lower_bound_monobound_binary_search(data.begin(), data.end(), data[search],
+		auto v = cryptanalysislib::lower_bound_monobound_binary_search(data.begin(), data.end(), data[search],
 		    [](const T &e1) -> T {
 		        return e1 & MASK;
 		    });
@@ -112,7 +112,7 @@ B63_BENCHMARK(tripletapped_binary_search, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = tripletapped_binary_search(data.begin(), data.end(), data[search],
+		auto v = cryptanalysislib::tripletapped_binary_search(data.begin(), data.end(), data[search],
 		    [](const T &e1) -> T {
 		        return e1 & MASK;
 		    });
@@ -129,7 +129,7 @@ B63_BENCHMARK(branchless_lower_bound_cmp, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = branchless_lower_bound(data.begin(), data.end(), search,
+		auto v = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 			[](const T &e1, const T &e2) -> T {
 			  return (e1 & MASK) < (e2 & MASK);
 			});
@@ -147,7 +147,7 @@ B63_BENCHMARK(branchless_lower_bound, nn) {
 
 	for (uint64_t i = 0; i < MULT * nn; i++) {
 		search = rng() % SIZE;
-		auto v = branchless_lower_bound(data.begin(), data.end(), search,
+		auto v = cryptanalysislib::branchless_lower_bound(data.begin(), data.end(), search,
 		  [](const T &e1) {
 		      return (e1 & MASK);
 		  });

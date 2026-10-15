@@ -40,8 +40,9 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	static std::vector<uint32_t> tbl{{0, n}};
 	Tree t{2, A, 10u, tbl, __level_filter_array};
 
-	t[0].random(1u << 8u, A);
-	t[1].random(1u << 8u, A);
+	// 2^10 x 2^10 elements matched on n=16 bits: ~16 expected collisions
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 
@@ -59,7 +60,8 @@ TEST(SubSetSum, JoinRandomListsLevel0) {
 	EXPECT_EQ(t[2].load(), num);
 }
 
-// NOTE: takes very long
+// NOTE: the reference check below is quadratic, keep the lists small
+// 	(2^12 elements take minutes in Debug mode).
 TEST(SubSetSum, JoinRandomListsLevel1) {
 	Matrix A;
 	A.random();
@@ -67,16 +69,16 @@ TEST(SubSetSum, JoinRandomListsLevel1) {
 	static std::vector<uint32_t> tbl{{0, n/2, n}};
 	Tree t{2, A, 11, tbl, __level_filter_array};
 
-	t[0].random(1u << 12u, A);
-	t[1].random(1u << 12u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
 	t[0].sort_level(0, tbl);
 	t[1].sort_level(0, tbl);
 	t.join_stream(0);
 
 	t[0].set_load(0);
 	t[1].set_load(0);
-	t[0].random(1u << 12u, A);
-	t[1].random(1u << 12u, A);
+	t[0].random(1u << 10u, A);
+	t[1].random(1u << 10u, A);
 
 	t[2].sort_level(1, tbl);
 	t[0].sort_level(0, tbl);

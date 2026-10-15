@@ -15,6 +15,28 @@
 #include "math/bc/simd.h"
 #endif
 
+namespace cryptanalysislib::internal {
+	__device__ __host__ constexpr inline uint64_t bc_gcd(uint64_t a,
+	                                                     uint64_t b) noexcept {
+		while (b) {
+			const uint64_t t = a % b;
+			a = b;
+			b = t;
+		}
+		return a;
+	}
+
+	/// \return (a * n) / d, for the case that d divides a * n. Divides first,
+	///		so it does not overflow unless the result does.
+	__device__ __host__ constexpr inline uint64_t bc_mul_div(const uint64_t a,
+	                                                         const uint64_t n,
+	                                                         const uint64_t d) noexcept {
+		const uint64_t g = bc_gcd(n, d);
+		// gcd(n/g, d/g) == 1, hence d/g divides a
+		return (a / (d / g)) * (n / g);
+	}
+}
+
 /// Binomial coefficient
 /// \param nn n over k
 /// \param kk n over k
@@ -27,9 +49,9 @@ __device__ __host__ constexpr inline uint64_t bc(const uint64_t nn,
 	               (kk == 1 || kk == nn - 1) ? nn
 	                                         :// first
 	               (kk + kk < nn) ?           // recursive:
-	               (bc(nn - 1, kk - 1) * nn) / kk
+	               cryptanalysislib::internal::bc_mul_div(bc(nn - 1, kk - 1), nn, kk)
 	                              :                  //  path to k=1   is faster
-	               (bc(nn - 1, kk) * nn) / (nn - kk);//  path to k=n-1 is faster
+	               cryptanalysislib::internal::bc_mul_div(bc(nn - 1, kk), nn, nn - kk);//  path to k=n-1 is faster
 }
 
 __device__ __host__ constexpr inline uint64_t binom(const uint64_t nn,

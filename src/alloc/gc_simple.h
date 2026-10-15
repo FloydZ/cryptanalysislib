@@ -130,7 +130,8 @@ public:
 					tmp = alloc;
 					alloc = alloc->next;
 					// free the management structure
-					free(tmp);
+					// NOTE: allocated with `new` in `put`, was `free(tmp)`
+					delete tmp;
 				}
 			}
 		}

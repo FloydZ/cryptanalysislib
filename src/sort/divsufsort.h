@@ -1,3 +1,4 @@
+#pragma once
 /*
  * divsufsort.c for libdivsufsort-lite
  * Copyright (c) 2003-2008 Yuta Mori All Rights Reserved.
@@ -30,7 +31,8 @@
 #ifdef _OPENMP
 # include <omp.h>
 #endif
-#include "divsufsort.h"
+// NOTE: no `#include "divsufsort.h"`: this file is the copied `divsufsort.c`,
+// 	it included itself (endless recursion, did not compile)
 
 
 /*- Constants -*/
@@ -1717,7 +1719,8 @@ construct_BWT(const unsigned char *T, int *SA,
 
 /*- Function -*/
 
-int
+// NOTE: `inline` (defined in a header)
+inline int
 divsufsort(const unsigned char *T, int *SA, int n) {
   int *bucket_A, *bucket_B;
   int m;
@@ -1746,7 +1749,7 @@ divsufsort(const unsigned char *T, int *SA, int n) {
   return err;
 }
 
-int
+inline int
 divbwt(const unsigned char *T, unsigned char *U, int *A, int n) {
   int *B;
   int *bucket_A, *bucket_B;

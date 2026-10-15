@@ -9,6 +9,10 @@
 #include <immintrin.h>
 #endif
 
+#ifdef USE_ARM
+#include <arm_neon.h>
+#endif
+
 namespace cryptanalysislib::algorithm {
 	struct AlgorithmPrefixsumConfig : public AlgorithmConfig {
 		const bool aligned_instructions = false;
@@ -88,7 +92,8 @@ namespace cryptanalysislib::algorithm {
 			}
 
 			__m128i s = _mm_setzero_si128();
-			uint32_t i = 0;
+			// NOTE: was `uint32_t`, which wraps for n >= 2**32
+			size_t i = 0;
 			for (; i + prefixsum_u32_block_size <= n; i += prefixsum_u32_block_size) {
 				s = avx2_local_prefixsum_u32(a + i, s);
 			}
@@ -124,6 +129,8 @@ namespace cryptanalysislib::algorithm {
 			}
 
 			// tail mngt
+			// NOTE: `v[0]` has no predecessor. Before, `v[-1]` was read for n < 8.
+			if ((p == v) && (n > 0)) { p++; }
 			for (; p < pe; p++) {
 				*p += *(p - 1);
 			}
@@ -134,6 +141,10 @@ namespace cryptanalysislib::algorithm {
 		/// @param n
 		static void _TwoPhaseAccumulate(int32_t *v,
 								        const size_t n) noexcept {
+			// NOTE: nothing to accumulate. Before, 4 elements were loaded
+			// 	unconditionally, out of bounds for n < 4.
+			if (n < 8) { return; }
+
 			__m128i s = _mm_loadu_si128((__m128i*) v);
 			auto const pe = v + n;
 			for (auto p = v+4; p+4 <= pe; p += 4) {
@@ -166,6 +177,8 @@ namespace cryptanalysislib::algorithm {
 			_TwoPhaseAccumulate(v, nn);
 
 			// tail mngt
+			// NOTE: `v[0]` has no predecessor. Before, `v[-1]` was read for n < 16.
+			if ((p == v) && (n > 0)) { p++; }
 			for (; p < pe; p++) {
 				*p += *(p - 1);
 			}
@@ -192,18 +205,77 @@ namespace cryptanalysislib::algorithm {
             }
 			
             // tail mngt
+			// NOTE: `v[0]` has no predecessor. Before, `v[-1]` was read for n < 16.
+			if (i == 0) { i = 1; }
 			for (; i < n; i++) {
 				v[i] += v[i - 1];
 			}
         }
 #endif
 
-		/// \tparam T
+#ifdef USE_ARM
+		/// inplace prefix sum, 16 elements per iteration.
+		/// `vld4q_u32` deinterleaves the 16 elements, s.t. lane `j` of
+		/// `vals.val[k]` is the element `4j + k`. Hence three vertical additions
+		/// compute the prefix sums of the four groups of four elements in
+		/// parallel. Afterwards the four group sums (`vals.val[3]`) are prefix
+		/// summed horizontally and added to the groups.
+		/// source: https://lemire.me/blog/2026/03/08/prefix-sums-at-tens-of-gigabytes-per-second-with-arm-neon/
+		/// NOTE: the carry for the first group is the sum of all previous
+		/// 	blocks, so `add` is computed from `prev` before it is updated
+		/// \param data[in/out]
+		/// \param n number of elements
+		static void prefixsum_u32_neon(uint32_t *data,
+		                               const size_t n) noexcept {
+			const uint32x4_t zero = vdupq_n_u32(0);
+			uint32x4_t prev = vdupq_n_u32(0);
+
+			size_t i = 0;
+			for (; (i + 16) <= n; i += 16) {
+				uint32x4x4_t vals = vld4q_u32(data + i);
+
+				// prefix sum inside each group
+				vals.val[1] = vaddq_u32(vals.val[1], vals.val[0]);
+				vals.val[2] = vaddq_u32(vals.val[2], vals.val[1]);
+				vals.val[3] = vaddq_u32(vals.val[3], vals.val[2]);
+
+				// prefix sum over the four group sums
+				uint32x4_t ps = vaddq_u32(vals.val[3], vextq_u32(zero, vals.val[3], 3));
+				ps = vaddq_u32(ps, vextq_u32(zero, ps, 2));
+				ps = vaddq_u32(ps, prev);
+
+				// group `j` gets the sum of all elements before it
+				const uint32x4_t add = vextq_u32(prev, ps, 3);
+				prev = vdupq_laneq_u32(ps, 3);
+
+				vals.val[0] = vaddq_u32(vals.val[0], add);
+				vals.val[1] = vaddq_u32(vals.val[1], add);
+				vals.val[2] = vaddq_u32(vals.val[2], add);
+				vals.val[3] = vaddq_u32(vals.val[3], add);
+				vst4q_u32(data + i, vals);
+			}
+
+			// tail mngt
+			if (i == 0) { i = 1; }
+			for (; i < n; i++) {
+				data[i] += data[i - 1];
+			}
+		}
+#endif
+
+		/// inplace prefix sum for any unsigned `T`, via `TxN_t`
+		/// NOTE: was unfinished: it shifted the bits within each element
+		/// 	(`sll`) instead of shifting the elements, had no carry between
+		/// 	the blocks, and the tail read `v[-1]` for `n < limbs`.
+		/// \tparam T unsigned type (the signed SIMD types have no `+`)
 		/// \tparam config
-		/// \param v
-		/// \param n
+		/// \param v[in/out]
+		/// \param n number of elements
 		template<typename T,
 				 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
+#if __cplusplus > 201709L
+			requires std::is_unsigned_v<T>
+#endif
 		static void prefixsum_uXX_simd(T *v,
 									   const size_t n) noexcept {
 #ifdef USE_AVX512F
@@ -211,25 +283,34 @@ namespace cryptanalysislib::algorithm {
 #else
 			constexpr uint32_t limbs = 32/sizeof(T);
 #endif
-            constexpr uint32_t t = floor_log2(limbs) - 1;
 			using S = TxN_t<T, limbs>;
 
+			// shifting the elements of a register up by `s` (filling in zeros)
+			// is done via memory: store it after `limbs` zeros and load it
+			// again `s` elements earlier.
+			alignas(64) T buf[2 * limbs] = {0};
+
+			T carry = 0;
 			size_t i = 0;
 			for (; (i+limbs) <= n; i+=limbs) {
-				auto d = S::template load<config.aligned_instructions>(v + i);
-                S d2 = d;
-                for (uint32_t j = 0; j < t; j++) {
-                    d2 = S::sll(d2, j*t); 
-                    d = d + d2;
-                }
+				S d = S::template load<config.aligned_instructions>(v + i);
 
-				// TODO unfinished
-                S::template store<config.aligned_instructions>(v + i, d);
+				// log2(limbs) steps: d[j] += d[j - s]
+				for (uint32_t s = 1; s < limbs; s <<= 1u) {
+					S::template store<true>(buf + limbs, d);
+					d = S::add(d, S::template load<false>(buf + limbs - s));
+				}
+
+				// add the sum of all previous blocks
+				d = S::add(d, S::set1(carry));
+				S::template store<config.aligned_instructions>(v + i, d);
+				carry = v[i + limbs - 1];
 			}
 
 			// tailmngt
 			for (; i < n; i++) {
-				v[i] += v[i - 1];
+				carry = T(carry + v[i]);
+				v[i] = carry;
 			}
 		}
 	} // end namespace internal
@@ -256,6 +337,12 @@ namespace cryptanalysislib::algorithm {
 			return;
 		}
 #endif
+#ifdef USE_ARM
+		if constexpr (std::is_same_v<T, uint32_t>) {
+			internal::prefixsum_u32_neon(data, len);
+			return;
+		}
+#endif
 
 		for (size_t i = 1; i < len; ++i) {
 			data[i] += data[i-1];
@@ -269,13 +356,17 @@ namespace cryptanalysislib::algorithm {
 	template<typename ForwardIt,
 			 const AlgorithmPrefixsumConfig &config=algorithmPrefixsumConfig>
 #if __cplusplus > 201709L
-	    requires std::forward_iterator<ForwardIt>
+	    // NOTE: was `std::forward_iterator`, but the range is accessed as an
+	    // 	array, e.g. a `std::list` range compiled and corrupted memory
+	    requires std::contiguous_iterator<ForwardIt>
 #endif
 	void prefixsum(ForwardIt first,
 	               ForwardIt last) noexcept {
-		using T = ForwardIt::value_type;
+		using T = std::iter_value_t<ForwardIt>;
 		static_assert(std::is_arithmetic_v<T>);
 		const auto count = std::distance(first, last);
+		// NOTE: do not dereference `last` of an empty range
+		if (count <= 0) { return; }
 		prefixsum<T, config>(&(*first), count);
 	}
 
@@ -311,8 +402,7 @@ namespace cryptanalysislib::algorithm {
 
 		while (++first != last) {
 			acc = op(std::move(acc), *first);
-			*d_first = acc;
-			d_first += 1;
+			*++d_first = acc;
 		}
 
 		return ++d_first;
@@ -347,8 +437,8 @@ namespace cryptanalysislib::algorithm {
 			return d_first;
 		}
 
-		typename std::iterator_traits<InputIt>::value_type acc = *first;
-		acc = op(std::move(acc), init);
+		// same order as `std::inclusive_scan`: op(init, x_0)
+		typename std::iterator_traits<InputIt>::value_type acc = op(init, *first);
 		*d_first = acc;
 
 		while (++first != last) {

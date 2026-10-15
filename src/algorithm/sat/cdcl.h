@@ -26,12 +26,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 
 // TODO: class: with allocator
 // TODO: add PR https://github.com/marijnheule/microsat/pulls
 // TODO: class for literal
 enum { END = -9,
+	   NOMEM = -1,// `parse`: the clause database could not be allocated
 	   UNSAT = 0,
 	   SAT = 1,
 	   MARK = 2,
@@ -67,7 +69,7 @@ static inline constexpr void assign(struct solver *S, int *reason, int forced) {
 	S->model[abs(lit)] = (lit > 0);
 }// Mark the literal as true in the model
 
-void addWatch(struct solver *S, int lit, int mem) {// Add a watch pointer to a clause containing lit
+inline void addWatch(struct solver *S, int lit, int mem) {// Add a watch pointer to a clause containing lit
 	S->DB[mem] = S->first[lit];
 	S->first[lit] = mem;
 }// By updating the database and the pointers
@@ -87,7 +89,7 @@ static inline constexpr int *getMemory(struct solver *S,
 }
 
 // Adds a clause stored in *in of size size
-int *addClause(struct solver *S, int *in, int size, int irr) {
+inline int *addClause(struct solver *S, int *in, int size, int irr) {
 	int i, used = S->mem_used;               // Store a pointer to the beginning of the clause
 	int *clause = getMemory(S, size + 3) + 2;// Allocate memory for the clause in the database
 	if (size > 1) {
@@ -103,7 +105,7 @@ int *addClause(struct solver *S, int *in, int size, int irr) {
 	return clause;
 }// Return the pointer to the clause in the database
 
-void reduceDB(struct solver *S, int k) {                  // Removes "less useful" lemmas from DB
+inline void reduceDB(struct solver *S, int k) {                  // Removes "less useful" lemmas from DB
 	while (S->nLemmas > S->maxLemmas) S->maxLemmas += 300;// Allow more lemmas in the future
 	S->nLemmas = 0;                                       // Reset the number of lemmas
 
@@ -129,7 +131,7 @@ void reduceDB(struct solver *S, int k) {                  // Removes "less usefu
 	}
 }// If the latter is smaller than k, add it back
 
-void bump(struct solver *S, int lit) {// Move the variable to the front of the decision list
+inline void bump(struct solver *S, int lit) {// Move the variable to the front of the decision list
 	if (S->_false[lit] != IMPLIED) {
 		S->_false[lit] = MARK;// MARK the literal as involved if not a top-level unit
 		int var = abs(lit);
@@ -143,7 +145,7 @@ void bump(struct solver *S, int lit) {// Move the variable to the front of the d
 	}
 }// Make var the new head
 
-int implied(struct solver *S, int lit) {                      // Check if lit(eral) is implied by MARK literals
+inline int implied(struct solver *S, int lit) {                      // Check if lit(eral) is implied by MARK literals
 	if (S->_false[lit] > MARK) return (S->_false[lit] & MARK);// If checked before return old result
 	if (!S->reason[abs(lit)]) return 0;                       // In case lit is a decision, it is not implied
 	int *p = (S->DB + S->reason[abs(lit)] - 1);               // Get the reason of lit(eral)
@@ -156,7 +158,7 @@ int implied(struct solver *S, int lit) {                      // Check if lit(er
 	return 1;
 }// Mark and return that the literal is implied
 
-int *analyze(struct solver *S, int *clause) {// Compute a resolvent from falsified clause
+inline int *analyze(struct solver *S, int *clause) {// Compute a resolvent from falsified clause
 	S->res++;
 	S->nConflicts++;                                      // Bump restarts and update the statistic
 	while (*clause) bump(S, *(clause++));                 // MARK all literals in the falsified clause
@@ -199,7 +201,7 @@ build:;
 	return addClause(S, S->buffer, size, 0);
 }// Add new conflict clause to redundant DB
 
-int propagate(struct solver *S) {                       // Performs unit propagation
+inline int propagate(struct solver *S) {                       // Performs unit propagation
 	int forced = S->reason[abs(*S->processed)];         // Initialize forced flag
 	while (S->processed < S->assigned) {                // While unprocessed false literals
 		int lit = *(S->processed++);                    // Get first unprocessed literal
@@ -239,7 +241,7 @@ int propagate(struct solver *S) {                       // Performs unit propaga
 	return SAT;
 }// Finally, no conflict was found
 
-int solve(struct solver *S) {// Determine satisfiability
+inline int solve(struct solver *S) {// Determine satisfiability
 	int decision = S->head;
 	S->res = 0;                                 // Initialize the solver
 	for (;;) {                                  // Main solve loop
@@ -269,7 +271,7 @@ int solve(struct solver *S) {// Determine satisfiability
 	}
 }// Decisions have no reason clauses
 
-void initCDCL(struct solver *S, int n, int m) {
+inline void initCDCL(struct solver *S, int n, int m) {
 	if (n < 1) { return; }
 	// Set the number of variables
 	S->nVars = n;
@@ -288,8 +290,13 @@ void initCDCL(struct solver *S, int n, int m) {
 	// Initialize the fast and slow moving averages
 	S->fast = S->slow = 1 << 24;
 
-	// TODO calloc (aligned)
-	S->DB = (int *) malloc(sizeof(int) * S->mem_max);
+	// page aligned and zero initialized ("calloc (aligned)"): an anonymous
+	// mapping, zeroed lazily by the kernel. NOTE: `mem_max` ints are 4 GiB,
+	// so an aligned malloc + memset would touch all of it.
+	void *db = mmap(nullptr, sizeof(int) * (size_t)S->mem_max,
+	                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	S->DB = (db == MAP_FAILED) ? nullptr : (int *) db;
+	if (S->DB == nullptr) { return; }
 
 	// Full assignment of the (Boolean) variables (initially set to false)
 	S->model = getMemory(S, n + 1);
@@ -337,7 +344,7 @@ static void read_until_new_line(FILE *input) {
 }
 
 // Parse the formula and initialize
-int parse(struct solver *S, const char *filename) noexcept {
+inline int parse(struct solver *S, const char *filename) noexcept {
 	int tmp;
 	FILE *input = fopen(filename, "r");
 	while ((tmp = getc(input)) == 'c') read_until_new_line(input);
@@ -351,6 +358,10 @@ int parse(struct solver *S, const char *filename) noexcept {
 
 	// Allocate the main datastructures
 	initCDCL(S, S->nVars, S->nClauses);
+	if (S->DB == nullptr) {
+		fclose(input);
+		return NOMEM;
+	}
 
 	// Initialize the number of clauses to read
 	int nZeros = S->nClauses, size = 0;

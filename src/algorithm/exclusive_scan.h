@@ -4,6 +4,7 @@
 #include "algorithm/algorithm.h"
 #include "algorithm/accumulate.h"
 #include "algorithm/prefixsum.h"
+#include "memory/memory.h"
 #include "algorithm/apply.h"
 
 namespace cryptanalysislib {
@@ -14,7 +15,32 @@ namespace cryptanalysislib {
     constexpr static AlgorithmExclusiveScanConfig algorithmExclusiveScanConfig;
 
     namespace internal {
-        // TODO add SIMD implementations
+#ifdef USE_AVX2
+		/// exclusive prefix sum: out[i] = init + in[0] + ... + in[i-1] (mod 2^32)
+		/// via the inplace AVX2 inclusive prefix sum: shift the input by one
+		/// element, add `init` to the first element, and scan inplace.
+		/// NOTE: a generic `TxN_t` version (shifting through memory) was 3-6x
+		/// 	slower than the scalar loop, so only this one is used.
+		/// NOTE: `in == out` (inplace) is allowed
+		/// \param in[in]: n elements
+		/// \param out[out]: n elements
+		/// \param n number of elements
+		/// \param init value of out[0]
+		static void exclusive_scan_u32_avx2(const uint32_t *in,
+		                                    uint32_t *out,
+		                                    const size_t n,
+		                                    const uint32_t init) noexcept {
+			if (n == 0) { return; }
+
+			// element counts, overlap safe (inplace)
+			cryptanalysislib::memmove(out + 1, in, n - 1);
+			out[0] = init;
+			if (n > 1) {
+				out[1] += init;
+				algorithm::internal::prefixsum_u32_avx2(out + 1, n - 1);
+			}
+		}
+#endif
     }; // end namespace internal
 
 	/// Computes exclusive prefix scan with custom binary operation (sequential version)
@@ -49,14 +75,29 @@ namespace cryptanalysislib {
 			return d_first;
 		}
 
-    	T acc = init;
-    	*(d_first++) = acc;
-    	last -= 1;
+#ifdef USE_AVX2
+		// SIMD version for `+` on contiguous uint32_t data
+		if constexpr (std::contiguous_iterator<InputIt> &&
+		              std::contiguous_iterator<OutputIt> &&
+		              std::is_same_v<T, uint32_t> &&
+		              std::is_same_v<std::iter_value_t<OutputIt>, T> &&
+		              std::is_same_v<BinaryOp, std::plus<T>>) {
+			const size_t n = static_cast<size_t>(last - first);
+			internal::exclusive_scan_u32_avx2(std::to_address(first), std::to_address(d_first), n, init);
+			return d_first + n;
+		}
+#endif
 
+    	// NOTE: each element is read before its output is written, so
+    	// 	`d_first == first` (inplace) works. Before, out[0] = init was
+    	// 	written first, and `last -= 1` needed random access iterators.
+    	T acc = init;
     	while (first != last) {
-    		acc = op(std::move(acc), *first);
-    		*(d_first++) = acc;
-    		first += 1;
+    		const T v = *first;
+    		++first;
+    		*d_first = acc;
+    		++d_first;
+    		acc = op(std::move(acc), v);
     	}
 
     	return d_first;

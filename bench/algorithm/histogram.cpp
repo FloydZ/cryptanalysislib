@@ -113,4 +113,24 @@ BENCHMARK(BM_histogram_4x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_histogram_8x<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 BENCHMARK(BM_stupid_histogram<uint8_t>)->RangeMultiplier(2)->Range(32, LS);
 
+/// sequential vs. parallel (one private histogram per thread, merged at the
+/// end) on large inputs
+template<const bool par>
+static void BM_histogram_large(benchmark::State &state) {
+	static std::vector<uint8_t> data;
+	data.resize(state.range(0));
+	for (auto &x : data) { x = rng<uint8_t>(); }
+	for (auto _: state) {
+		if constexpr (par) {
+			cryptanalysislib::algorithm::histogram(par_if(true), cnt, data.data(), data.size());
+		} else {
+			cryptanalysislib::algorithm::histogram(cnt, data.data(), data.size());
+		}
+		benchmark::ClobberMemory();
+	}
+	state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(state.range(0)));
+}
+BENCHMARK(BM_histogram_large<false>)->RangeMultiplier(4)->Range(1u << 14u, 1u << 24u)->UseRealTime();
+BENCHMARK(BM_histogram_large<true>)->RangeMultiplier(4)->Range(1u << 14u, 1u << 24u)->UseRealTime();
+
 BENCHMARK_MAIN();

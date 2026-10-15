@@ -12,6 +12,7 @@
 #include <functional>
 
 #include "helper.h"
+#include "sort/sorting_network/common.h"
 
 namespace detail
 {
@@ -204,7 +205,11 @@ struct SizedRadixSorter<2>
             ++counts1[(key >> 8) & 0xff];
         }
 
-		// TODO not optimized: exclusive_sum
+		// exclusive prefix sums of both histograms.
+		// NOTE: not vectorized (a scan has a loop carried dependency), but the
+		// 	two independent scans are interleaved, which hides the latency.
+		// 	For 2 x 256 counters a SIMD scan does not pay off compared to the
+		// 	two passes over the data. Compiler output:
 		//https://godbo.lt/#g:!((g:!((g:!((h:codeEditor,i:(filename:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,selection:(endColumn:28,endLineNumber:16,positionColumn:28,positionLineNumber:16,selectionStartColumn:28,selectionStartLineNumber:16,startColumn:28,startLineNumber:16),source:'//+Type+your+code+here,+or+load+an+example.%0A%23include+%3Cstdint.h%3E%0A%0Aint+square(uint32_t+*counts0,+uint32_t+*counts1)+%7B%0A++++uint32_t+total0+%3D+0%3B%0A++++uint32_t+total1+%3D+0%3B%0A++++for+(uint32_t+i+%3D+0%3B+i+%3C+256%3B+%2B%2Bi)+%7B%0A++++++++uint32_t+old_count0+%3D+counts0%5Bi%5D%3B%0A++++++++uint32_t+old_count1+%3D+counts1%5Bi%5D%3B%0A++++++++counts0%5Bi%5D+%3D+total0%3B%0A++++++++counts1%5Bi%5D+%3D+total1%3B%0A++++++++total0+%2B%3D+old_count0%3B%0A++++++++total1+%2B%3D+old_count1%3B%0A++++%7D%0A%0A++++return+total0+%2B+total1%3B%0A%7D'),l:'5',n:'1',o:'C%2B%2B+source+%231',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0'),(g:!((h:compiler,i:(compiler:g141,filters:(b:'0',binary:'1',binaryObject:'1',commentOnly:'0',debugCalls:'1',demangle:'0',directives:'0',execute:'1',intel:'0',libraryCode:'0',trim:'1',verboseDemangling:'0'),flagsViewOpen:'1',fontScale:14,fontUsePx:'0',j:1,lang:c%2B%2B,libs:!(),options:'-mavx+-mavx2+-O3',overrides:!(),selection:(endColumn:1,endLineNumber:1,positionColumn:1,positionLineNumber:1,selectionStartColumn:1,selectionStartLineNumber:1,startColumn:1,startLineNumber:1),source:1),l:'5',n:'0',o:'+x86-64+gcc+14.1+(Editor+%231)',t:'0')),k:50,l:'4',n:'0',o:'',s:0,t:'0')),l:'2',n:'0',o:'',t:'0')),version:4
         count_type total0 = 0;
         count_type total1 = 0;
@@ -1090,10 +1095,34 @@ struct FallbackSubKey<T, typename std::enable_if<has_subscript_operator<T>::valu
 {
 };
 
+/// partitions with at most this many elements are sorted with a sorting
+/// network (if the elements are small and trivially copyable)
+constexpr static std::ptrdiff_t SortingNetworkThreshold = 16;
+
+/// sorts [b, b + n) with the Bose-Nelson sorting network for `Ns == n`
+template<typename It, typename Compare, std::size_t... Ns>
+inline void SortingNetworkDispatch(It b, const std::ptrdiff_t n, Compare & compare, std::index_sequence<Ns...>)
+{
+    (void)((n == std::ptrdiff_t(Ns) ? (StaticSort<Ns>()(b, compare), true) : false) || ...);
+}
+
 template<typename It, typename ExtractKey>
 inline void StdSortFallback(It begin, It end, ExtractKey & extract_key)
 {
-    std::sort(begin, end, [&](auto && l, auto && r){ return extract_key(l) < extract_key(r); });
+    auto compare = [&](auto && l, auto && r){ return extract_key(l) < extract_key(r); };
+    using value_type = typename std::iterator_traits<It>::value_type;
+    using iterator_category = typename std::iterator_traits<It>::iterator_category;
+    if constexpr (std::is_base_of_v<std::random_access_iterator_tag, iterator_category> &&
+                  std::is_trivially_copyable_v<value_type> && (sizeof(value_type) <= 16))
+    {
+        const std::ptrdiff_t n = end - begin;
+        if (n <= SortingNetworkThreshold)
+        {
+            SortingNetworkDispatch(begin, n, compare, std::make_index_sequence<SortingNetworkThreshold + 1>());
+            return;
+        }
+    }
+    std::sort(begin, end, compare);
 }
 
 template<std::ptrdiff_t StdSortThreshold, typename It, typename ExtractKey>
@@ -1490,23 +1519,16 @@ template<typename It, typename OutIt, typename ExtractKey>
 [[nodiscard]] bool ska_sort_copy(It begin, It end, OutIt buffer_begin, ExtractKey && key)
 {
     std::ptrdiff_t num_elements = end - begin;
-#if defined(__clang__) && !defined (__APPLE__)
-    if (num_elements < 128 || detail::radix_sort_pass_count<typename std::result_of<ExtractKey(decltype(*begin))>> >= 8)
-#else 
-    if (num_elements < 128 || detail::radix_sort_pass_count<typename std::invoke_result<ExtractKey(decltype(*begin))>> >= 8)
-#endif
+    // NOTE: `std::result_of` was removed in C++20 (libc++ does not provide it)
+    using key_type = std::invoke_result_t<ExtractKey, decltype(*begin)>;
+    if (num_elements < 128 || detail::radix_sort_pass_count<key_type> >= 8)
     {
         ska_sort(begin, end, key);
         return false;
     }
     else
 	{
-
-#if defined(__clang__) && !defined (__APPLE__)
-        return detail::RadixSorter<typename std::result_of<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
-#else 
-        return detail::RadixSorter<typename std::invoke_result<ExtractKey(decltype(*begin))>::type>::sort(begin, end, buffer_begin, key);
-#endif
+        return detail::RadixSorter<key_type>::sort(begin, end, buffer_begin, key);
 	}
 }
 template<typename It, typename OutIt>

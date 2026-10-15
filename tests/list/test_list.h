@@ -133,6 +133,24 @@ TEST(ListName, search_level) {
 	}
 }
 
+TEST(ListName, binary_search_runtime_bounds) {
+	List L{LS, 1};
+	Matrix m;
+	m.random();
+	L.random(LS, m);
+
+	constexpr uint32_t k_lower = 1, k_upper = N/2;
+	L.sort_level(k_lower, k_upper);
+	EXPECT_EQ(L.is_sorted(k_lower, k_upper), true);
+	for (size_t i = 0; i < LS; ++i) {
+		const size_t pos = L.binary_search(L[i], k_lower, k_upper);
+		ASSERT_NE(pos, size_t(-1));
+		EXPECT_LE(pos, i);
+		EXPECT_FALSE(L[pos].is_lower(L[i], k_lower, k_upper));
+		EXPECT_FALSE(L[i].is_lower(L[pos], k_lower, k_upper));
+	}
+}
+
 TEST(ListName, linear_search) {
 	List L{LS, 1};
 	Matrix m;

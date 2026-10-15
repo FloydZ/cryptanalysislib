@@ -1,14 +1,19 @@
 #pragma once
 
 #include <stdint.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
+#endif
 
 #include "popcount.h"
+#include "algorithm/countl.h"
+#include "algorithm/countr.h"
 
-using namespace cryptanalysislib::popcount;
+// NOTE: tests in `tests/algorithm/pext.cpp`, benchmarks in `bench/algorithm/pext.cpp`.
+// NOTE: no `using namespace` here: an unqualified `popcount` was ambiguous
+// 	with the namespace `cryptanalysislib::popcount`.
 
-// TODO tests and benches
-
+#ifdef USE_AVX2
 /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pext_avx2.cpp
 /// \param
 template <const uint32_t MAX_MASK_BITS,
@@ -29,7 +34,7 @@ void avx2_pext_u32_reference(const uint32_t* data_arr,
 
         __m256i bit = one;
 
-        for (int j=0; j < MAX_MASK_BITS; j++) {
+        for (uint32_t j=0; j < MAX_MASK_BITS; j++) {
             // 1. isolate the first non-zero bit set of mask
             const __m256i m0 = _mm256_sub_epi32(mask, one);
             const __m256i m1 = _mm256_and_si256(mask, m0);
@@ -57,7 +62,9 @@ void avx2_pext_u32_reference(const uint32_t* data_arr,
         _mm256_storeu_si256((__m256i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX2
 
+#ifdef USE_AVX512F
 /// Source: https://github.com/WojciechMula/toys/blob/master/simd-pdep-pext/pext_avx512.cpp
 template <const uint32_t MAX_MASK_BITS,
           const bool EARLY_EXIT>
@@ -77,7 +84,7 @@ void avx512_pext_u32_reference(const uint32_t* data_arr,
 
         __m512i bit = one;
 
-        for (int j=0; j < MAX_MASK_BITS; j++) {
+        for (uint32_t j=0; j < MAX_MASK_BITS; j++) {
             // 1. isolate the first bit set of mask
 
             //                                                 mask = [0101_1001_1100_0000|...]
@@ -108,11 +115,18 @@ void avx512_pext_u32_reference(const uint32_t* data_arr,
         _mm512_storeu_si512((__m512i*)(&out_arr[i]), out);
     }
 }
+#endif // USE_AVX512F
 
 
-/// TODO
-unsigned int pext32_emu(unsigned int v, unsigned int m) {
-	uint32_t ret = 0, pc = popcount(m);
+/// software `pext` (bit extract): for CPUs where `pext` is microcoded
+/// (AMD before Zen 3). Small masks are handled bit by bit, larger ones via
+/// carry-less multiplication (needs PCLMUL).
+/// NOTE: written with plain shifts/ands and `cryptanalysislib::count{l,r}_zero`
+/// 	instead of the BMI1/LZCNT intrinsics (`_bextr_u32`, `_blsr_u32`,
+/// 	`_tzcnt_u32`, `_lzcnt_u32`), which did not compile without
+/// 	`-mbmi`/`-mlzcnt`; compilers emit the same instructions if available.
+inline unsigned int pext32_emu(unsigned int v, unsigned int m) {
+	uint32_t ret = 0, pc = cryptanalysislib::popcount::popcount(m);
 	switch (pc) {
 		case 0:
 			ret = 0;
@@ -121,33 +135,34 @@ unsigned int pext32_emu(unsigned int v, unsigned int m) {
 			ret = (v & m) != 0;
 			break;
 		case 2: {
-				unsigned int msb = _bextr_u32(v, (31 - _lzcnt_u32(m)), 1);
-				unsigned int lsb = _bextr_u32(v, _tzcnt_u32(m), 1);
+				unsigned int msb = ((v >> ((31 - cryptanalysislib::countl_zero(m)))) & 1u);
+				unsigned int lsb = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
 				ret = (msb << 1) | lsb;
 			}
 		   break;
 		case 3: {
-				const unsigned int lz = 31 - _lzcnt_u32(m);
-				const unsigned int tz = _tzcnt_u32(m);
-				unsigned int msb = _bextr_u32(v, lz, 1);
-				unsigned int lsb = _bextr_u32(v, tz, 1);
-				m = _blsr_u32(m);
-				unsigned int csb = _bextr_u32(v, _tzcnt_u32(m), 1);
+				const unsigned int lz = 31 - cryptanalysislib::countl_zero(m);
+				const unsigned int tz = cryptanalysislib::countr_zero(m);
+				unsigned int msb = ((v >> (lz)) & 1u);
+				unsigned int lsb = ((v >> (tz)) & 1u);
+				m = (m & (m - 1u));
+				unsigned int csb = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
 				ret = (msb << 2) | (csb << 1) | lsb;
 			}
 			break;
 		case 4: {
-				const unsigned int lz = 31 - _lzcnt_u32(m);
-				const unsigned int tz = _tzcnt_u32(m);
-				unsigned int msb1 = _bextr_u32(v, lz, 1);
-				unsigned int lsb1 = _bextr_u32(v, tz, 1);
+				const unsigned int lz = 31 - cryptanalysislib::countl_zero(m);
+				const unsigned int tz = cryptanalysislib::countr_zero(m);
+				unsigned int msb1 = ((v >> (lz)) & 1u);
+				unsigned int lsb1 = ((v >> (tz)) & 1u);
 				m &= ~((1 << lz) | (1 << tz));
-				unsigned int msb0 = _bextr_u32(v, 31 - _lzcnt_u32(m), 1);
-				unsigned int lsb0 = _bextr_u32(v, _tzcnt_u32(m), 1);
+				unsigned int msb0 = ((v >> (31 - cryptanalysislib::countl_zero(m))) & 1u);
+				unsigned int lsb0 = ((v >> (cryptanalysislib::countr_zero(m))) & 1u);
 				ret = (msb1 << 3) | (msb0 << 2) | (lsb0 << 1) | lsb1;
 			break;
 		}
 		default: {
+#if defined(__PCLMUL__)
 			__m128i mm		= _mm_cvtsi32_si128(~m);
 			__m128i mtwo	= _mm_set1_epi64x((~0ULL) - 1);
 			__m128i clmul	= _mm_clmulepi64_si128(mm, mtwo, 0);
@@ -173,6 +188,17 @@ unsigned int pext32_emu(unsigned int v, unsigned int m) {
 					ret		= (unsigned int)((~bit4 & a) | ((bit4 & a) >> 16));
 			break;
 		}
+#else
+			// portable: extract the bits of `v` at the set bits of `m`
+			for (unsigned int k = 1; m; k += k) {
+				const unsigned int low = m & (0u - m);
+				if (v & low) { ret |= k; }
+				m ^= low;
+			}
+			break;
+		}
+#endif
+
 	}
 	return ret;
 };

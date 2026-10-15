@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <cstdint>
+
 
 // Return  word with bits of w separated as indicated by m.
 // Bits at positions where m is 0/1 are moved to the low/high end.
@@ -14,10 +16,10 @@
 //
 // s must contain the number of ones set in m.
 // For the default s exactly half of the bits must be set in m
-static inline ulong bit_separate(ulong w, ulong m, ulong s=BITS_PER_LONG/2)
+static inline uint64_t bit_separate(uint64_t w, uint64_t m, uint64_t s=BITS_PER_LONG/2)
 {
-    ulong a0 = bit_gather(w, ~m);
-    ulong a1 = bit_gather(w,  m);
+    uint64_t a0 = bit_gather(w, ~m);
+    uint64_t a1 = bit_gather(w,  m);
     return  (a0 ^ (a1<<s));
 }
 // -------------------------
@@ -40,19 +42,19 @@ static inline ulong bit_separate(ulong w, ulong m, ulong s=BITS_PER_LONG/2)
 //
 // For s==BITS_PER_LONG the result is as with bit_separate(w, m)
 //  if half of the bits of m are set.
-static inline ulong bit_separate_subwords(ulong w, ulong m, ulong s)
+static inline uint64_t bit_separate_subwords(uint64_t w, uint64_t m, uint64_t s)
 {
-    ulong swm = ~0UL >> ( BITS_PER_LONG - s );  // sub word mask
+    uint64_t swm = ~0UL >> ( BITS_PER_LONG - s );  // sub word mask
     swm <<= ( BITS_PER_LONG - s );  // at high end
-    ulong h = s/2;
-    ulong a = 0;  // return
+    uint64_t h = s/2;
+    uint64_t a = 0;  // return
     do
     {
         a <<= s;
-        ulong m1 = m  & swm;
-        ulong m0 = m1 ^ swm;
-        ulong a0 = bit_gather(w, m0);
-        ulong a1 = bit_gather(w, m1);
+        uint64_t m1 = m  & swm;
+        uint64_t m0 = m1 ^ swm;
+        uint64_t a0 = bit_gather(w, m0);
+        uint64_t a1 = bit_gather(w, m1);
         a |= (a0 ^ (a1<<h));
     }
     while ( (swm>>=s) );

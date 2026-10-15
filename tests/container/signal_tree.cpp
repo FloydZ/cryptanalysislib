@@ -14,6 +14,15 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
+// capacities: the next valid size, never smaller than requested
+static_assert(select_tree_size(1) == 64);
+static_assert(select_tree_size(64) == 64);
+static_assert(select_tree_size(65) == 512);
+static_assert(select_tree_size(1u << 17) == (1u << 17));
+static_assert(select_tree_size((1ull << 27) + 1) == (1ull << 28));
+static_assert(select_tree_size(1ull << 30) == (1ull << 30));
+static_assert(select_tree_size((1ull << 30) + 5) == (1ull << 31));
+
 template<std::size_t desired_signal_tree_capacity>
 int test_multi_threaded() {
 	try {

@@ -48,8 +48,13 @@ public:
 	constexpr static uint32_t limbs = (ncols + RADIX - 1u) / RADIX;
 
 	// number of limbs actually allocated
-	// TODO: write a SIMD abstraction layer (static global function?) which gives you the max aligment the computer supports.
-	constexpr static uint32_t alignment = 256;// NOTE: currently that's chosen for avx
+	// NOTE: in bits. The row kernels (`row_xor`, `xor_avx1_new`, ...) process
+	// 	one `uint8x32_t` per step, so the padding must be exactly that width.
+	// 	`cryptanalysislib::simd_max_register_bits()` gives the widest register
+	// 	of the machine, but using it here would also require the kernels to
+	// 	step by that width (with 512 they would skip half of every block).
+	constexpr static uint32_t alignment = sizeof(uint8x32_t) * 8u;
+	static_assert(alignment == 256u);
 	constexpr static uint32_t fraction = alignment / RADIX;
 	constexpr static uint32_t padded_limbs = ((ncols + alignment - 1u) / alignment) * fraction;
 	constexpr static uint32_t padded_simd_limbs = (ncols + alignment - 1u) / alignment;
@@ -60,10 +65,11 @@ public:
 	constexpr static T high_bitmask = -1ul >> ((RADIX - (ncols % RADIX)) % RADIX);
 	constexpr static uint32_t block_words = nrows * padded_limbs;
 
-	/// \param x start row
+	/// reads the bits [y, y+n) of row x (may span two limbs).
+	/// \param x row
 	/// \param y start col
 	/// \param n num bits <= RADIX
-	/// \return
+	/// \return the n bits, column y in the least significant bit
 	constexpr inline T read_bits(T const x, T const y, uint32_t const n) const noexcept {
 		assert(x < nrows);
 		assert(y + n <= ncols);
@@ -76,19 +82,6 @@ public:
 		                 ? row_[block] << -spill
 		                 : (row_[block + 1] << (RADIX - spill)) | (row_[block] >> spill);
 		return temp >> (RADIX - n);
-	}
-
-	/// TODO rename
-	/// \param M input matrix
-	/// \param x
-	/// \param y
-	/// \param nn
-	/// \return
-	constexpr static inline uint64_t matrix_read_bits(FqMatrix &M,
-	                                           const size_t x,
-	                                           const size_t y,
-	                                           const size_t nn) noexcept {
-		return M.read_bits(x, y, nn);
 	}
 
 	///
@@ -730,30 +723,16 @@ public:
 		assert(ecol - scol <= ncols_prime);
 
 		const uint32_t ncols = ecol - scol;
-		const T end_mask = (1u << (ncols % RADIX)) - 1u;
-		if ((scol % RADIX) == 0) {
-			const uint32_t startword = scol / RADIX;
-			for (uint32_t _row = srow; _row < erow; ++_row) {
-				memcpy(B.row(_row), A.row(_row) + startword, sizeof(T) * (ncols / RADIX));
-			}
-
-			if (ncols % RADIX) {
-				const uint32_t elimb = startword + (ncols / RADIX);
-				for (uint32_t _row = srow; _row < erow; ++_row) {
-					const T tmp = A.row(_row)[elimb] & end_mask;
-					B.row(_row)[elimb] = tmp;
-				}
-			}
-		} else {
-			uint32_t j;
-			for (uint32_t i = 0; i < nrows_prime; i++) {
-				T *crow = B.row(i);
-				for (j = 0; j + RADIX < ncols; j += RADIX) {
-					crow[j / RADIX] = A.read_bits(srow + i, scol + j, RADIX);
-				}
-
-				crow[j / RADIX] &= ~B.high_bitmask;
-				crow[j / RADIX] |= A.read_bits(srow + i, scol + j, ncols - j) & A.high_bitmask;
+		// NOTE: before, the aligned path wrote to the source row/limb indices
+		// 	of `B`, copied `sizeof(T)` times too many limbs (the element count
+		// 	`memcpy`), and shifted `1u` by up to 63; the unaligned path walked
+		// 	all rows of `B`. Now every destination limb is read via `read_bits`,
+		// 	which handles any column offset.
+		for (uint32_t i = 0; i < erow - srow; ++i) {
+			T *crow = B.row(i);
+			for (uint32_t j = 0; j < ncols; j += RADIX) {
+				const uint32_t nb = (ncols - j) < RADIX ? (ncols - j) : RADIX;
+				crow[j / RADIX] = A.read_bits(srow + i, scol + j, nb);
 			}
 		}
 	}
@@ -1119,7 +1098,7 @@ public:
 	                                          uint64_t *Table,
 	                                          const uint32_t **rev) noexcept {
 		for (size_t r = rstart; r < rstop; ++r) {
-			size_t x0 = rev[k][matrix_read_bits(M, r, cstart, k)];
+			size_t x0 = rev[k][M.read_bits(r, cstart, k)];
 			if (x0) {
 #ifdef DEBUG
 				auto isnonzero = [&M](const uint32_t r) {
@@ -1178,10 +1157,9 @@ public:
 				kk = rstop - c;
 			}
 
+			// NOTE: `matrix_gauss_submatrix` stops at the first column without
+			// 	a pivot, so the `kbar` pivots are the columns [c, c+kbar).
 			size_t kbar = matrix_gauss_submatrix(M, r, c, nrows, kk);
-			if (kk != kbar) {
-				break;
-			}
 
 			if (kbar > 0) {
 				matrix_make_table(M, r, kbar, xor_rows, diff);
@@ -1193,6 +1171,13 @@ public:
 
 			r += kbar;
 			c += kbar;
+
+			// NOTE: column `c` has no pivot, so the systematic part ends here.
+			// 	Before, this exit was taken before the `kbar` pivots of the
+			// 	block were processed and counted, e.g. returning 3 instead of 4.
+			if (kk != kbar) {
+				break;
+			}
 		}
 
 		return r;

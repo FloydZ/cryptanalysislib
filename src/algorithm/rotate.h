@@ -4,10 +4,11 @@
 #include <cstring>
 
 #ifdef USE_AVX2 
-#include <immintrin.h>
+#include <x86intrin.h>
 #endif
 
 #include "copy.h"
+#include "memory/memcpy.h"
 
 namespace cryptanalysislib {
 namespace internal {
@@ -23,7 +24,7 @@ namespace internal {
                                       const size_t start1, 
                                       const size_t start2,
                                       size_t block_size) noexcept {
-    	int *pta, *ptb, swap;
+    	T *pta, *ptb, swap;
     
     	pta = array + start1;
     	ptb = array + start2;
@@ -45,7 +46,7 @@ namespace internal {
                              const size_t start1,
                              const size_t start2,
                              size_t block_size) noexcept {
-    	int *pta, *ptb, swap;
+    	T *pta, *ptb, swap;
     
     	pta = array + start1 + block_size;
     	ptb = array + start2 + block_size;
@@ -74,13 +75,13 @@ namespace internal {
     	ptc = array + right;
     
     	if (left < right) {
-    		memcpy(swap, pta, left * sizeof(int));
-    		memmove(pta, ptb, right * sizeof(int));
-    		memcpy(ptc, swap, left * sizeof(int));
+    		cryptanalysislib::memcpy(swap, pta, left);
+    		cryptanalysislib::memmove(pta, ptb, right);
+    		cryptanalysislib::memcpy(ptc, swap, left);
     	} else {
-    		memcpy(swap, ptb, right * sizeof(int));
-    		memmove(ptc, pta, left * sizeof(int));
-    		memcpy(pta, swap, right * sizeof(int));
+    		cryptanalysislib::memcpy(swap, ptb, right);
+    		cryptanalysislib::memmove(ptc, pta, left);
+    		cryptanalysislib::memcpy(pta, swap, right);
     	}
     }
 };
@@ -99,14 +100,21 @@ template<typename T=uint64_t>
 		                                            const uint32_t k) noexcept {
 #ifdef USE_AVX2
     if constexpr(sizeof(T) == 8) {
-        return _rotl64(x, k);
+        return __rolq(x, k);
     }
     if constexpr(sizeof(T) == 4) {
         return _rotl(x, k);
     }
 
 #endif
-	return (x << k) | (x >> ((sizeof(T)*8) - k));
+	using U = std::make_unsigned_t<T>;
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	const uint32_t s = k % bits;
+	if (s == 0) {
+		return U(x);
+	}
+	// NOTE: computed and truncated in the unsigned type, so narrow types are not promoted
+	return U(U(U(x) << s) | U(U(x) >> (bits - s)));
 }
 
 /// Performs a right rotation on bits of an integer value
@@ -123,14 +131,21 @@ template<typename T=uint64_t>
                                                     const uint32_t k) {
 #ifdef USE_AVX2
     if constexpr(sizeof(T) == 8) {
-        return _rotr64(x, k);
+        return __rorq(x, k);
     }
     if constexpr(sizeof(T) == 4) {
         return _rotr(x, k);
     }
 
 #endif
-    return (x >> k) | (x << ((-k) & ((sizeof(T)*8)-1u)));
+	using U = std::make_unsigned_t<T>;
+	constexpr uint32_t bits = sizeof(T) * 8u;
+	const uint32_t s = k % bits;
+	if (s == 0) {
+		return U(x);
+	}
+	// NOTE: computed and truncated in the unsigned type, so narrow types are not promoted
+	return U(U(U(x) >> s) | U(U(x) << (bits - s)));
 }
 
 
@@ -164,7 +179,7 @@ consteval T rotl(const T x) noexcept {
 
 // main source https://github.com/scandum/rotate/
 // basically I concentrated on the implementations not using any memory
-// TODO tests and benchmarks
+// NOTE: tests in `tests/algorithm/rotate.cpp`, benchmarks in `bench/algorithm/rotate.cpp`
 
 /// Conjoined Triple Reversal rotation algorithm by Igor van den Hoven (2021)
 ///
@@ -268,9 +283,9 @@ size_t loop;
 
     if (left < right) {
     	if (left <= MAX_AUX) {
-    		memcpy(swap, array, left * sizeof(int));
-    		memmove(array, array + left, right * sizeof(int));
-    		memcpy(array + right, swap, left * sizeof(int));
+    		cryptanalysislib::memcpy(swap, array, left);
+    		cryptanalysislib::memmove(array, array + left, right);
+    		cryptanalysislib::memcpy(array + right, swap, left);
     	} else {
     		pta = array;
     		ptb = pta + left;
@@ -281,13 +296,13 @@ size_t loop;
     			ptc = pta + right;
     			ptd = ptc + left;
     
-    			memcpy(swap, ptb, loop * sizeof(int));
+    			cryptanalysislib::memcpy(swap, ptb, loop);
     
     			while (left--) {
     				*--ptc = *--ptd;
     				*ptd = *--ptb;
     			}
-    			memcpy(pta, swap, loop * sizeof(int));
+    			cryptanalysislib::memcpy(pta, swap, loop);
     		} else {
     			ptc = ptb;
     			ptd = ptc + right;
@@ -322,9 +337,9 @@ size_t loop;
     	}
     } else if (right < left) {
     	if (right <= MAX_AUX) {
-    		memcpy(swap, array + left, right * sizeof(int));
-    		memmove(array + right, array, left * sizeof(int));
-    		memcpy(array, swap, right * sizeof(int));
+    		cryptanalysislib::memcpy(swap, array + left, right);
+    		cryptanalysislib::memmove(array + right, array, left);
+    		cryptanalysislib::memcpy(array, swap, right);
     	} else {
     		pta = array;
     		ptb = pta + left;
@@ -335,13 +350,13 @@ size_t loop;
     			ptc = pta + right;
     			ptd = ptc + left;
     
-    			memcpy(swap, ptc, loop * sizeof(int));
+    			cryptanalysislib::memcpy(swap, ptc, loop);
     
     			while (right--) {
     				*ptc++ = *pta;
     				*pta++ = *ptb++;
     			}
-    			memcpy(ptd - loop, swap, loop * sizeof(int));
+    			cryptanalysislib::memcpy(ptd - loop, swap, loop);
     		} else {
     			ptc = ptb;
     			ptd = ptc + right;
@@ -404,14 +419,14 @@ constexpr void griesmills_rotation(T *array,
 	while (left && right) {
 		if (left <= right) {
 			do {
-				forward_block_swap(array, start, start + left, left);
+				internal::forward_block_swap(array, start, start + left, left);
 
 				start += left;
 				right -= left;
 			} while (left <= right);
 		} else {
 			do {
-				forward_block_swap(array, start + left - right, start + left, right);
+				internal::forward_block_swap(array, start + left - right, start + left, right);
 
 				left -= right;
 			} while (right <= left);
@@ -592,7 +607,15 @@ constexpr void drill_rotation(T *array,
 	}
 }
 
-/// TODO doc
+/// Rotates [first, last) such that `middle` becomes the first element
+/// (like `std::rotate`): in place, O(n) swaps, works for forward iterators.
+/// NOTE: for contiguous arrays see the faster `*_rotation` algorithms above,
+/// 	compared in `bench/algorithm/rotate.cpp` (1M uint32_t, split at n/3:
+/// 	`helix_rotation`/`drill_rotation` 59 µs, `std::rotate` 74 µs).
+/// \param first[in]: Iterator to the beginning of the range
+/// \param middle[in]: element which becomes the new first element
+/// \param last[in]: Iterator to the end of the range
+/// \return iterator to the new position of the former first element
 template<class ForwardIt>
 constexpr 
 ForwardIt rotate(ForwardIt first,
@@ -616,11 +639,17 @@ ForwardIt rotate(ForwardIt first,
     }
  
     // rotate the remaining sequence into place
-    rotate(write, next_read, last);
+    cryptanalysislib::rotate(write, next_read, last);
     return write;
 }
 
-//// TODO doc
+/// Copies [first, last) rotated such that `middle` comes first to `d_first`
+/// (like `std::rotate_copy`)
+/// \param first[in]: Iterator to the beginning of the input range
+/// \param middle[in]: element which becomes the first output element
+/// \param last[in]: Iterator to the end of the input range
+/// \param d_first[out]: beginning of the output, must not overlap the input
+/// \return Iterator past the last written element
 template<class ForwardIt,
          class OutputIt>
 constexpr

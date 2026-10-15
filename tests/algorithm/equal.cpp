@@ -26,7 +26,11 @@ TYPED_TEST_P(Equal, simple) {
     std::fill(in2.begin(), in2.end(), 1);
 
     const auto d = cryptanalysislib::equal(in1.begin(), in1.end(), in2.begin());
-    EXPECT_EQ(d, 0);
+    EXPECT_EQ(d, true);
+
+    in2[s/2] = 2;
+    const auto d2 = cryptanalysislib::equal(in1.begin(), in1.end(), in2.begin());
+    EXPECT_EQ(d2, false);
 }
 
 TYPED_TEST_P(Equal, multithreading) {
@@ -37,7 +41,11 @@ TYPED_TEST_P(Equal, multithreading) {
     std::fill(in2.begin(), in2.end(), 1);
 
     const auto d = cryptanalysislib::equal(par_if(true), in1.begin(), in1.end(), in2.begin());
-    EXPECT_EQ(d, 0);
+    EXPECT_EQ(d, true);
+
+    in2[s - 1] = 2;
+    const auto d2 = cryptanalysislib::equal(par_if(true), in1.begin(), in1.end(), in2.begin());
+    EXPECT_EQ(d2, false);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(Equal, simple, multithreading);

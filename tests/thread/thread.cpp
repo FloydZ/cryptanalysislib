@@ -2,6 +2,9 @@
 
 #include "thread/thread.h"
 
+// mythread is a Linux-only thread library (clone, futex)
+#if defined(__linux__)
+
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 using namespace std;
@@ -51,3 +54,9 @@ int main() {
 
 	return 0;
 }
+#else
+int main() {
+	printf("mythread is Linux-only; skipping\n");
+	return 0;
+}
+#endif

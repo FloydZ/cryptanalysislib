@@ -72,7 +72,7 @@ def rebuild(n: int, lam: int, gamma: int, k: int, delta: int, N: int, bf: int, i
     
     lam = int(math.log2(lam))
     cmd = ["make", "CXX_FLAGS +=  -DBENCH_n=" + str(n) + " -DBENCH_N=" + str(N) + " -DBENCH_LS=" + str(lam) + \
-           " -DBENCH_R="+str(r) + " -DBENCH_K="+str(k) + " -DBENCH_GAMMA="+str(gamma) + " -DBENCH_DELTA="+str(delta) +
+           " -DBENCH_R="+str(n // k) + " -DBENCH_K="+str(k) + " -DBENCH_GAMMA="+str(gamma) + " -DBENCH_DELTA="+str(delta) +
            " -DBENCH_BF="+str(bf) + " -DBENCH_ITERS="+str(iters) + optimisations, "-B", target, "-j1"]
 
     p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True, cwd=path)
@@ -222,8 +222,11 @@ def NN_compute_list_sizes(n: int, r: int, lam: int, delta: int, below=False, log
     :param delta: weight difference which is allowed for each element in the list
     :param below: if set to true, elements with weight <= delta are also accepted
     :param logscale: return the list sizes in logarithmic scale
-    :param max_switch: TODO
-    :return:
+    :param max_switch: bruteforce switch over: stop as soon as the expected list
+            size drops to `<= max_switch` (not in logarithmic scale). 0 means
+            all `r` levels are computed.
+    :return: list of the expected list sizes, starting with `lam`, one entry per
+            level (log2 of the sizes if `logscale`)
     """
     k = int(n // r)
     p = calc_p(k, delta, below)

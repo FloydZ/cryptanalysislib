@@ -17,6 +17,10 @@
 #include <time.h>
 #include <assert.h>
 
+#include "algorithm/bits/bsr.h"
+#include "algorithm/countr.h"
+#include "hash/crc.h"
+
 #ifdef MSVC
 # include <crtdbg.h>
 # include <intrin.h>
@@ -27,12 +31,6 @@
 # define assert(x) { if (!(x)) { printf("Assert failed " #x "\n"); exit(-1); } }
 #endif
 
-// TODO remove
-#ifdef DEBUG
-# define assert_DEBUG(x) ASSERT(x)
-#else
-# define assert_DEBUG(x)
-#endif
 
 typedef unsigned char byte;
 typedef unsigned short uint16;
@@ -59,44 +57,6 @@ template<typename T> constexpr T Clamp(const T v, const T low, const T high) {
 	}
 }
 
-uint32 clz32(uint32 x) {
-#ifdef MSVC
-	unsigned long v0;
-	_BitScanReverse(&v0, x);
-	return v0;
-#else
-	uint32 r, q;
-
-	r = (x > 0xFFFF) << 4; x >>= r;
-	q = (x > 0xFF) << 3; x >>= q; r |= q;
-	q = (x > 0xF) << 2; x >>= q; r |= q;
-	q = (x > 0x3) << 1; x >>= q; r |= q;
-	r |= (x >> 1);
-
-	return r;
-#endif
-}
-
-uint32 popcnt32(uint32 x) {
-	x -= ((x >> 1) & 0x55555555);
-	x = (((x >> 2) & 0x33333333) + (x & 0x33333333));
-	x = (((x >> 4) + x) & 0x0F0F0F0F);
-	x += (x >> 8);
-	x += (x >> 16);
-
-	return x & 0x0000003F;
-}
-
-uint32 ctz32(uint32 x) {
-#ifdef MSVC
-	unsigned long v0;
-	_BitScanForward(&v0, x);
-	return v0;
-#else
-	return popcnt32((x & uint32(-int32(x))) - 1);
-#endif
-}
-
 const int LOG2_LUT_SIZE_BITS = 8;
 const int LOG2_LUT_SCALE_BITS = 5;
 const int LOG2_LUT_PRECISION = 16;
@@ -114,7 +74,7 @@ void log2_init() {
 
 		for (int sum = 0; sum < scale; sum++) {
 			const uint32 v = (i * next) >> LOG2_LUT_SIZE_BITS;
-			const uint32 num_bits = LOG2_LUT_PRECISION - clz32(v);
+			const uint32 num_bits = LOG2_LUT_PRECISION - cryptanalysislib::algorithm::bsr(v);
 
 			acc += num_bits - 1;
 			next = v << (num_bits - 1);
@@ -126,87 +86,12 @@ void log2_init() {
 	log2_lut[0] = log2_lut[1];
 }
 
-static uint32 crc32_table[16][256];
-
-void crc32_init() {
-	// Reversed bit order for CRC32
-	const static uint32 POLY = 0xEDB88320;
-
-	uint32 n, crc, k;
-
-	for (n = 0; n < 256; n++) {
-		crc = n;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc = crc & 1 ? (crc >> 1) ^ POLY : crc >> 1;
-		crc32_table[0][n] = crc;
-	}
-
-	for (n = 0; n < 256; n++) {
-		crc = crc32_table[0][n];
-
-		for (k = 1; k < 16; k++) {
-			crc = crc32_table[0][crc & 0xff] ^ (crc >> 8);
-			crc32_table[k][n] = crc;
-		}
-	}
-}
-
-uint32 crc32_calc(const byte *window, int64 n, uint64 crci) {
-	uint64 crc = crci ^ 0xFFFFFFFF;
-	const byte *next = window;
-
-	while (n && (byte(size_t(next)) & 15)) {
-		crc = crc32_table[0][(crc ^ (*next++)) & 0xFF] ^ (crc >> 8);
-		--n;
-	}
-
-	while (n >= 16) {
-		crc ^= *reinterpret_cast<const uint64 *>(next);
-		uint64 high = *reinterpret_cast<const uint64 *>(next + 8);
-
-		crc =
-			crc32_table[15][crc & 0xFF] ^
-			crc32_table[14][(crc >> 8) & 0xFF] ^
-			crc32_table[13][(crc >> 16) & 0xFF] ^
-			crc32_table[12][(crc >> 24) & 0xFF] ^
-			crc32_table[11][(crc >> 32) & 0xFF] ^
-			crc32_table[10][(crc >> 40) & 0xFF] ^
-			crc32_table[9][(crc >> 48) & 0xFF] ^
-			crc32_table[8][crc >> 56] ^
-			crc32_table[7][high & 0xFF] ^
-			crc32_table[6][(high >> 8) & 0xFF] ^
-			crc32_table[5][(high >> 16) & 0xFF] ^
-			crc32_table[4][(high >> 24) & 0xFF] ^
-			crc32_table[3][(high >> 32) & 0xFF] ^
-			crc32_table[2][(high >> 40) & 0xFF] ^
-			crc32_table[1][(high >> 48) & 0xFF] ^
-			crc32_table[0][high >> 56];
-
-		next += 16;
-		n -= 16;
-	}
-
-	while (n) {
-		crc = crc32_table[0][(crc ^ (*next++)) & 0xFF] ^ (crc >> 8);
-		--n;
-	}
-
-	crci = crc ^ 0xFFFFFFFF;
-	return crci;
-}
-
 uint32 crc32_file(FILE *f) {
 	byte buf[0x4000];
 
 	uint32 n = 0, crc = 0;
 	while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
-		crc = crc32_calc(buf, n, crc);
+		crc = cryptanalysislib::hash::crc32_dispatch(buf, n, crc);
 	}
 
 	return crc;
@@ -287,7 +172,7 @@ const int16 cdf_initial4[17] = {
 template<int num_syms, int adapt_bits, int total>
 void init_mixin_table(int16(&mixin)[num_syms][num_syms]) {
 	const int mixin_bias = (1 << adapt_bits) - 1 - num_syms;
-	assert_DEBUG(mixin_bias > 0);
+	assert(mixin_bias > 0);
 
 	for (int y = 0; y < num_syms; y++) {
 		for (int x = 0; x <= y; x++) {
@@ -403,7 +288,7 @@ int cdf_lookup(const CDF3 &cdf, int f) {
 	__m128i _cmp0 = _mm_cmpgt_epi16(cdf._cell[0], _f);
 	int idx_mask = _mm_movemask_epi8(_cmp0) | 0x10000;
 
-	int idx = ctz32(idx_mask) >> 1;
+	int idx = cryptanalysislib::countr_zero(uint32(idx_mask)) >> 1;
 	return idx - 1;
 #else
 	int r = 4 * (f >= cdf.cell[4]);
@@ -423,7 +308,7 @@ int cdf_lookup(const CDF4 &cdf, int f) {
 	__m128i _cmp1 = _mm_cmpgt_epi16(cdf._cell[1], _f);
 	int idx_mask = _mm_movemask_epi8(_mm_packs_epi16(_cmp0, _cmp1)) | 0x10000;
 
-	int idx = ctz32(idx_mask);
+	int idx = cryptanalysislib::countr_zero(uint32(idx_mask));
 	return idx - 1;
 #else
 	int r = 8 * (f >= cdf.cell[8]);
@@ -535,7 +420,7 @@ struct DecodeFrame {
 };
 
 void CodeFrame::Init(byte *start, byte *end, uint32 *buf_rans, uint32 max_rans_syms) {
-	assert_DEBUG(end - start >= 1024);
+	assert(end - start >= 1024);
 
 	this->start = start;
 	this->end = end;
@@ -1229,7 +1114,7 @@ uint32 model_cost_match(Model &m, uint32 delta, uint16 len) {
 
 	uint32 dv = delta - 1;
 	if (dv >= 4) {
-		int nb = clz32(dv) + 1;
+		int nb = cryptanalysislib::algorithm::bsr(dv) + 1;
 
 		int add_bits = nb - 2;
 		int top = dv >> add_bits;
@@ -1311,7 +1196,7 @@ void model_encode_match(CodeFrame &frame, Model &m, uint32 delta, uint16 len) {
 		cdf_update(m.dist_slot_lo[lc][dv_hi], dv_lo);
 	}
 	else {
-		int nb = clz32(dv) + 1;
+		int nb = cryptanalysislib::algorithm::bsr(dv) + 1;
 
 		int add_bits = nb - 2;
 		int top = dv >> add_bits;
@@ -1778,7 +1663,7 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 	file_pos_reader += chunk_read;
 
 	uint32 crc32 = 0;
-	crc32 = crc32_calc(chunk_mem, chunk_read, crc32);
+	crc32 = cryptanalysislib::hash::crc32_dispatch(chunk_mem, chunk_read, crc32);
 
 	clock_t t0 = clock();
 
@@ -1875,14 +1760,14 @@ void encode_file(FILE *fin, FILE *fout, uint32 hist_bits) {
 			chunk_read -= p_end;
 
 			uint32 read_add = fread(chunk_mem + chunk_feed_size - p_end, 1, p_end, fin);
-			crc32 = crc32_calc(chunk_mem + chunk_feed_size - p_end, read_add, crc32);
+			crc32 = cryptanalysislib::hash::crc32_dispatch(chunk_mem + chunk_feed_size - p_end, read_add, crc32);
 
 			file_pos_reader += read_add;
 			chunk_read += read_add;
 		}
 		else {
 			chunk_read = fread(chunk_mem, 1, chunk_feed_size, fin);
-			crc32 = crc32_calc(chunk_mem, chunk_read, crc32);
+			crc32 = cryptanalysislib::hash::crc32_dispatch(chunk_mem, chunk_read, crc32);
 
 			file_pos_reader += chunk_read;
 		}
@@ -1973,7 +1858,7 @@ void decode_file(FILE *fin, FILE *fout) {
 				if (fout) {
 					fwrite(write_buf, 1, write_pos, fout);
 				}
-				crc32 = crc32_calc(write_buf, write_pos, crc32);
+				crc32 = cryptanalysislib::hash::crc32_dispatch(write_buf, write_pos, crc32);
 				write_pos = 0;
 			}
 
@@ -2031,7 +1916,7 @@ void decode_file(FILE *fin, FILE *fout) {
 		if (fout) {
 			fwrite(write_buf, 1, write_pos, fout);
 		}
-		crc32 = crc32_calc(write_buf, write_pos, crc32);
+		crc32 = cryptanalysislib::hash::crc32_dispatch(write_buf, write_pos, crc32);
 	}
 
 	print_fill(printf("Working... %" PRIu64 " -> %" PRIu64, file_pos_reader, file_pos_writer));
@@ -2062,7 +1947,6 @@ int main(int argc, char **argv) {
 	_CrtSetDbgFlag(dbg_flag);
 #endif
 
-	crc32_init();
 	log2_init();
 	cdf_init_mixins();
 

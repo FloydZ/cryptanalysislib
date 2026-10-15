@@ -3,6 +3,8 @@
 
 #include <cstdlib>
 
+#include "algorithm/swap.h"
+
 /// src: https://github.com/scandum/crumsort/tree/main
 /// \tparam T
 /// \param array
@@ -13,8 +15,8 @@ template<typename T>
 size_t hoare_partition(T array[],
                     size_t head,
                     size_t tail) {
-	T pivot = head++;
-	int swap;
+	// NOTE: `pivot` is an index, not a value
+	const size_t pivot = head++;
 
 	while (true) {
 		while (array[head] <= array[pivot] && head < tail) {
@@ -26,12 +28,11 @@ size_t hoare_partition(T array[],
 		}
 
 		if (head >= tail) {
-			swap = array[pivot]; array[pivot] = array[tail]; array[tail] = swap;
-
+			cryptanalysislib::swap(array[pivot], array[tail]);
 			return tail;
 		}
 
-		swap = array[head]; array[head] = array[tail]; array[tail] = swap;
+		cryptanalysislib::swap(array[head], array[tail]);
 	}
 }
 

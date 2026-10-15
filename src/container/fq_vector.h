@@ -10,6 +10,7 @@
 #include "helper.h"
 #include "math/math.h"
 #include "algorithm/bits/popcount.h"
+#include "algorithm/swap.h"
 #include "random.h"
 #include "simd/simd.h"
 #include "hash/hash.h"
@@ -69,7 +70,7 @@ public:
 			shift += qbits;
 		}
 
-		constexpr uint64_t mask = (1ull << ((h-l)*qbits)) - 1ull;
+		constexpr uint64_t mask = ((h-l)*qbits) >= 64u ? uint64_t(-1ull) : (1ull << ((h-l)*qbits)) - 1ull;
 		const uint64_t t1 = d;
 		const uint64_t t2 = t1 & mask;
 		return t2;
@@ -91,7 +92,7 @@ public:
 			shift += qbits;
 		}
 
-		const uint64_t mask = (1ull << ((h-l)*qbits)) - 1ull;
+		const uint64_t mask = ((h-l)*qbits) >= 64u ? uint64_t(-1ull) : (1ull << ((h-l)*qbits)) - 1ull;
 		const uint64_t t1 = d;
 		const uint64_t t2 = t1 & mask;
 		return t2;
@@ -141,12 +142,12 @@ public:
 		}
 	}
 
-	// sets everything
+	// sets everything to -1 mod q
 	constexpr inline void minus_one(const uint32_t l=0,
 	                                const uint32_t h=length) noexcept {
 		LOOP_UNROLL();
 		for (uint32_t i = l; i < h; i++) {
-			__data[i] = T(-1ull);
+			__data[i] = T(q - 1u);
 		}
 	}
 
@@ -238,7 +239,9 @@ public:
 	constexpr void swap(const uint32_t i,
 	                    const uint32_t j) noexcept {
 		assert(i < length && j < length);
-		SWAP(__data[i], __data[j]);
+		// NOTE: `SWAP` is not defined here (and the atomic `SWAP(ptr, val)`
+		// 	in `atomic_primitives.h` is an exchange, not a swap)
+		cryptanalysislib::swap(__data[i], __data[j]);
 	}
 
 	/// *-1
@@ -499,13 +502,9 @@ public:
 	/// \param a
 	/// \return a%q component wise
 	[[nodiscard]] constexpr static inline S mod256_T(const S a) noexcept {
-		constexpr uint32_t nr_limbs = 32u / sizeof(T);
-
-		uint8x32_t ret;
-		const T *data = (const T *) &a;
-		T *ret_data = (T *) &ret;
-		for (uint8_t i = 0; i < nr_limbs; ++i) {
-			ret_data[i] = data[i] % q;
+		S ret;
+		for (uint32_t i = 0; i < S::LIMBS; ++i) {
+			ret[i] = a[i] % q;
 		}
 
 		return ret;
@@ -554,7 +553,7 @@ public:
 		out.zero();
 
 		assert(s < length);
-		for (uint32_t j = 0; j < length - s; ++j) {
+		for (uint32_t j = 0; j < length; ++j) {
 			const auto d = in.get(j);
 			out.set(d, (j + s) % length);
 		}
@@ -566,10 +565,11 @@ public:
 	/// \param in1: input vector
 	constexpr static inline void mod(T *out, const T *in1) noexcept {
 		uint32_t i = 0;
-		for (; i + S::LIMBS < n; i += S::LIMBS) {
-			const uint8x32_t a = uint8x32_t::load(in1 + i);
-			const uint8x32_t tmp = mod256_T(a);
-			uint8x32_t::store(out + i, tmp);
+		// NOTE: `S` holds `T` limbs, so this is correct for any `T`
+		for (; i + S::LIMBS <= n; i += S::LIMBS) {
+			const S a = S::load(in1 + i);
+			const S tmp = mod256_T(a);
+			S::store(out + i, tmp);
 		}
 
 		for (; i < n; i += 1) {
@@ -608,8 +608,9 @@ public:
 	                                 const T *in2) noexcept {
 		uint32_t i = 0;
 		for (; i + S::LIMBS <= n; i += S::LIMBS) {
-			const S a = S::load((uint8_t *)(in1 + i));
-			const S b = S::load((uint8_t *)(in2 + i));
+			// NOTE: `S::load` takes a `const T *` (was cast to `uint8_t *`: no match)
+			const S a = S::load(in1 + i);
+			const S b = S::load(in2 + i);
 
 			const S tmp = add256_T(a, b);
 			S::store(out + i, tmp);
@@ -706,8 +707,9 @@ public:
 	                       const T *in2) noexcept {
 		uint32_t i = 0;
 		for (; i + S::LIMBS < n; i += S::LIMBS) {
-			const auto a = S::load((uint8_t *)(in1 + i));
-			const auto b = S::load((uint8_t *)(in2 + i));
+			// NOTE: `S::load` takes a `const T *` (was cast to `uint8_t *`: no match)
+			const auto a = S::load(in1 + i);
+			const auto b = S::load(in2 + i);
 
 			const S tmp = sub256_T(a, b);
 			S::store(out + i, tmp);
@@ -1319,12 +1321,14 @@ public:
 	[[nodiscard]] constexpr static inline T mul_T(const T a,
 	                                              const T b) noexcept {
 		constexpr uint32_t nr_limbs = sizeof(T);
-		constexpr __uint128_t mask = 0xf;
+		// NOTE: a*b mod 4 only depends on the lowest 2 bits of each lane
+		constexpr __uint128_t mask = 0x3;
 		__uint128_t c = 0u;
 		for (uint32_t i = 0; i < nr_limbs; i++) {
-			const T a1 = (a >> (8u * i)) & mask;
-			const T b1 = (b >> (8u * i)) & mask;
-			c ^= (a1 * b1) & mask_4;
+			const __uint128_t a1 = (__uint128_t(a) >> (8u * i)) & mask;
+			const __uint128_t b1 = (__uint128_t(b) >> (8u * i)) & mask;
+			// NOTE: the product must be shifted back into lane `i`
+			c ^= ((a1 * b1) & mask) << (8u * i);
 		}
 
 		/// note implicit call

@@ -2,8 +2,6 @@
 #include <bitset>
 #include <gtest/gtest.h>
 
-#define private public
-
 #include "combination/lexicographic.h"
 #include "random.h"
 

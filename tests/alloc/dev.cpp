@@ -148,7 +148,8 @@ TEST(STDAllocatorWrapper, simple) {
 	constexpr size_t size = 1u << 4u;
 
 	using T = uint64_t;
-	using Allocator = StackAllocator<size>;
+	// NOTE: the wrapper counts elements, the stack allocator bytes
+	using Allocator = StackAllocator<size * sizeof(T)>;
 	using WrapperAllocator = STDAllocatorWrapper<T, Allocator>;
 	WrapperAllocator s;
 
@@ -163,6 +164,46 @@ TEST(STDAllocatorWrapper, simple) {
 	for(uint32_t i = 0; i < 4; i++) {
 		EXPECT_EQ(v[i], i);
 	}
+}
+
+TEST(StackAllocator, deallocate_zeroes_block) {
+	// on the heap, so ASan catches writes past the allocator
+	auto *s = new StackAllocator<64>;
+	Blk a = s->allocate(48), b = s->allocate(16);
+	memset(b.ptr, 0xFF, 16);
+	s->deallocate(b);
+	for (uint32_t i = 0; i < 16; i++) {
+		EXPECT_EQ(((uint8_t *) b.ptr)[i], 0);
+	}
+	EXPECT_EQ(s->allocate(16).ptr, b.ptr);
+	(void) a;
+	delete s;
+}
+
+TEST(FreeListAllocator, deallocateAll_clears_list) {
+	FreeListAllocator<StackAllocator<256>, 16> s;
+	Blk a = s.allocate(16);
+	s.deallocate(a);
+	s.deallocateAll();
+	Blk x = s.allocate(16), y = s.allocate(16);
+	EXPECT_NE(x.ptr, y.ptr);
+}
+
+TEST(STDAllocatorWrapper, element_count) {
+	using W = STDAllocatorWrapper<uint64_t, StackAllocator<1024>>;
+	uint64_t *p = W::allocate(4), *q = W::allocate(4);
+	EXPECT_GE((uintptr_t) q - (uintptr_t) p, 4 * sizeof(uint64_t));
+	W::deallocate(q, 4);
+	EXPECT_EQ(W::allocate(4), q);
+}
+
+TEST(FreeListPageMallocator, reuse) {
+	FreeListPageMallocator<> pa;
+	Blk b = pa.allocate();
+	pa.deallocate(b);
+	Blk c = pa.allocate();
+	EXPECT_EQ(b.ptr, c.ptr);
+	pa.deallocate(c);
 }
 
 int main(int argc, char **argv) {

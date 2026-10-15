@@ -170,6 +170,16 @@ using ::testing::UnitTest;
 #undef S
 #undef T
 
+TEST(simd, max_register_bits) {
+	constexpr uint32_t b = cryptanalysislib::simd_max_register_bits();
+	static_assert((b == 64u) || (b == 128u) || (b == 256u) || (b == 512u));
+#if defined(USE_AVX512F)
+	EXPECT_EQ(b, 512u);
+#elif defined(USE_AVX2)
+	EXPECT_EQ(b, 256u);
+#endif
+}
+
 TEST(uint32x8_t, set) {
 	uint32_t pos = 21;
 	uint8x32_t t1 = uint8x32_t::set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);

@@ -1,10 +1,13 @@
 #ifndef CRYPTANALYSISLIB_BIGINT_H
 #define CRYPTANALYSISLIB_BIGINT_H
 
+#include <type_traits>
 #include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <ostream>
 
 template<typename T>
 struct dbl_bitlen { using type = void; };
@@ -31,10 +34,11 @@ private:
 	///
 	static_assert(N > 1, "use normal kAry... ");
 	constexpr static size_t FP_DIGIT = sizeof(T);
-	uint32_t used;
 
-	// TODO remove this, if `sign` == false
-	bool __sign = false;
+	/// NOTE: only a member if `sign == true`, otherwise it takes no space,
+	/// 	so an unsigned `big_int<N, T>` has the size of `std::array<T, N>`.
+	struct no_sign {};
+	[[no_unique_address]] std::conditional_t<sign, bool, no_sign> __sign{};
 public:
 
 	constexpr static size_t LIMBS = N;
@@ -173,17 +177,17 @@ public:
 
 private:
 	/// addition function for inputs of the same length
-	/// \tparam T
-	/// \tparam N
+	/// \tparam L number of limbs of both inputs
 	/// \param a
 	/// \param b
-	/// \return
-	constexpr static inline auto add_same(const big_int<N, T> &a,
-	                               		  const big_int<N, T> &b) noexcept {
+	/// \return a + b as `big_int<L + 1, T>`
+	template<size_t L>
+	constexpr static inline auto add_same(const big_int<L, T> &a,
+	                               		  const big_int<L, T> &b) noexcept {
 		T carry{};
-		big_int<N + 1, T> r{};
+		big_int<L + 1, T> r{};
 
-		for (auto i = 0U; i < N; ++i) {
+		for (auto i = 0U; i < L; ++i) {
 			auto aa = a[i];
 			auto sum = aa + b[i];
 			auto res = sum + carry;
@@ -191,57 +195,32 @@ private:
 			r[i] = res;
 		}
 
-		r[N] = carry;
+		r[L] = carry;
 		return r;
 	}
 public:
 
-	/// \tparam T
-	/// \tparam M
-	/// \tparam N
+	/// \tparam M number of limbs of `a`
 	/// \param a
 	/// \param b
-	/// \return
+	/// \return a + b, as `big_int<max(M, N) + 1, T>` (no overflow possible)
 	template<size_t M>
-	static inline auto add(const big_int<M, T> &a,
+	constexpr static inline auto add(const big_int<M, T> &a,
 	                                 const big_int<N, T> &b) noexcept {
-		// TODO work on the warning here: that its always true: need to understandit first
-		//if constexpr (std::is_constant_evaluated()) {
-			constexpr auto L = std::max(M, N);
-			return add_same(pad<L - M>(a), pad<L - N>(b));
-		//} else {
-			// y = clen(MAX(a->used, b->used));
-			// oldused = MIN((unsigned int)c->used, FP_SIZE);
-			// c->used = y;
-
-			// t = 0;
-			// for (x = 0; x < y; x++) {
-			// 	t += ((fp_word) a->dp[x]) + ((fp_word) b->dp[x]);
-			// 	c->dp[x] = (fp_digit) t;
-			// 	t >>= DIGIT_BIT;
-			// }
-
-			// if (t != 0 && x < FP_SIZE) {
-			// 	c->dp[c->used++] = (fp_digit) t;
-			// 	++x;
-			// }
-
-			// c->used = x;
-			// for (; x < oldused; x++) {
-			// 	c->dp[x] = 0;
-			// }
-
-			// fp_clamp(c);
-
-		//}
+		constexpr auto L = std::max(M, N);
+		return add_same(pad<L - M>(a), pad<L - N>(b));
 	}
 
 
-	/// NOTE that's cheating
+	/// numeric equality; limbs missing in the shorter number count as zero
 	template<size_t M, typename TT>
 	bool operator==(big_int<M, TT> const &tc) const {
-		for (size_t i = 0; i < std::min(N, M); i++) {
-			if (this->operator[](i) != tc[i]) {
+		using C = std::common_type_t<T, TT>;
+		constexpr size_t L = N > M ? N : M;
+		for (size_t i = 0; i < L; i++) {
+			const C a = (i < N) ? (C)this->operator[](i) : C(0);
+			const C b = (i < M) ? (C)tc[i] : C(0);
+			if (a != b) {
 				return false;
 			}
 		}
@@ -256,9 +235,20 @@ public:
 	/// \return
 	template<size_t M, typename TT>
 	bool operator<(big_int<M, TT> const &tc) const {
-		// TODO maybe add to FqVector Datatype and add iterators
-		return std::lexicographical_compare(this->begin(), this->end(),
-		                                    tc.begin(), tc.end());
+		// NOTE: numeric comparison, starting at the most significant limb
+		// (limb 0 is the least significant one; a lexicographical compare
+		// starting at limb 0 is wrong)
+		using C = std::common_type_t<T, TT>;
+		constexpr size_t L = N > M ? N : M;
+		for (size_t i = L; i-- > 0; ) {
+			const C a = (i < N) ? (C)this->operator[](i) : C(0);
+			const C b = (i < M) ? (C)tc[i] : C(0);
+			if (a != b) {
+				return a < b;
+			}
+		}
+
+		return false;
 	}
 
 	///
@@ -433,35 +423,35 @@ constexpr auto subtract_same(big_int<N, T> a, big_int<N, T> b) {
 //	}
 //	return {q, shift_right(cryptanalysislib::first<N>(us), k)};
 //}
-//
-///// NOTE: this function will use a sginaficant amount of compiler ressources.
-///// you may need to increase the constexpr steps via:
-/////    -fconstexpr-steps=99999999
-///// \tparam N
-///// \tparam T
-///// \param n
-///// \param k
-///// \return
-//template<size_t N, typename T, const T n, const T k>
-//constexpr big_int<N, T> binomial() {
-//	static_assert(n * k < 1u<<20); // we need to enforce some limit
-//	static_assert(k <= n);
-//
-//	const big_int<N, T> one = big_int<N, T>(1u);
-//
-//	std::array<std::array<big_int<N, T>, k+1>, n+1> tmp;
-//	for (T i = 0; i <= n; ++i) {
-//		for (T j = 0; j <= std::min(i, k); ++j) {
-//			if ((j == 0) || (j == i)) {
-//				tmp[i][j] = one;
-//			} else {
-//				tmp[i][j] = big_int<N, T>{tmp[i-1][j-1] + tmp[i-1][j]};
-//			}
-//		}
-//	}
-//
-//	return tmp[n][k];
-//}
+
+/// NOTE: this function will use a sginaficant amount of compiler ressources.
+/// you may need to increase the constexpr steps via:
+///    -fconstexpr-steps=99999999
+/// \tparam N
+/// \tparam T
+/// \param n
+/// \param k
+/// \return
+template<size_t N, typename T, const T n, const T k>
+constexpr big_int<N, T> binomial() {
+	static_assert(n * k < 1u<<20); // we need to enforce some limit
+	static_assert(k <= n);
+
+	const big_int<N, T> one = big_int<N, T>(1u);
+
+	std::array<std::array<big_int<N, T>, k+1>, n+1> tmp;
+	for (T i = 0; i <= n; ++i) {
+		for (T j = 0; j <= std::min(i, k); ++j) {
+			if ((j == 0) || (j == i)) {
+				tmp[i][j] = one;
+			} else {
+				tmp[i][j] = big_int<N, T>{tmp[i-1][j-1] + tmp[i-1][j]};
+			}
+		}
+	}
+
+	return tmp[n][k];
+}
 
 //template<typename T, size_t N1, size_t N2>
 //constexpr auto operator/(const big_int<N1, T> &a,

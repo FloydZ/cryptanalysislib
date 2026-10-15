@@ -30,13 +30,21 @@
 //   '{,m}'     Match m or less times
 //   '{n,m}'    Match n to m times
 //
-// FIXME:
-//   - '(...)'    Group
-//	 - c++ interface via strings
+//   '(...)'    Group: only partially supported. Working: plain groups and
+//              '+' after a group, e.g. 'a(bc)d', '(ab)+c'. NOT working: '*',
+//              '?' and the TIMES operators after a group, and branches
+//              inside a group: '(ab)*', '(a|b)c' (the quantifier is applied
+//              to the GROUPEND token).
+//
+// C++ interface: `regex<>::re_match(std::string_view, std::string_view, int*)`
+//   and `regex<>::re_search(pattern, text)`.
+// NOTE: `re_compile` uses static buffers: not thread safe.
 
 #include <cstdio>
 #include <cstdlib>
 #include <ctype.h>
+#include <string>
+#include <string_view>
 
 
 #ifdef DEBUG
@@ -535,6 +543,28 @@ public:
 		return re_matchp(re_compile(pattern), text, matchlength);
 	}
 
+	/// C++ interface of `re_match`
+	/// NOTE: the matcher works on null terminated strings, so both are copied
+	/// \param pattern[in]: regex pattern
+	/// \param text[in]: text to match against
+	/// \param matchlength[out]: length of the matched text
+	/// \return index of the first match if successful, -1 if no match
+	static int re_match(const std::string_view pattern,
+	                    const std::string_view text,
+	                    int *matchlength) noexcept {
+		const std::string p(pattern), t(text);
+		return re_match(p.c_str(), t.c_str(), matchlength);
+	}
+
+	/// \param pattern[in]: regex pattern
+	/// \param text[in]: text to match against
+	/// \return true if `pattern` matches somewhere in `text`
+	static bool re_search(const std::string_view pattern,
+	                      const std::string_view text) noexcept {
+		int len = 0;
+		return re_match(pattern, text, &len) != -1;
+	}
+
 	/// Matches a compiled regex pattern against text
 	///
 	/// \param pattern[in]: compiled regex pattern
@@ -634,10 +664,10 @@ public:
 				}
 				case ')': {
 					int nestlevel = 0;
-					size_t k = j;
+					int64_t k = (int64_t)j;
 					/* search back to next innermost groupstart */
 					for (; k >= 0; k--) {
-						if (k < j && re_compiled[k].type == GROUPEND)
+						if (k < (int64_t)j && re_compiled[k].type == GROUPEND)
 							nestlevel++;
 						else if (re_compiled[k].type == GROUP) {
 							if (nestlevel == 0) {

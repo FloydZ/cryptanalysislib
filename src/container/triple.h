@@ -2,6 +2,8 @@
 #define CRYPTANALYSISLIB_TRIPLE_H
 
 #include <type_traits>
+#include <cstddef>
+#include <ostream>
 
 ///
 struct ConfigTriple {
@@ -9,9 +11,11 @@ struct ConfigTriple {
 	const bool swap23 = false;
 	const bool swap13 = false;
 
-	const size_t alignment_first = 1u;
-	const size_t alignment_second = 1u;
-	const size_t alignment_third = 1u;
+	/// NOTE: `alignas(0)` has no effect. clang rejects an `alignas`
+	/// 	smaller than the natural alignment of the type.
+	const size_t alignment_first = 0u;
+	const size_t alignment_second = 0u;
+	const size_t alignment_third = 0u;
 
 	// default constructor
 	constexpr ConfigTriple() : swap12(false), swap23(false), swap13(false) {}

@@ -1,14 +1,23 @@
-#pragma once 
+#pragma once
+
+#include <cstdint>
+
+#include "combination/enumerator.h"
 
 /// Class for generating and manipulating reverse Gray codes
 /// Provides utilities for enumeration and conversion between binary and reverse Gray code
 /// \tparam T[in]: integer type to represent code values
+/// As an enumerator: 1, rev_gray_code(1), rev_gray_code(rev_gray_code(1)), ...,
+/// i.e. the powers (1+x)^i, i = 0, ..., bits(T) - 1, as binary polynomials
+/// mod x^bits(T). (1+x)^bits(T) == 1, so the sequence has bits(T) elements.
 template<typename T>
 class enumeration_reverse_gray_code {
 private:
     /// Current value in the enumeration
     T val = 1;
-    
+    /// exponent of the current value
+    uint32_t i = 0;
+
     /// Computes the reversed Gray code of x
     /// Performs a bit-wise derivative modulo 2 towards high bits
     /// 
@@ -36,32 +45,39 @@ private:
     /// \return the binary value whose reverse Gray code is x
     constexpr static inline T inverse_rev_gray_code(T x) noexcept {
         // use: rev_gray ** BITSPERLONG == id:
+        // rev_gray ** (1 + 2 + 4 + ... + bits/2) == rev_gray ** (bits - 1)
         x ^= x<<1;  // rev_gray ** 1
         x ^= x<<2;  // rev_gray ** 2
-        if constexpr (sizeof(T) == 1) { x ^= x<<4;  } // rev_gray ** 4
-        if constexpr (sizeof(T) == 2) { x ^= x<<8;  } // rev_gray ** 8
-        if constexpr (sizeof(T) == 4) { x ^= x<<16; } // rev_gray ** 16
-        // here: x = rev_gray**31(input)
-        if constexpr (sizeof(T) == 8) { x ^= x<<32; }  // for 64bit words
+        x ^= x<<4;  // rev_gray ** 4
+        if constexpr (sizeof(T) >= 2) { x ^= x<<8;  } // rev_gray ** 8
+        if constexpr (sizeof(T) >= 4) { x ^= x<<16; } // rev_gray ** 16
+        if constexpr (sizeof(T) >= 8) { x ^= x<<32; } // rev_gray ** 32
         return  x;
     }
 public:
     /// Default constructor initializes the enumeration
     constexpr enumeration_reverse_gray_code() noexcept {};
-    
-    /// Returns the current value and advances to the next in reverse Gray code sequence
-    /// \return current value in the enumeration
-    constexpr inline T next() noexcept {
-        const T ret = val;
+
+    /// \return the current value
+    [[nodiscard]] constexpr inline T current() const noexcept {
+        return val;
+    }
+
+    /// Advances to the next value in the reverse Gray code sequence
+    /// \return false if the current value is the last one (unchanged)
+    constexpr inline bool next() noexcept {
+        if (i == sizeof(T) * 8u - 1u) { return false; }
         val = rev_gray_code(val);
-        return ret;
-    } 
-    
-    /// Returns the current value and moves to the previous in reverse Gray code sequence
-    /// \return current value in the enumeration
-    constexpr inline T prev() noexcept {
-        const T ret = val;
+        i += 1;
+        return true;
+    }
+
+    /// Moves to the previous value in the reverse Gray code sequence
+    /// \return false if the current value is the first one (1, unchanged)
+    constexpr inline bool previous() noexcept {
+        if (i == 0) { return false; }
         val = inverse_rev_gray_code(val);
-        return ret;
-    } 
+        i -= 1;
+        return true;
+    }
 };

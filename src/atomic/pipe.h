@@ -48,10 +48,11 @@ private:
 
 	// read and write index allow fast access to the pipe
     // but actual access is controlled by the access flags.
-	uint32_t	 	  __attribute__((aligned(4))) __write;
-	volatile uint32_t __attribute__((aligned(4))) read_count;
-	volatile uint32_t flags[PIPE_SIZE];
-	volatile uint32_t __attribute__((aligned(4))) read;
+	// NOTE: all members are zero initialised (0 == SCHED_PIPE_CAN_WRITE)
+	uint32_t	 	  __attribute__((aligned(4))) __write = 0;
+	volatile uint32_t __attribute__((aligned(4))) read_count = 0;
+	volatile uint32_t flags[PIPE_SIZE] = {};
+	volatile uint32_t __attribute__((aligned(4))) read = 0;
 
 public:
 	int32_t read_back(T &dst) noexcept {
@@ -64,10 +65,11 @@ public:
 
 		// we get hold of the read index for consistency,
      	// and do first pass starting at read count */
-		read_count = this->read_count;
+		read_count = ACQUIRE(&this->read_count);
 		to_use = read_count;
 		while (true) {
-			uint32_t write_index = __write;
+			// NOTE: `__write` is written concurrently by the writer
+			uint32_t write_index = ACQUIRE(&__write);
 			uint32_t num_in_pipe = write_index - read_count;
 			if (!num_in_pipe)
 				return 0;
@@ -80,13 +82,16 @@ public:
 			actual_read = to_use & PIPE_MASK;
 			// multiple potential readers means we should check if the data is valid
          	// using an atomic compare exchange */
-			previous = CASnp(&this->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
+			// NOTE: CASnp(ptr, expected, desired): claim the slot if it is readable.
+			// (The arguments were in the order of the original `sched_atomic_cmp_swap(dst, swap, cmp)`,
+			// so readers never claimed a slot and the same item was read several times.)
+			previous = CASnp(&this->flags[actual_read], SCHED_PIPE_CAN_READ, SCHED_PIPE_INVALID);
 			if (previous == SCHED_PIPE_CAN_READ) {
 				break;
 			}
 
 			/* update known read count */
-			read_count = this->read_count;
+			read_count = ACQUIRE(&this->read_count);
 			++to_use;
 		}
 
@@ -98,7 +103,8 @@ public:
 
 		/* now read data, ensuring we do so after above reads & CAS */
 		dst = this->buffer[actual_read];
-		this->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
+		// NOTE: release, the slot must not be reused before the read is done
+		RELEASE(&this->flags[actual_read], SCHED_PIPE_CAN_WRITE);
 		return 1;
 	}
 
@@ -108,7 +114,7 @@ public:
 		uint32_t write_index;
 		uint32_t front_read;
 
-		write_index = __write;
+		write_index = ACQUIRE(&__write);
 		front_read = write_index;
 
 		// Mutliple potential reads mean we should check if the data is valid,
@@ -117,7 +123,7 @@ public:
 		actual_read = 0;
 		while (1) {
 			/* power of two ensures we can use a simple cal without modulus */
-			uint32_t read_count = this->read_count;
+			uint32_t read_count = ACQUIRE(&this->read_count);
 			uint32_t num_in_this = write_index - read_count;
 			if (!num_in_this || !front_read) {
 				this->read = read_count;
@@ -126,7 +132,8 @@ public:
 
 			--front_read;
 			actual_read = front_read & PIPE_MASK;
-			prev = __sync_val_compare_and_swap(&this->flags[actual_read], SCHED_PIPE_INVALID, SCHED_PIPE_CAN_READ);
+			// NOTE: see `read_back`
+			prev = CASnp(&this->flags[actual_read], SCHED_PIPE_CAN_READ, SCHED_PIPE_INVALID);
 			if (prev == SCHED_PIPE_CAN_READ) {
 				break;
 			} else if (this->read >= front_read) {
@@ -135,12 +142,11 @@ public:
 		}
 
 		/* now read data, ensuring we do so after above reads & CAS */
-		*dst = this->buffer[actual_read];
-		this->flags[actual_read] = SCHED_PIPE_CAN_WRITE;
-		MEMORY_BARRIER_RELEASE();
+		dst = this->buffer[actual_read];
+		RELEASE(&this->flags[actual_read], SCHED_PIPE_CAN_WRITE);
 
-		/* 32-bit aligned stores are atomic, and writer owns the write index */
-		--__write;
+		/* the writer owns the write index, but readers load it concurrently */
+		RELEASE(&__write, __write - 1u);
 		return true;
 	}
 
@@ -150,7 +156,6 @@ public:
 	[[nodiscard]] bool write_front(const T &src) noexcept {
 		uint32_t actual_write;
 		uint32_t write_index;
-		assert(pipe);
 
 		/* The writer 'owns' the write index and readers can only reduce the amout of
      	 * data in the pipe. We get hold of both values for consistentcy and to
@@ -161,21 +166,19 @@ public:
 		actual_write = write_index & PIPE_MASK;
 
 		/* a read may still be reading this item, as there are multiple readers */
-		if (this->flags[actual_write] != SCHED_PIPE_CAN_WRITE) {
+		if (ACQUIRE(&this->flags[actual_write]) != SCHED_PIPE_CAN_WRITE) {
 			return false; /* still being read, so have caught up with tail */
 		}
 
 		/* as we are the only writer we can update the data without atomics whilst
      	 * the write index has not been updated. */
 		this->buffer[actual_write] = src;
-		this->flags[actual_write] = SCHED_PIPE_CAN_READ;
+		RELEASE(&this->flags[actual_write], SCHED_PIPE_CAN_READ);
 
-		/* we need to ensure the above occur prior to updating the write index,
-     	 * otherwise another thread might read before it's finished */
-		MEMORY_BARRIER_RELEASE();
-		/* 32-bit aligned stores are atomic, and writer owns the write index */
+		/* the release store ensures the above occurs prior to updating the
+		 * write index, otherwise another thread might read before it's finished */
 		++write_index;
-		__write = write_index;
+		RELEASE(&__write, write_index);
 		return true;
 	}
 };

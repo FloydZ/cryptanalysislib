@@ -107,13 +107,8 @@ namespace cryptanalysislib {
 		constexpr size_t count_uXX_simd(const T *data,
 										const size_t n,
 										const T val) noexcept {
-            // TODO replace with SIMDSelector
-#ifdef USE_AVX512F
-			constexpr uint32_t limbs = 64/sizeof(T);
-#else
-			constexpr uint32_t limbs = 32/sizeof(T);
-#endif
-			using S = TxN_t<T, limbs>;
+			using S = SIMDSelector<T>;
+			constexpr uint32_t limbs = S::LIMBS;
 
 			size_t ret = 0;
 			const auto t = S::set1(val);
@@ -151,10 +146,15 @@ namespace cryptanalysislib {
 								  RandIt last,
 								  const typename RandIt::value_type & value) noexcept {
 		using T = RandIt::value_type;
-		if constexpr (std::is_unsigned_v<T>) {
-			return internal::count_uXX_simd(&(*first),
-											static_cast<size_t>(std::distance(first, last)),
-											value);
+		// NOTE: the SIMD kernel reads [first, last) as an array: only for
+		// 	contiguous iterators (a `std::list` range was read as an array),
+		// 	and `first` must not be dereferenced for an empty range
+		if constexpr (std::is_unsigned_v<T> && std::contiguous_iterator<RandIt>) {
+			const size_t n = static_cast<size_t>(last - first);
+			if (n == 0) {
+				return 0;
+			}
+			return internal::count_uXX_simd(&(*first), n, value);
 		}
 
 		auto p = [&value](const T& test) __attribute__((always_inline)) {

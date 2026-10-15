@@ -14,12 +14,14 @@
 #if defined(USE_AVX2) || defined (USE_AVX512F)
 #include <immintrin.h>
 #endif
+#include <iterator>
+
+#include "algorithm/countl.h"
 
 using namespace cryptanalysislib::popcount;
 using namespace cryptanalysislib::algorithm;
 using namespace cryptanalysislib;
    
-// TODO iterators
 // TODO remove? use __uint128?
 typedef struct imap_u128 {
     uint64_t v[2];
@@ -52,7 +54,8 @@ struct ImapConfig : public AlignmentConfig {
 };
 constexpr static ImapConfig imapConfig{};
 
-/// TODO templates for bsr/popcount etc algorithm
+/// NOTE: STL style iteration: `for (const imap_pair_t p : tree) { ... }`
+/// 	(ascending keys, `p.slot` points to the value slot, see `getval`)
 template<typename Allocator = AlignmentMallocator<imap_node_t, sizeof(imap_node_t)>,
          const ImapConfig &config=imapConfig>
 struct imap_tree_t {
@@ -73,11 +76,10 @@ public:
 	typedef imap_iter_t     iterator;
 	typedef const imap_iter_t const_iterator;
 
-    /// TODO move to algorithms bits
 	/// \param x
-	/// \return
+	/// \return the index of the highest set bit of `x | 1`
 	constexpr static inline uint32_t __bsr__(const uint64_t x) noexcept {
-        return 63u - __builtin_clzll(x | 1u);
+        return 63u - cryptanalysislib::countl_zero(x | 1u);
     }
 
 	/// \param x
@@ -87,8 +89,12 @@ public:
     }
 
 
-    // TODO neon and doc
+    // NOTE: no NEON version, the scalar fallbacks `imap__extract_lo4__`/
+    // 	`imap__deposit_lo4__` are used there
 #if defined (USE_AVX2)
+    /// \param vec32[in]: the 16 slots of a node (64 byte aligned)
+    /// \return the low 4 bits of every slot, packed: slot 2k at bits 4k,
+    /// 	slot 2k+1 at bits 32+4k (k = 0..7)
     static inline
     uint64_t imap__extract_lo4_simd__(const uint32_t vec32[16]) noexcept {
 #if defined (USE_AVX512F)
@@ -110,6 +116,9 @@ public:
 #endif
     }
 
+	/// inverse of `imap__extract_lo4_simd__`: writes the 4 bit fields of
+	/// `value` (same layout) into the low 4 bits of the 16 slots, the other
+	/// bits of the slots are kept
 	static inline
     void imap__deposit_lo4_simd__(const uint32_t vec32[16],
 							 	  const uint64_t value) noexcept {
@@ -413,32 +422,47 @@ public:
         return newtree;
     }
 
+	/// NOTE: on failure `nullptr` is returned and the old tree is kept
+	/// 	(before, `tree` was overwritten with `nullptr`)
    	inline imap_node_t *ensure0(const uint32_t n) noexcept {
-		tree = imap__ensure__(tree, n, 0);
-        return tree;
+		imap_node_t *t = imap__ensure__(tree, n, 0);
+		if (t != nullptr) { tree = t; }
+        return t;
     }
 
    	inline imap_node_t *ensure64(const uint32_t n) noexcept {
-        tree = imap__ensure__(tree, n, sizeof(uint64_t));
-		return tree;
+		imap_node_t *t = imap__ensure__(tree, n, sizeof(uint64_t));
+		if (t != nullptr) { tree = t; }
+		return t;
     }
 
    	inline imap_node_t *ensure128(const uint32_t n) noexcept {
-        tree = imap__ensure__(tree, n, sizeof(__uint128_t));
-		return tree;
+		imap_node_t *t = imap__ensure__(tree, n, sizeof(__uint128_t));
+		if (t != nullptr) { tree = t; }
+		return t;
     }
 
 
 	// ensures that there is enough space for n elements
 	constexpr inline void ensure(const uint32_t n) noexcept {
-		tree = imap__ensure__(tree, n, sizeof(uint64_t));
+		imap_node_t *t = imap__ensure__(tree, n, sizeof(uint64_t));
+		if (t != nullptr) { tree = t; }
 	}
 
 	using imap_slot_t = uint32_t;
 
 	/// \param n max number of integers to store in the container
-	constexpr imap_tree_t (const size_t n = 0) noexcept : tree(nullptr) {
-		ensure(n+1);
+	/// \param value_bytes size of the boxed values: `sizeof(uint64_t)`
+	/// 	(default) or `sizeof(imap_u128_t)` for `setval128`/`getval128`
+	/// NOTE: the free list of the boxed values is set up when the storage is
+	/// 	created, its layout depends on the value size. So a tree for 128
+	/// 	bit values (`ensure128`, `setval128`) must be created with
+	/// 	`value_bytes = sizeof(imap_u128_t)`.
+	constexpr imap_tree_t (const size_t n = 0,
+	                       const uint32_t value_bytes = sizeof(uint64_t)) noexcept : tree(nullptr) {
+		assert((value_bytes == sizeof(uint64_t)) || (value_bytes == sizeof(imap_u128_t)));
+		imap_node_t *t = imap__ensure__(nullptr, n + 1, value_bytes);
+		if (t != nullptr) { tree = t; }
 	}
 
 	~imap_tree_t() noexcept {
@@ -476,9 +500,18 @@ public:
 	    return lookup(x);
 	}
 
+	/// NOTE: grows the internal storage if needed (as `imap_ensure(tree, 1)`
+	/// 	before every `imap_assign` upstream), so slot pointers returned
+	/// 	by earlier calls may be invalidated.
 	/// \param x
-	/// \return
+	/// \return the slot of `x`, or `nullptr` if the storage cannot grow
     [[nodiscard]] constexpr imap_slot_t *assign(const uint64_t x) noexcept {
+        // NOTE: room for one more key (2 nodes) and a boxed 64/128 bit value.
+        // 	Before, `assign` never grew the storage: heap overflow.
+        if (ensure128(1) == nullptr) {
+            return nullptr;
+        }
+
         imap_slot_t *slotstack[16 + 1];
         uint32_t posnstack[16 + 1];
         uint32_t stackp, stacki;
@@ -546,13 +579,16 @@ public:
 
 	/// \param slot
 	/// \return
+	/// NOTE: boxed values live anywhere in the buffer `tree`, so they are
+	/// 	indexed via a pointer to the whole buffer and not via the 8/4 element
+	/// 	member arrays `tree->vec64` / `tree->vec128` of the first node (UB).
     [[nodiscard]] constexpr inline uint64_t getval(const imap_slot_t *slot) const noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (!imap__slot_boxed__(sval)) {
 			return sval >> imap__slot_shift__;
 		} else {
-			return tree->vec64[sval >> imap__slot_shift__];
+			return ((uint64_t *)tree)[sval >> imap__slot_shift__];
 		}
     }
 
@@ -570,7 +606,7 @@ public:
     [[nodiscard]] constexpr uint64_t getval64(const imap_slot_t *slot) const noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        return tree->vec64[sval >> imap__slot_shift__];
+        return ((uint64_t *)tree)[sval >> imap__slot_shift__];
     }
 
 	/// \param slot
@@ -578,7 +614,7 @@ public:
     [[nodiscard]] constexpr imap_u128 getval128(const imap_slot_t *slot) const noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        return tree->vec128[sval >> (imap__slot_shift__ + 1)];
+        return ((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)];
     }
 
 	/// \param slot
@@ -590,7 +626,7 @@ public:
         uint32_t sval = *slot;
         if (y < (1 << (imap__slot_sbits__))) {
             if (imap__slot_boxed__(sval)) {
-                tree->vec64[sval >> imap__slot_shift__] = tree->vec32[imap__tree_vfre__];
+                ((uint64_t *)tree)[sval >> imap__slot_shift__] = tree->vec32[imap__tree_vfre__];
                 tree->vec32[imap__tree_vfre__] = sval & imap__slot_value__;
             }
 
@@ -602,13 +638,13 @@ public:
                     sval = imap__alloc_val__(tree);
 				}
                 assert(sval >> imap__slot_shift__);
-                tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec64[sval >> imap__slot_shift__];
+                tree->vec32[imap__tree_vfre__] = (uint32_t)((uint64_t *)tree)[sval >> imap__slot_shift__];
             }
 
             assert(!(sval & imap__slot_node__));
             assert(imap__slot_boxed__(sval));
             *slot = (*slot & imap__slot_pmask__) | sval;
-            tree->vec64[sval >> imap__slot_shift__] = y;
+            ((uint64_t *)tree)[sval >> imap__slot_shift__] = y;
         }
     }
 
@@ -631,12 +667,12 @@ public:
 				sval = imap__alloc_val__(tree);
 			}
             assert(sval >> imap__slot_shift__);
-            tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec64[sval >> imap__slot_shift__];
+            tree->vec32[imap__tree_vfre__] = (uint32_t)((uint64_t *)tree)[sval >> imap__slot_shift__];
         }
         assert(!(sval & imap__slot_node__));
         assert(imap__slot_boxed__(sval));
         *slot = (*slot & imap__slot_pmask__) | sval;
-        tree->vec64[sval >> imap__slot_shift__] = y;
+        ((uint64_t *)tree)[sval >> imap__slot_shift__] = y;
     }
 
     constexpr void setval128(imap_slot_t *slot,
@@ -648,19 +684,19 @@ public:
             if (!sval)
                 sval = imap__alloc_val128__(tree);
             assert(sval >> imap__slot_shift__);
-            tree->vec32[imap__tree_vfre__] = (uint32_t)tree->vec128[sval >> (imap__slot_shift__ + 1)].v[0];
+            tree->vec32[imap__tree_vfre__] = (uint32_t)((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)].v[0];
         }
         assert(!(sval & imap__slot_node__));
         assert(imap__slot_boxed__(sval));
         *slot = (*slot & imap__slot_pmask__) | sval;
-        tree->vec128[sval >> (imap__slot_shift__ + 1)] = y;
+        ((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)] = y;
     }
 
     constexpr inline void delval(imap_slot_t *slot) noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
         if (imap__slot_boxed__(sval)) {
-            tree->vec64[sval >> imap__slot_shift__] = tree->vec32[imap__tree_vfre__];
+            ((uint64_t *)tree)[sval >> imap__slot_shift__] = tree->vec32[imap__tree_vfre__];
             tree->vec32[imap__tree_vfre__] = sval & imap__slot_value__;
         }
         *slot &= imap__slot_pmask__;
@@ -669,13 +705,13 @@ public:
     [[nodiscard]] constexpr inline uint64_t *addrof64(imap_slot_t *slot) noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        return &tree->vec64[sval >> imap__slot_shift__];
+        return &((uint64_t *)tree)[sval >> imap__slot_shift__];
     }
 
     [[nodiscard]] constexpr inline imap_u128 *addrof128(imap_slot_t *slot) noexcept {
         assert(!(*slot & imap__slot_node__));
         uint32_t sval = *slot;
-        return &tree->vec128[sval >> (imap__slot_shift__ + 1)];
+        return &((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)];
     }
 
     constexpr void remove(uint64_t x) noexcept {
@@ -799,6 +835,42 @@ public:
 
         return imap__pair_zero__;
     }
+
+    /// forward iterator over the (key, slot) pairs in ascending key order
+    /// NOTE: invalidated by `assign`/`remove`
+    class pair_iterator {
+        friend struct imap_tree_t;
+        imap_tree_t *t = nullptr;
+        imap_iter_t it{};
+        imap_pair_t p{0, nullptr};
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = imap_pair_t;
+        using difference_type = std::ptrdiff_t;
+        using pointer = const imap_pair_t *;
+        using reference = const imap_pair_t &;
+
+        pair_iterator() noexcept = default;
+        reference operator*() const noexcept { return p; }
+        pointer operator->() const noexcept { return &p; }
+        pair_iterator &operator++() noexcept { p = t->iterate(&it, 0); return *this; }
+        pair_iterator operator++(int) noexcept { auto c = *this; ++*this; return c; }
+        /// all end iterators (slot == nullptr) are equal
+        bool operator==(const pair_iterator &o) const noexcept { return p.slot == o.p.slot; }
+        bool operator!=(const pair_iterator &o) const noexcept { return !(*this == o); }
+    };
+
+    /// \return iterator to the smallest key
+    pair_iterator begin() noexcept {
+        pair_iterator r;
+        r.t = this;
+        r.p = iterate(&r.it, 1);
+        return r;
+    }
+
+    /// \return past the end iterator
+    pair_iterator end() noexcept { return pair_iterator{}; }
 
     void free() noexcept {
 	    Allocator::deallocate(tree, 0);

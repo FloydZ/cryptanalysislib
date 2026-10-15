@@ -1,12 +1,14 @@
 #ifndef CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 #define CRYPTANALYSISLIB_ALGORITHM_INT2WEIGHT_H
 
+#include <cassert>
 #include <cstdint>
+#include <vector>
 
 #include "math/math.h"
 #include "algorithm/bits.h"
 
-// TODO add namespace cryptanalysislib 
+namespace cryptanalysislib {
 
 /// Converts integer to weight positions using combinatorial ranking
 /// \tparam D Output data type for weight positions
@@ -111,6 +113,8 @@ void int2weights(std::vector<D> &weights,
 				const T in,
 				const uint32_t n,
 				const uint32_t wt) {
-	int2weights(weights.data(), in, n, wt);
+	assert(weights.size() >= wt);
+	int2weights(weights.data(), in, n, wt, wt);
 }
+} // end namespace cryptanalysislib
 #endif

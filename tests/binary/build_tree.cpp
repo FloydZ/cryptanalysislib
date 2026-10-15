@@ -61,12 +61,14 @@ TEST(TreeTest, join2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^15 * 2^15 pairs, matching on n=10 bits: 2^20 expected
+	// 	(was: 2^9 < out < 2^11)
+	EXPECT_GT(out.load(),1u<<19);
+	EXPECT_LT(out.load(),1u<<21);
 }
 
 TEST(TreeTest, join4lists) {
-	uint32_t basesize = 10u;
+	uint32_t basesize = 8u;
 	BinaryMatrix A;
 	A.identity();
 
@@ -105,12 +107,14 @@ TEST(TreeTest, join4lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: 2^8 * 2^8 pairs per side matching on n/2=5 bits: 2^11 each,
+	// 	then 2^11 * 2^11 matching on the other 5 bits: 2^17 expected
+	EXPECT_GT(out.load(),1u<<16);
+	EXPECT_LT(out.load(),1u<<18);
 }
 
 TEST(TreeTest, join4lists_with2lists) {
-	unsigned int basesize = 10;
+	unsigned int basesize = 8;
 	BinaryMatrix A;
 	A.identity();
 
@@ -147,8 +151,43 @@ TEST(TreeTest, join4lists_with2lists) {
 	EXPECT_GT(out.load(), 0);
 	EXPECT_EQ(0, wrong);
 	EXPECT_EQ(right, true);
-	EXPECT_GT(out.load(),1u<<9);
-	EXPECT_LT(out.load(),1u<<11);
+	// NOTE: the lists `L3`, `L4` are simulated by `L1`, `L2`: as in
+	// 	`join4lists` 2^17 outputs are expected
+	EXPECT_GT(out.load(),1u<<16);
+	EXPECT_LT(out.load(),1u<<18);
+}
+
+TEST(TreeTest, join8lists) {
+	constexpr uint32_t basesize = 5u;
+	BinaryMatrix A;
+	A.identity();
+
+	const std::vector<uint32_t> ta{{0, 4, 7, n}};
+
+	BinaryList out{1u<<17};
+	std::vector<BinaryList> L(8, BinaryList{0});
+	for (auto &l : L) { l.random(1u << basesize, A); }
+
+	BinaryLabel target {};
+	target.zero();
+	target.random();
+
+	BinaryTree t{1, A, 0};
+	t.join8lists(out, L, target, ta);
+
+	uint32_t wrong = 0;
+	for (uint64_t i = 0; i < out.load(); ++i) {
+		// NOTE: the labels are the target
+		if (!BinaryLabel::cmp(out[i].label, target, 0, n)) { wrong++; }
+		out[i].recalculate_label(A);
+		if (!BinaryLabel::cmp(out[i].label, target, 0, n)) { wrong++; }
+	}
+
+	EXPECT_EQ(0, wrong);
+	// NOTE: 2^20 4-tuples per side matching on 4+7 bits: 2^9 each, then
+	// 	2^18 pairs matching on the last 3 bits: 2^15 expected
+	EXPECT_GT(out.load(),1u<<14);
+	EXPECT_LT(out.load(),1u<<16);
 }
 
 #ifndef EXTERNAL_MAIN

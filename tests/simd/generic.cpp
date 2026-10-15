@@ -16,6 +16,10 @@ using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
 using I = uint32_t;
+
+// the interface concept, incl. `store`, `eq_` and `eq`
+static_assert(SIMDAble<TxN_t<uint32_t, 8>>);
+
 TEST(generic, random) {
 	constexpr_for<6, 32, 4>([](const auto limbs) {
 		using T = TxN_t<I, limbs>;

@@ -25,6 +25,11 @@ This container provides all operations like:
 - Addition, Subtraction, Multiplication, Division
 - Scatter/Table lookups, Permutations
 - Memory stores/loads
+- Lane reductions (for all SIMD types): `all_of`, `any_of`, `none_of`,
+  `some_of` and `lane_mask`, where a lane counts as true if it is not zero:
+```c++
+if (cryptanalysislib::any_of(S::eq_(t1, t2))) { ... }
+```
 
 Additionally, for the 3 main architectures `x86`, `arm` and `neon` and their 
 vector extensions the following specialisations are provides which wrap:
@@ -35,11 +40,14 @@ vector extensions the following specialisations are provides which wrap:
 - `T=uint16_t`: `uint16x8_t`, `uint16x16_t`
 - `T=uint32_t`: `uint32x4_t`, `uint32x8_t`
 - `T=uint64_t`: `uint64x2_t`, `uint64x4_t`
- 
 
- TODO:
- =====
+NOTE: the 128 bit types are called `_uint8x16_t`, `_uint16x8_t`, ... (with a
+leading underscore, to not clash with the native NEON types) and exist for the
+`avx2`, `neon` and the generic backend.
 
- - riscv backeend
- - uint16x8, uint8x16_t in neon, avx
- - cvtepu8 in neon und noch mehr zero extend
+Open items
+==========
+
+ - riscv backend (`riscv.h` is only a stub)
+ - `cvtepu8` (and the other zero extensions) in the neon backend; currently
+   only in the `avx2` and the generic backend

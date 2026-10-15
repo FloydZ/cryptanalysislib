@@ -18,60 +18,74 @@ namespace cryptanalysislib {
 
 	namespace internal {
 
-		/// SIMD-accelerated search for a sequence of n identical values in an array
-		///
+		/// SIMD search for the first run of `count` consecutive `val` in
+		/// data[0, len): the run length is tracked across blocks: a block
+		/// equal to `val` everywhere extends the run, a block without `val`
+		/// resets it, only mixed blocks are walked element by element. This
+		/// covers small `count` (< block size) and large ones alike.
+		/// NOTE: rewritten: before, there was no length parameter (`n` was
+		/// 	used as the array length and as the count), the loop advanced by
+		/// 	`n` and the tail loop only checked position 0.
 		/// \tparam T type of the array elements
 		/// \tparam config configuration parameters for the search algorithm
 		/// \param data[in]: pointer to the array to search
-		/// \param n[in]: number of elements to search for
+		/// \param len[in]: number of elements in `data`
+		/// \param count[in]: length of the run of `val` to search for
 		/// \param val[in]: value to search for
-		/// \return the position of the first element of a sequence of n elements equal to val
+		/// \return position of the first element of the first such run, or
+		/// 	`len` if there is none (0 if count == 0)
 		template<typename T,
 				 const AlgorithmSearchConfig &config=algorithmSearchConfig>
 #if __cplusplus > 201709L
 			requires std::unsigned_integral<T>
 #endif
 		constexpr size_t search_n_uXX_simd(const T *data,
-									   const size_t n,
-									   const T val) noexcept {
+		                                   const size_t len,
+		                                   const size_t count,
+		                                   const T val) noexcept {
+			if (count == 0) { return 0; }
+
 			using S = SIMDSelector<T>;
-			using U = S::limb_type;
+			constexpr size_t t = S::LIMBS;
+			static_assert(t <= 64);
+			constexpr uint64_t full = (t == 64) ? uint64_t(-1ull) : ((1ull << t) - 1ull);
+			const auto v = S::set1(val);
 
-			const auto t = S::set1(val);
-            
+			// length of the run of `val` ending right before position i
+			size_t run = 0;
 			size_t i = 0;
-            // TODO optimize the code for the case n < 4, 8, 16
-			for (; (i+S::LIMBS) <= n; i+=n) {
+			for (; (i + t) <= len; i += t) {
 				const auto d = S::template load<config.aligned_instructions>(data + i);
-				const U s = d == t;
-				if (popcount::popcount(s) == n) [[unlikely]] {
-					return i + ffs<T>(s) - 1u;
+				const uint64_t m = uint64_t(d == v) & full;
+				if (m == full) {
+					run += t;
+					if (run >= count) { return i + t - run; }
+					continue;
+				}
+				if (m == 0) {
+					run = 0;
+					continue;
+				}
+				for (size_t j = 0; j < t; ++j) {
+					if ((m >> j) & 1u) {
+						run += 1;
+						if (run >= count) { return i + j + 1 - run; }
+					} else {
+						run = 0;
+					}
 				}
 			}
 
-            // tailmanagment
-			for (; i+n <= n; i++) {
-				if (data[i] != val) {
-                    continue;
+			// tail
+			for (; i < len; ++i) {
+				if (data[i] == val) {
+					run += 1;
+					if (run >= count) { return i + 1 - run; }
+				} else {
+					run = 0;
 				}
-
-    		    for (size_t cur_count = 1; true; ++cur_count) {
-    		    	if (cur_count >= n)
-    		    		return i;
-                    
-                    // exhausted the list
-    		    	if (i + cur_count == n) {
-    		    		return n;
-                    }
-
-                    // too few in a row
-    		    	if (!(data[i + cur_count] == val)) {
-    		    		break;
-                    }
-    		    }
 			}
-
-			return i;
+			return len;
 		}
 	}// end namespace internal
 
@@ -124,7 +138,7 @@ namespace cryptanalysislib {
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt1> &&
                  std::forward_iterator<ForwardIt2> && 
-    		     std::regular_invocable<BinaryPred, bool>
+    		     std::indirect_binary_predicate<BinaryPred, ForwardIt1, ForwardIt2>
 #endif
     /// Finds the first occurrence of a sequence in a range using a custom predicate
     ///
@@ -179,6 +193,15 @@ namespace cryptanalysislib {
     	if (count <= 0) {
     		return first;
         }
+
+        // SIMD version for contiguous unsigned ranges
+        if constexpr (std::contiguous_iterator<ForwardIt> && std::unsigned_integral<T>) {
+            if (!std::is_constant_evaluated()) {
+                const size_t len = static_cast<size_t>(last - first);
+                return first + internal::search_n_uXX_simd<T>(std::to_address(first), len,
+                                                             static_cast<size_t>(count), value);
+            }
+        }
     
     	for (; first != last; ++first) {
     		if (!(*first == value))
@@ -211,7 +234,8 @@ namespace cryptanalysislib {
              class BinaryPred>
 #if __cplusplus > 201709L
 	    requires std::forward_iterator<ForwardIt> &&
-    		     std::regular_invocable<BinaryPred, bool>
+    		     std::predicate<BinaryPred&, std::iter_reference_t<ForwardIt>,
+    		                    const typename std::iterator_traits<ForwardIt>::value_type &>
 #endif
     /// Searches for a sequence of count consecutive elements that satisfy a predicate with a value
     ///
@@ -283,7 +307,6 @@ namespace cryptanalysislib {
                     Size count, 
                     const typename std::iterator_traits<RandIt>::value_type &value,
                     BinaryPred &&p) noexcept {
-        using T = typename std::iterator_traits<RandIt>::value_type;
 		using diff_t = typename std::iterator_traits<RandIt>::difference_type;
 		const diff_t size = std::distance(first, last);
 		const uint32_t nthreads = should_par(policy, config, size);

@@ -159,12 +159,8 @@ public:
 	// given the i-th bit this function will return a bits mask where the higher (n-i)bits are set.
 	[[nodiscard]] constexpr static T higher_mask(const uint16_t i) noexcept {
 		assert(i <= length);
-		// TODO better formula
-		if ((i % limb_bits_width()) == 0) {
-			return T(-1);
-		}
-
-		return (~((T(1u) << (i % limb_bits_width())) - 1));
+		// NOTE: branch free: for i % limb_bits_width() == 0 this is T(-1)
+		return T(T(-1) << (i % limb_bits_width()));
 	}
 
 	// given the i-th bit this function will return a bits mask where the lower 'n-i' bits are set. Everything will be
@@ -201,7 +197,6 @@ public:
 	[[nodiscard]] constexpr inline T get_bits(const uint16_t i,
 	                            const uint16_t j) const noexcept {
 		assert(j > i && j - i <= limb_bits_width() && j <= length);
-        /// TODO use _bextr_u64 (needs bmi2)
 		const T lmask = higher_mask(i);
 		const T rmask = lower_mask2(j);
 		const int64_t lower_limb = i / limb_bits_width();
@@ -209,6 +204,15 @@ public:
 
 		const uint64_t shift = i % limb_bits_width();
 		if (lower_limb == higher_limb) {
+#ifdef USE_BMI2
+			// NOTE: one `shrx` + `bzhi` (`bzhi` keeps the lower j - i bits, for
+			// 	j - i == 64 everything) instead of two masks
+			if constexpr (sizeof(T) == 8) {
+				if !consteval {
+					return T(_bzhi_u64(uint64_t(__data[lower_limb]) >> shift, uint32_t(j - i)));
+				}
+			}
+#endif
 			return (__data[lower_limb] & lmask & rmask) >> (shift);
 		} else {
 			const T a = __data[lower_limb] & lmask;
@@ -251,15 +255,15 @@ public:
 	}
 
 	inline constexpr void set_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] |= (T(1) << (pos));
+		__data[round_down_to_limb(pos)] |= (T(1) << (pos % RADIX));
 	}
 
 	inline constexpr void flip_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] ^= (T(1) << (pos));
+		__data[round_down_to_limb(pos)] ^= (T(1) << (pos % RADIX));
 	}
 
 	inline constexpr void clear_bit(const uint32_t pos) noexcept {
-		__data[round_down_to_limb(pos)] &= ~(T(1) << (pos));
+		__data[round_down_to_limb(pos)] &= ~(T(1) << (pos % RADIX));
 	}
 
 	/// zero the complete data vector
@@ -275,11 +279,12 @@ public:
 	/// \param k_upper[in]: upper limit, exclusive
 	constexpr void zero(const uint32_t k_lower,
 	                    const uint32_t k_upper) noexcept {
+		assert(k_lower < k_upper && k_upper <= length);
 		const uint64_t lower = round_down_to_limb(k_lower);
-		const uint64_t upper = round_down_to_limb(k_upper);
+		const uint64_t upper = round_down_to_limb(k_upper - 1u);
 
 		const T lmask = higher_mask(k_lower);
-		const T umask = k_upper % 64 == 0 ? T(0) : lower_mask(k_upper);
+		const T umask = lower_mask2(k_upper);
 
 		if (lower == upper) {
 			const T mask = ~(lmask & umask);
@@ -308,11 +313,12 @@ public:
 	/// \param k_upper in]: upper limit exclusive
 	void one(const uint32_t k_lower,
 	         const uint32_t k_upper) noexcept {
+		assert(k_lower < k_upper && k_upper <= length);
 		const uint64_t lower = round_down_to_limb(k_lower);
-		const uint64_t upper = round_down_to_limb(k_upper);
+		const uint64_t upper = round_down_to_limb(k_upper - 1u);
 
 		const T lmask = higher_mask(k_lower);
-		const T umask = k_upper % 64 == 0 ? T(0) : lower_mask(k_upper);
+		const T umask = lower_mask2(k_upper);
 
 		if (lower == upper) {
 			const T mask = (lmask & umask);
@@ -365,7 +371,7 @@ public:
 	void random() noexcept {
 		constexpr uint64_t apply_mask = length % limb_bits_width() == 0 ? lower_mask(length) - 1 : lower_mask(length);
 
-		if constexpr (length < 64) {
+		if constexpr (limbs() == 1) {
 			__data[0] = rng() & apply_mask;
 		} else {
 			for (uint32_t i = 0; i < limbs() - 1; ++i) {
@@ -383,21 +389,22 @@ public:
 		assert(upper <= length);
 
 		const size_t lower_limb = round_down_to_limb(lower);
-		const size_t upper_limb = round_down_to_limb(upper);
+		const size_t upper_limb = round_down_to_limb(upper - 1u);
 
 		const T _lower_mask = higher_mask(lower);
-		const T _upper_mask = lower_mask(upper);
+		const T _upper_mask = lower_mask2(upper);
 
 		if (lower_limb == upper_limb) {
 			const T mask =  _lower_mask & _upper_mask;
 			__data[lower_limb] ^= rng<T>() & mask;
+			return;
 		}
 
 		__data[lower_limb] ^= rng<T>() & _lower_mask;
 		__data[upper_limb] ^= rng<T>() & _upper_mask;
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
-			__data[lower_limb] ^= rng<T>();
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
+			__data[i] ^= rng<T>();
 		}
 	}
 
@@ -449,7 +456,7 @@ public:
 		zero();
 
 		for (uint64_t i = 0; i < w; ++i) {
-			write_bit(i, true);
+			write_bit(i + offset, true);
 		}
 
 		// early exit
@@ -481,12 +488,12 @@ public:
     /// \return true/false if the vector is zero
 	[[nodiscard]] constexpr inline bool is_zero(const uint32_t lower,
 	                                            const uint32_t upper) const noexcept {
-		assert(upper <= length);
+		assert(lower < upper && upper <= length);
 		const size_t lower_limb = round_down_to_limb(lower);
-		const size_t upper_limb = round_down_to_limb(upper);
+		const size_t upper_limb = round_down_to_limb(upper - 1u);
 
 		const T _lower_mask = higher_mask(lower);
-		const T _upper_mask = lower_mask(upper);
+		const T _upper_mask = lower_mask2(upper);
 
 		if (lower_limb == upper_limb) {
 			return (__data[upper_limb] & _lower_mask & _upper_mask) == 0u;
@@ -495,7 +502,7 @@ public:
 		if (__data[lower_limb] & _lower_mask) { return false; }
 		if (__data[upper_limb] & _upper_mask) { return false; }
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
 			if (__data[i]) { return false; }
 		}
 
@@ -507,11 +514,11 @@ public:
 	/// \return whether the vector is zero between [k_lower, k_upper)
 	template<const uint32_t lower, uint32_t upper>
 	[[nodiscard]] constexpr inline bool is_zero()const noexcept {
-		assert(upper <= length);
+		static_assert(lower < upper && upper <= length);
 		constexpr size_t lower_limb = round_down_to_limb(lower);
-		constexpr size_t upper_limb = round_down_to_limb(upper);
+		constexpr size_t upper_limb = round_down_to_limb(upper - 1u);
 		constexpr T _lower_mask = higher_mask(lower);
-		constexpr T _upper_mask = lower_mask(upper);
+		constexpr T _upper_mask = lower_mask2(upper);
 
 		if constexpr (lower_limb == upper_limb) {
 			return (__data[upper_limb] & _lower_mask & _upper_mask) == 0u;
@@ -520,7 +527,7 @@ public:
 		if (__data[lower_limb] & _lower_mask) { return false; }
 		if (__data[upper_limb] & _upper_mask) { return false; }
 
-		for (uint32_t i = lower_limb + 1u; i < upper_limb - 1u; ++i) {
+		for (uint32_t i = lower_limb + 1u; i < upper_limb; ++i) {
 			if (__data[i]) { return false; }
 		}
 
@@ -862,14 +869,14 @@ public:
 				return false;
 			}
 
-			// todo avx512 support
-			constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
+			// widest SIMD type (AVX-512 if available, else 256 bit)
+			using S = SIMDSelector<T>;
+			constexpr uint32_t limb_size = S::LIMBS;
 			uint32_t i = lower_limb + 1;
 			for (; i + limb_size <= higher_limb; i += limb_size) {
-				uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1 + i));
-				uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2 + i));
-				uint32x8_t z_ = x_ ^ y_;
-				uint32x8_t::store((uint32_t *)(v3 + i), z_);
+				const S x_ = S::template load<false>(v1 + i);
+				const S y_ = S::template load<false>(v2 + i);
+				S::template store<false>(v3 + i, x_ ^ y_);
 			}
 
 			for (; i < higher_limb; ++i) {
@@ -900,7 +907,8 @@ public:
 	                                FqPackedVector const &v1,
 	                                FqPackedVector const &v2) noexcept {
 		if constexpr (norm != uint32_t(-1)) {
-			return add_weight<k_lower, k_upper>(v3, v1, v2);
+			// same as the runtime version: true if the weight reached `norm`
+			return add_weight<k_lower, k_upper>(v3, v1, v2) >= norm;
 		}
 
 		constexpr T lmask = higher_mask(k_lower % limb_bits_width());
@@ -930,7 +938,7 @@ public:
 		}
 
 		for (; i < higher_limb; ++i) {
-			v3[i] = v1[i] ^ v2[i];
+			v3.__data[i] = v1.__data[i] ^ v2.__data[i];
 		}
 
 		T tmp1 = (v1.__data[lower_limb] ^ v2.__data[lower_limb]) & lmask;
@@ -949,7 +957,8 @@ public:
 	                                            T const *v1,
 	                                            T const *v2) noexcept {
 		uint32_t cnorm = 0;
-		// TODO optimize with avx
+		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
+		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			v3[i] = v1[i] ^ v2[i];
 			cnorm += popcnt_T(v3[i]);
@@ -1006,7 +1015,7 @@ public:
 		return cnorm;
 	}
 
-	constexpr static uint32_t add_weight(FqPackedVector v3,
+	constexpr static uint32_t add_weight(FqPackedVector &v3,
 	                                     FqPackedVector const &v1,
 	                                     FqPackedVector const &v2,
 										 const uint32_t k_lower,
@@ -1152,41 +1161,42 @@ public:
 									 const uint32_t k_upper=length,
 									 const uint32_t norm=-1) noexcept {
 		(void)norm;
+		assert(k_upper <= length && k_lower < k_upper);
 		const T lmask = higher_mask(k_lower % limb_bits_width());
 		const T rmask = lower_mask2(k_upper % limb_bits_width());
 		const int64_t lower_limb = k_lower / limb_bits_width();
 		const int64_t higher_limb = (k_upper - 1) / limb_bits_width();
 
 		if (lower_limb == higher_limb) {
-			const T mask = k_upper % 64 == 0 ? lmask : (lmask & rmask);
-			T tmp1 = (v3[lower_limb] & ~(mask));
-			T tmp2 = (v1[lower_limb] ^ v2[lower_limb]) & mask;
-			v3[lower_limb] = tmp1 & tmp2;
+			const T mask = lmask & rmask;
+			const T tmp1 = v3.__data[lower_limb] & ~mask;
+			const T tmp2 = v1.__data[lower_limb] & v2.__data[lower_limb] & mask;
+			v3.__data[lower_limb] = tmp1 ^ tmp2;
 			return false;
 		}
 
-		// todo avx512 support
-		constexpr uint32_t limb_size = 256u/(sizeof(T)*8);
+		// widest SIMD type (AVX-512 if available, else 256 bit)
+		using S = SIMDSelector<T>;
+		constexpr uint32_t limb_size = S::LIMBS;
 		uint32_t i = lower_limb + 1;
 		for (; i + limb_size <= higher_limb; i += limb_size) {
-			uint32x8_t x_ = uint32x8_t::load<false>((uint32_t *)(v1 + i));
-			uint32x8_t y_ = uint32x8_t::load<false>((uint32_t *)(v2 + i));
-			uint32x8_t z_ = x_ & y_;
-			uint32x8_t::store((uint32_t *)(v3 + i), z_);
+			const S x_ = S::template load<false>(v1.ptr() + i);
+			const S y_ = S::template load<false>(v2.ptr() + i);
+			S::template store<false>(v3.ptr() + i, x_ & y_);
 		}
 
 		for (; i < higher_limb; ++i) {
-			v3[i] = v1[i] & v2[i];
+			v3.__data[i] = v1.__data[i] & v2.__data[i];
 		}
 
 		// do the remaining stuff
-		T tmp1 = (v1[lower_limb] ^ v2[lower_limb]) & lmask;
-		T tmp2 = (v1[higher_limb] ^ v2[higher_limb]) & rmask;
-		T tmp11 = (v3[lower_limb] & ~(lmask));
-		T tmp21 = (v3[higher_limb] & ~(rmask));
+		const T tmp1 = v1.__data[lower_limb] & v2.__data[lower_limb] & lmask;
+		const T tmp2 = v1.__data[higher_limb] & v2.__data[higher_limb] & rmask;
+		const T tmp11 = v3.__data[lower_limb] & ~lmask;
+		const T tmp21 = v3.__data[higher_limb] & ~rmask;
 
-		v3[lower_limb] = tmp1 & tmp11;
-		v3[higher_limb] = tmp2 & tmp21;
+		v3.__data[lower_limb] = tmp1 ^ tmp11;
+		v3.__data[higher_limb] = tmp2 ^ tmp21;
 		return false;
 	}
 
@@ -1207,10 +1217,11 @@ public:
 		(void)norm;
 		if (v2) {
 			FqPackedVector::set(v3, v1, k_lower, k_upper);
-			return false;
 		} else {
 			v3.zero(k_lower, k_upper);
 		}
+
+		return false;
 	}
 
 
@@ -1239,7 +1250,32 @@ public:
 		}
 	}
 
-	// TODO missing rol/ror
+	/// rotate left (towards the higher indices), same semantics as
+	/// `FqNonPackedVectorMeta::rol`: out[(j + s) % length] = in[j]
+	/// NOTE: `out` and `in` must not be the same object
+	constexpr static inline void rol(FqPackedVector &out,
+	                                 const FqPackedVector &in,
+	                                 const uint32_t s) noexcept {
+		assert(s < length);
+		assert(&out != &in);
+		for (uint32_t j = 0; j < length; ++j) {
+			out.write_bit((j + s) % length, in.get_bit_shifted(j));
+		}
+	}
+
+	/// rotate right (towards the lower indices), same semantics as
+	/// `FqNonPackedVectorMeta::ror`: out[j] = in[(j + s) % length]
+	/// NOTE: `out` and `in` must not be the same object
+	constexpr static inline void ror(FqPackedVector &out,
+	                                 const FqPackedVector &in,
+	                                 const uint32_t s) noexcept {
+		assert(s < length);
+		assert(&out != &in);
+		for (uint32_t j = 0; j < length; ++j) {
+			out.write_bit(j, in.get_bit_shifted((j + s) % length));
+		}
+	}
+
 	///  out[s: ] = in[0:s]
 	constexpr static inline void sll(FqPackedVector &out,
 	                               const FqPackedVector &in,
@@ -1264,7 +1300,7 @@ public:
 		for (uint32_t j = s; j < length; ++j) {
 			out.write_bit(j-s, in.get_bit_shifted(j));
 		}
-		for (uint32_t j = s; j < length; ++j) {
+		for (uint32_t j = length - s; j < length; ++j) {
 			out.write_bit(j, 0);
 		}
 	}
@@ -1291,7 +1327,8 @@ public:
 	constexpr static inline uint32_t dist(const FqPackedVector &a,
 	                                      const FqPackedVector &b) noexcept {
 		uint32_t ret = 0;
-		// TODO simd
+		// NOTE: no explicit SIMD needed: gcc 15 -O3 vectorizes this loop
+		// 	(vpxorq + vpopcntq with AVX-512 VPOPCNTDQ, checked in the asm)
 		for (uint32_t i = 0; i < limbs(); ++i) {
 			ret += popcnt_T(a.__data[i] ^ b.__data[i]);
 		}
@@ -1550,8 +1587,8 @@ public:
 			return *this;
 		}
 
-		[[nodiscard]] constexpr inline unsigned int get_data() const noexcept { return bool(); }
-		[[nodiscard]] constexpr inline unsigned int data() const noexcept { return bool(); }
+		[[nodiscard]] constexpr inline unsigned int get_data() const noexcept { return (*(wp) &mask_pos) != 0; }
+		[[nodiscard]] constexpr inline unsigned int data() const noexcept { return (*(wp) &mask_pos) != 0; }
 	};
 	friend class reference;
 
@@ -1626,79 +1663,33 @@ public:
 		static_assert(l < h);
 		static_assert(h <= length);
 		static_assert((h-l) <= 64, "Sorry, but hashing down to more than 64 bits is not possible");
-
-		constexpr uint32_t qbits = 1;
-		constexpr uint32_t bits = limb_bits_width();
-		constexpr uint32_t lq = l*qbits;
-		constexpr uint32_t hq = h*qbits;
-		constexpr uint32_t llimb = lq / bits;
-		constexpr uint32_t hlimb  = hq%bits == 0u ? llimb : hq / bits;
-		constexpr uint32_t lprime = lq % bits;
-		constexpr uint32_t hprime = (hq%bits) == 0 ? bits : hq % bits;
-
-		// easy case: lower limit and upper limit
-		// are in the same limb
-		if constexpr (llimb == hlimb) {
-			static_assert(lprime < hprime);
-			static_assert((hprime - lprime) <= (sizeof(T) * 8u));
-
-			constexpr T diff1 = hprime - lprime;
-			static_assert (diff1 <= bits);
-			constexpr T diff2 = bits - diff1;
-			constexpr T mask = -1ull >> diff2;
-			const T b = __data[llimb] >> lprime;
-			const T c = b & mask;
-			return c;
-		}
-
-		static_assert(llimb <= hlimb);
-		static_assert((hlimb - llimb) <= 1u); // note could be extended
-
-		constexpr T lmask = T(-1ull) << lprime;
-		constexpr T hmask = T(-1ull) >> ((bits - hprime) % bits);
-
-		// not so easy case: lower limit and upper limit are
-		// on seperate limbs
-		T data = (__data[llimb] & lmask) >> lprime;
-		data  ^= (__data[hlimb] & hmask) << ((bits - lprime) % bits);
-		return data;
+		// NOTE: `l` and `h` are compile time constants, so the loop in
+		// 	`hash(l, h)` is fully unrolled
+		return hash(l, h);
 	}
+
+	/// \return bits [l, h) of the vector, bit `l` is the lowest bit
+	/// NOTE: works for any limb type `T`, the window may span several limbs
 	[[nodiscard]] constexpr inline size_t hash(const uint32_t l,
 	                                           const uint32_t h) const noexcept {
 		assert(l < h);
 		assert(h <= length);
+		assert((h - l) <= 64u);
 
-		const uint32_t bits = limb_bits_width();
-		const uint32_t llimb = l / bits;
-		const uint32_t hlimb  = h%bits == 0u ? llimb : h / bits;
-		const uint32_t lprime = l % bits;
-		const uint32_t hprime = (h%bits) == 0 ? bits : h % bits;
-
-		// easy case: lower limit and upper limit
-		// are in the same limb
-		if (llimb == hlimb) {
-			assert(lprime < hprime);
-			assert((hprime - lprime) <= (sizeof(T) * 8u));
-
-			const T diff1 = hprime - lprime;
-			assert (diff1 <= bits);
-			const T diff2 = bits - diff1;
-			const T mask = -1ull >> diff2;
-			const T b = __data[llimb] >> lprime;
-			const T c = b & mask;
-			return c;
+		constexpr uint32_t bits = limb_bits_width();
+		const uint32_t w = h - l;
+		uint64_t data = 0;
+		uint32_t got = 0;
+		while (got < w) {
+			const uint32_t pos = l + got;
+			const uint32_t off = pos % bits;
+			const uint32_t left = w - got;
+			const uint32_t take = (bits - off) < left ? (bits - off) : left;
+			const uint64_t chunk = uint64_t(__data[pos / bits] >> off);
+			data |= (take == 64u ? chunk : (chunk & ((1ull << take) - 1ull))) << got;
+			got += take;
 		}
 
-		assert(llimb <= hlimb);
-		assert((hlimb - llimb) <= 1u); // note could be extended
-
-		const T lmask = T(-1ull) << lprime;
-		const T hmask = T(-1ull) >> ((bits - hprime) % bits);
-
-		// not so easy case: lower limit and upper limit are
-		// on seperate limbs
-		T data = (__data[llimb] & lmask) >> lprime;
-		data  ^= (__data[hlimb] & hmask) << ((bits - lprime) % bits);
 		return data;
 	}
 	// full length hasher

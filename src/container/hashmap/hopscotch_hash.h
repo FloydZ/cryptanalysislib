@@ -956,12 +956,24 @@ namespace tsl {
 				return at(key, hash_key(key));
 			}
 
+			/// NOTE: if `key` is not in the map, a reference to an empty
+			/// 	(value initialised) object `T{}` is returned (no exceptions)
 			template <class K, class U = ValueSelect,
 			         typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
 			constexpr inline typename U::value_type& at(const K& key,
 			                                            const std::size_t hash) noexcept{
-				return const_cast<typename U::value_type&>(
-				        static_cast<const hopscotch_hash*>(this)->at(key, hash));
+				using T = typename U::value_type;
+
+				T* value = find_value_impl(key, hash, m_buckets + bucket_for_hash(hash));
+				if (value == nullptr) {
+					// NOTE: reset on every miss, s.t. a write through the
+					// 	returned reference does not leak into the next miss
+					static T empty{};
+					empty = T{};
+					return empty;
+				}
+
+				return *value;
 			}
 
 			template <class K, class U = ValueSelect,
@@ -978,12 +990,13 @@ namespace tsl {
 				const T* value =
 				        find_value_impl(key, hash, m_buckets + bucket_for_hash(hash));
 				if (value == nullptr) {
-					// TODO Couldnt find key;
-					assert(false);
-					return *value;
-				} else {
-					return *value;
+					// NOTE: no exceptions, a missing key returns an empty
+					// 	object (before this dereferenced `nullptr`)
+					static const T empty{};
+					return empty;
 				}
+
+				return *value;
 			}
 
 			template <class K, class U = ValueSelect,

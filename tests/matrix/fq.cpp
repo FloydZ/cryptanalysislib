@@ -25,6 +25,64 @@ using M = FqMatrix<T, nrows, ncols, q, packed>;
 using MT = FqMatrix<T, ncols, nrows, q, packed>;
 
 
+TEST(FqMatrix, from_string) {
+	// q <= 10
+	{
+		using A = FqMatrix<T, 2, 3, 3, packed>;
+		const A a{"012210"};
+		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 1); EXPECT_EQ(a.get(0, 2), 2);
+		EXPECT_EQ(a.get(1, 0), 2); EXPECT_EQ(a.get(1, 1), 1); EXPECT_EQ(a.get(1, 2), 0);
+	}
+
+	// 10 < q <= 36: letters
+	{
+		using A = FqMatrix<T, 2, 3, 17, packed>;
+		const A a{"09aGbg"};
+		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 9); EXPECT_EQ(a.get(0, 2), 10);
+		EXPECT_EQ(a.get(1, 0), 16); EXPECT_EQ(a.get(1, 1), 11); EXPECT_EQ(a.get(1, 2), 16);
+	}
+
+	// q > 36: separated decimal numbers
+	{
+		using A = FqMatrix<T, 2, 3, 257, false>;
+		const A a{"0 256 17\n100, 1,255"};
+		EXPECT_EQ(a.get(0, 0), 0); EXPECT_EQ(a.get(0, 1), 256); EXPECT_EQ(a.get(0, 2), 17);
+		EXPECT_EQ(a.get(1, 0), 100); EXPECT_EQ(a.get(1, 1), 1); EXPECT_EQ(a.get(1, 2), 255);
+	}
+}
+
+TEST(FqMatrix, copy_sub) {
+	using Big = FqMatrix<T, 10, 12, 5, packed>;
+	using Small = FqMatrix<T, 3, 4, 3, packed>;
+	Big b; b.random();
+	const Big orig = b;
+	Small a; a.random();
+
+	constexpr uint32_t srow = 6, scol = 7;
+	b.copy_sub(a, srow, scol);
+	for (uint32_t i = 0; i < 10; ++i) {
+		for (uint32_t j = 0; j < 12; ++j) {
+			const bool inside = (i >= srow) && (i < srow + 3) && (j >= scol) && (j < scol + 4);
+			if (inside) {
+				EXPECT_EQ(b.get(i, j), a.get(i - srow, j - scol));
+			} else {
+				EXPECT_EQ(b.get(i, j), orig.get(i, j));
+			}
+		}
+	}
+}
+
+TEST(FqMatrix, zero_row) {
+	M m; m.random();
+	const M orig = m;
+	m.zero_row(5);
+	for (uint32_t i = 0; i < nrows; ++i) {
+		for (uint32_t j = 0; j < ncols; ++j) {
+			EXPECT_EQ(m.get(i, j), (i == 5) ? 0 : orig.get(i, j));
+		}
+	}
+}
+
 TEST(FqMatrix, Init) {
 	M m = M{};
 	(void) m;
@@ -154,8 +212,8 @@ TEST(FqMatrix, InitFromString) {
 }
 
 TEST(FqMatrix, SimpleTranspose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 480, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 480, 11>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};
@@ -174,8 +232,8 @@ TEST(FqMatrix, SimpleTranspose) {
 }
 
 TEST(FqMatrix, Transpose) {
-	constexpr_for<400, 430, 3>([](const auto __nrows) {
-		constexpr_for<400, 470, 3>([__nrows](const auto __ncols) {
+	constexpr_for<400, 430, 7>([](const auto __nrows) {
+		constexpr_for<400, 470, 11>([__nrows](const auto __ncols) {
 			using M = FqMatrix<T, __nrows, __ncols, q, true>;
 			using MT = FqMatrix<T, __ncols, __nrows, q, true>;
 			M m = M{};
@@ -319,6 +377,48 @@ TEST(FqMatrix, m4ri) {
 	});
 }
 
+TEST(FqMatrix, m4ri_precompute_table) {
+	using M2 = FqMatrix<T, 100, 130, q, true>;
+	for (uint32_t k = 0; k < 10; ++k) {
+		M2 a; a.random();
+		M2 b = a;
+		const uint32_t r1 = a.template m4ri<4, false>();
+		const uint32_t r2 = b.template m4ri<4, true>();
+		EXPECT_EQ(r1, r2);
+		EXPECT_TRUE(M2::is_equal(a, b));
+	}
+}
+
+/// q = 5, 7: pivots other than 1 and q-1
+template<const uint64_t qq>
+static void markov_gaus_q() {
+	constexpr uint32_t nr = 60, nc = 90, l = 10, c = 5;
+	using MM = FqMatrix<T, nr, nc, qq, true>;
+	MM m;
+	Permutation P(nc);
+	uint32_t rank = 0;
+	while (true) {
+		m.random();
+		rank = m.gaus(nr - l);
+		if (rank >= nr - l) { break; }
+	}
+
+	for (uint32_t k = 0; k < 50; ++k) {
+		const uint32_t rank2 = m.template markov_gaus<c, nr - l>(P);
+		EXPECT_EQ(rank, rank2);
+		for (uint32_t i = 0; i < nr; ++i) {
+			for (uint32_t j = 0; j < nr - l; ++j) {
+				EXPECT_EQ(m.get(i, j), i == j);
+			}
+		}
+	}
+}
+
+TEST(FqMatrix, markov_gaus_q) {
+	markov_gaus_q<5>();
+	markov_gaus_q<7>();
+}
+
 TEST(FqMatrix, markov_gaus) {
 	constexpr_for<400, 430, 7>([](const auto __nrows) {
 		constexpr_for<400, 440, 11>([__nrows](const auto __ncols) {
@@ -414,6 +514,91 @@ TEST(FqMatrix, mult) {
 	});
 }
 #endif
+
+/// q > 2**16
+TEST(FqMatrix, mult_large_q) {
+	constexpr uint64_t qq = (1ull << 31) - 1ull;
+	constexpr uint32_t n = 8, m = 5;
+	using A = FqMatrix<uint64_t, n, n, qq, false>;
+	using B = FqMatrix<uint64_t, n, m, qq, false>;
+	A a, b, c;
+	B d, e;
+	a.random(); b.random(); d.random();
+	A::mul(c, a, b);
+	A::template mul<m>(e, a, d);
+
+	for (uint32_t i = 0; i < n; ++i) {
+		for (uint32_t j = 0; j < n; ++j) {
+			unsigned __int128 s = 0;
+			for (uint32_t k = 0; k < n; ++k) {
+				s += (unsigned __int128)a.get(i, k) * b.get(k, j);
+			}
+			EXPECT_EQ(c.get(i, j), (uint64_t)(s % qq));
+		}
+		for (uint32_t j = 0; j < m; ++j) {
+			unsigned __int128 s = 0;
+			for (uint32_t k = 0; k < n; ++k) {
+				s += (unsigned __int128)a.get(i, k) * d.get(k, j);
+			}
+			EXPECT_EQ(e.get(i, j), (uint64_t)(s % qq));
+		}
+	}
+}
+
+TEST(FqMatrix, augment) {
+	using L = FqMatrix<T, 3, 4, q, packed>;
+	using R = FqMatrix<T, 3, 2, q, packed>;
+	using O = FqMatrix<T, 5, 6, q, packed>;
+	L l; l.random();
+	R r; r.random();
+	O o; o.random();
+	O::augment(o, l, r);
+	for (uint32_t i = 0; i < 5; ++i) {
+		for (uint32_t j = 0; j < 6; ++j) {
+			const uint32_t expect = (i >= 3) ? 0 : ((j < 4) ? l.get(i, j) : r.get(i, j - 4));
+			EXPECT_EQ(o.get(i, j), expect);
+		}
+	}
+}
+
+/// vector matrix multiplication, transposed and normal, vs a naive reference
+template<const uint64_t qq, const bool pk, typename TT=T>
+static void vec_mul_check() {
+	constexpr uint32_t nr = 37, nc = 70;
+	using MM = FqMatrix<TT, nr, nc, qq, pk>;
+	using VR = typename std::conditional<pk, FqPackedVector<nr, qq, TT>, FqNonPackedVector<nr, qq, TT>>::type;
+	using VC = typename std::conditional<pk, FqPackedVector<nc, qq, TT>, FqNonPackedVector<nc, qq, TT>>::type;
+	MM m; m.random();
+	VR r; VC c;
+
+	for (uint32_t k = 0; k < 10; ++k) {
+		// out = in * M
+		r.random(); c.random();
+		m.mul(c, r);
+		for (uint32_t i = 0; i < nc; ++i) {
+			unsigned __int128 s = 0;
+			for (uint32_t j = 0; j < nr; ++j) { s += (unsigned __int128)m.get(j, i) * r.get(j); }
+			EXPECT_EQ((uint64_t)c.get(i), (uint64_t)(s % qq));
+		}
+
+		// out = M * in
+		r.random(); c.random();
+		m.mul(r, c);
+		for (uint32_t i = 0; i < nr; ++i) {
+			unsigned __int128 s = 0;
+			for (uint32_t j = 0; j < nc; ++j) { s += (unsigned __int128)m.get(i, j) * c.get(j); }
+			EXPECT_EQ((uint64_t)r.get(i), (uint64_t)(s % qq));
+		}
+	}
+}
+
+TEST(FqMatrix, vector_mul) {
+	vec_mul_check<3, true>();
+	vec_mul_check<3, false>();
+	vec_mul_check<7, true>();
+	vec_mul_check<2, false>();
+	vec_mul_check<(1ull << 31) - 1ull, false, uint64_t>();
+}
 
 TEST(FqMatrix, permute) {
 	M m = M{};

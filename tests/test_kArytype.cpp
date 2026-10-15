@@ -1,3 +1,4 @@
+#include <sstream>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <cstdint>
@@ -75,10 +76,14 @@ using ::testing::UnitTest;
 #undef T
 #undef S
 
-// only for development
-//TEST(T, dev_big) {
-//	kAry_Type_T_big<>
-//}
+/// operator<< writes into the given stream (not std::cout)
+TEST(kAryType, ostream) {
+	using K = kAry_Type_T<13>;
+	K a = 5;
+	std::stringstream ss;
+	ss << a;
+	EXPECT_EQ(ss.str(), "1010 (5, 0x5)"); // lowest bit first
+}
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

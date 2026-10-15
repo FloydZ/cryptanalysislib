@@ -12,6 +12,12 @@ constexpr size_t dk = 10;
 constexpr static NN_Config config{256, 4, 1, 64, LS, dk, d, 0, 512};
 NN<config> algo{};
 
+// NOTE: `bruteforce_simd_256_32_ux8` is only made for extremely low weights
+//	(it asserts `d < 7`), so it gets its own instance (same `d` as in the tests)
+constexpr size_t d_ux8 = 4;
+constexpr static NN_Config config_ux8{256, 4, 1, 64, LS, dk, d_ux8, 0, 512};
+NN<config_ux8> algo_ux8{};
+
 static void BM_bruteforce_256(benchmark::State& state) {
 	for (auto _ : state) {
 		algo.bruteforce_256(state.range(0), state.range(0));
@@ -58,28 +64,28 @@ static void BM_bruteforce_simd_256_ux4_8(benchmark::State& state) {
 
 static void BM_bruteforce_simd_256_32_ux8_1(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_simd_256_32_ux8<1>(state.range(0), state.range(0));
+		algo_ux8.bruteforce_simd_256_32_ux8<1>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
 static void BM_bruteforce_simd_256_32_ux8_2(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_simd_256_32_ux8<2>(state.range(0), state.range(0));
+		algo_ux8.bruteforce_simd_256_32_ux8<2>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
 static void BM_bruteforce_simd_256_32_ux8_4(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_simd_256_32_ux8<4>(state.range(0), state.range(0));
+		algo_ux8.bruteforce_simd_256_32_ux8<4>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
 
 static void BM_bruteforce_simd_256_32_ux8_8(benchmark::State& state) {
 	for (auto _ : state) {
-		algo.bruteforce_simd_256_32_ux8<8>(state.range(0), state.range(0));
+		algo_ux8.bruteforce_simd_256_32_ux8<8>(state.range(0), state.range(0));
 	}
 	state.SetComplexityN(state.range(0));
 }
@@ -112,6 +118,7 @@ BENCHMARK(BM_bruteforce_256)->RangeMultiplier(2)->Range(1024, LS)->Complexity();
 int main(int argc, char** argv) {
 	rng_seed(time(NULL));
 	algo.generate_random_instance(false);
+	algo_ux8.generate_random_instance(false);
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;

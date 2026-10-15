@@ -1,6 +1,12 @@
 #TESTS Flags
 set(COMPILE_TEST_FLAGS -g -pthread)
 
+# all CUDA tests: each one is added as dependency of `cuda_tests` and gets the
+# label `cuda`. Build them with `--target cuda_tests`, run them with `ctest -L cuda`.
+if(CMAKE_CUDA_COMPILER)
+    add_custom_target(cuda_tests)
+endif()
+
 add_subdirectory(algorithm)
 add_subdirectory(alloc)
 add_subdirectory(atomic)
@@ -13,6 +19,10 @@ if(USE_CUDA)
 add_subdirectory(cuda)
 endif()
 add_subdirectory(hash)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|aarch64")
+    # static_branch: x86-64 and AArch64, Linux (ELF __start/__stop symbols)
+    add_subdirectory(jmp)
+endif()
 add_subdirectory(list)
 add_subdirectory(loop_fusion)
 add_subdirectory(math)

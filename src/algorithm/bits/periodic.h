@@ -8,7 +8,9 @@
 template<typename T>
 static inline T bit_copy_periodic(T a, T p) {
     constexpr static uint32_t BITS = sizeof(T)*8;
-    a &= ( ~0UL >> (BITS-p) );
+    // NOTE: shift a `T`. Was `~0UL >> (BITS-p)`, which does not mask
+    // 	anything for `BITS < 64`.
+    a &= T( T(~T(0)) >> (BITS-p) );
     for (T s=p; s<BITS; s<<=1)  { a |= (a<<s); }
     return a;
 }
@@ -20,8 +22,9 @@ static inline T bit_copy_periodic(T a, T p) {
 template<typename T>
 static inline T bit_copy_periodic(T a, T p, T ldn) {
     constexpr static uint32_t BITS = sizeof(T)*8;
-    a &= ( ~0UL >> (BITS-p) );
+    // NOTE: shift a `T`, see above
+    a &= T( T(~T(0)) >> (BITS-p) );
     for (T s=p; s<ldn; s<<=1)  { a |= (a<<s); }
-    a &= ( ~0UL >> (BITS-ldn) );
+    a &= T( T(~T(0)) >> (BITS-ldn) );
     return a;
 }

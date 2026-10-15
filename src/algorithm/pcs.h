@@ -6,10 +6,9 @@
 #include "random.h"
 #include "thread/thread.h"
 
-/// TODO README and example
+/// NOTE: README + usage example: `src/algorithm/README.md` (Pollard rho section)
 /// TODO multithreading and then pcs
 /// TODO gospers cycle finding
-///		TODO: config class
 
 
 static size_t walk_len = 0;
@@ -38,6 +37,13 @@ concept PCSDistinguishAble = requires(C c) {
 #endif
 
 
+/// Configuration of `PollardRho`
+struct PollardRhoConfig {
+	/// cycle finding of the flavoured `run`: Brent (true) or Floyd (false)
+	const bool brent = true;
+};
+constexpr static PollardRhoConfig pollardRhoConfig{};
+
 /// \tparam Compare compare object, which needs to take 4 argumens
 ///     So the following ()operator must be implemented:
 ///         operator()(const T &a1, const T &a2, const T &b1, const T &b2)
@@ -46,15 +52,17 @@ concept PCSDistinguishAble = requires(C c) {
 ///     so a1 and b1 are always the predecessors of a2 and b2. This additional
 ///     information is needed for algorithms which do flavouring.
 /// \tparam T base element to compare
+/// \tparam config see `PollardRhoConfig`
 template<class Compare,
-		 class T>
+		 class T,
+		 const PollardRhoConfig &config = pollardRhoConfig>
 #if __cplusplus > 201709L
 	requires RhoCompareAble<Compare, T>
 #endif
 class PollardRho {
 private:
 
-	constexpr static bool brent = true;
+	constexpr static bool brent = config.brent;
 
 public:
 	constexpr PollardRho() noexcept {};
@@ -163,35 +171,44 @@ public:
 			}
 			return true;
 		} else {
-			y1 = x1;
+			// Floyd: phase 1, tortoise `x` and hare `y` meet within the cycle.
+			// NOTE: at the meeting both have the same predecessor, so (as in
+			// 	Brent's variant) `sp` is the dummy first preimage of `cmp`.
+			// 	Before, the meeting was compared with the two predecessors,
+			// 	which never differ, so this loop never terminated.
+			T x = sp, y = sp;
 			while (i < max_iters) {
 				i += 1;
 				walk_len += 1;
-
-				x2 = f(flavour(x1));
-
-				y1 = f(flavour(y1));
-				y2 = f(flavour(y1));
-
-				if (cmp(x1, x2, y1, y2)) [[unlikely]] {
+				const T xn = f(flavour(x));
+				const T yh = f(flavour(y));
+				const T yn = f(flavour(yh));
+				x = xn; y = yn;
+				if (cmp(sp, xn, yh, yn)) [[unlikely]] {
 					ret = true;
-					goto finish;
+					break;
 				}
-
-				x1 = x2; y1 = y2;
 			}
-		}
 
-	finish:
-		if (ret) {
-			x1 = sp;
-			while (!cmp(x1, x2, y1, y2)) {
+			if (!ret) { return false; }
+
+			// phase 2: from the start and from the meeting point, one step
+			// at a time: they meet at the cycle entry, their predecessors
+			// are the collision. At most `i` steps: else `sp` is on the
+			// cycle and there are no distinct preimages.
+			T a = sp, b = y;
+			for (size_t k = 0; k <= i; ++k) {
 				walk_len += 1;
-				x1 = x2;
-				y1 = y2;
-				x2 = f(flavour(x1));
-				y2 = f(flavour(y2));
+				const T an = f(flavour(a));
+				const T bn = f(flavour(b));
+				if (cmp(a, an, b, bn)) {
+					x1 = a; y1 = b;
+					x2 = an; y2 = bn;
+					return true;
+				}
+				a = an; b = bn;
 			}
+			return false;
 		}
 
 		return ret;

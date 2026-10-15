@@ -47,16 +47,17 @@ void __attribute__((constructor)) cryptanalysislib_thread_init(){
     cryptanalysislib::internal::get_default_pool();
 }
 
-// base class for the execution policy
-struct execution_policy {
-    // TODO verstehen warum warnung [[nodiscard]] constexpr virtual pool_type pool() const noexcept;
-    // TODO verstehen warum warnung [[nodiscard]] constexpr virtual bool par_allowed() const noexcept;
-};
+/// base class for the execution policies (only a tag).
+/// NOTE: the policies are passed as template parameters (static
+/// 	polymorphism, see the `ExecutionPolicy` concept), so no virtual
+/// 	functions are needed.
+struct execution_policy {};
 
 /// A sequential policy that simply forwards to the non-policy overload.
 struct sequenced_policy : public execution_policy {
     [[nodiscard]] constexpr inline pool_type pool() const noexcept {
-        assert("requested thread pool for seq policy.");
+        // NOTE: was `assert("...")`, which is always true
+        assert(false && "requested thread pool for seq policy.");
         return nullptr;
     }
 
@@ -187,10 +188,19 @@ constexpr inline static parallel_policy par_if(const bool call_par,
     return parallel_policy{&pool, call_par};
 }
 
+#if __cplusplus > 201709L
+/// the interface of an execution policy (`seq`, `par`, `pure_threads_policy`)
+template<class P>
+concept ExecutionPolicy = std::is_base_of_v<execution_policy, std::remove_cvref_t<P>> &&
+	requires(const std::remove_cvref_t<P> &p) {
+		{ p.par_allowed() } -> std::convertible_to<bool>;
+	};
+#endif
+
 /// \return true if the policy enforces sequential execution
 template <class ExecPolicy>
 #if __cplusplus > 201709L
-    // TODO ExecPolicy concept
+    requires ExecutionPolicy<ExecPolicy>
 #endif
 [[nodiscard]] constexpr inline static bool is_seq(const ExecPolicy& policy) noexcept {
     return !policy.par_allowed();
@@ -219,12 +229,12 @@ namespace internal {
         return static_cast<diff_t>(get_chunk_size((std::size_t)std::distance(first, last), num_threads));
     }
    
-    /// min between 
-    /// TODO doc
-    /// \tparam Iterator
-    /// \param iter
-    /// \param last
-    /// \param chunk_size
+    /// \tparam Iterator forward iterator
+    /// \param iter current position
+    /// \param last end of the range
+    /// \param chunk_size wanted chunk size
+    /// \return min(chunk_size, distance(iter, last)), i.e. the size of the
+    ///     chunk starting at `iter`, the last one may be shorter
     template<typename Iterator>
 #if __cplusplus > 201709L
         requires std::forward_iterator<Iterator>
@@ -236,10 +246,10 @@ namespace internal {
         return std::min(chunk_size, std::distance(iter, last));
     }
   
-    /// TODO doc
-    /// \tparam Iterator
+    /// \tparam Iterator forward iterator
     /// \param iter
-    /// \param offset
+    /// \param offset number of steps
+    /// \return a copy of `iter`, advanced by `offset`
     template<typename Iterator>
 #if __cplusplus > 201709L
         requires std::forward_iterator<Iterator>
@@ -252,6 +262,9 @@ namespace internal {
     }
 
 	/// waits for everything
+	/// NOTE: `noexcept`: if a task exited via an exception, `get()` rethrows it
+	/// 	and `std::terminate` is called. This is intended, the standard requires
+	/// 	the same for the parallel algorithms ([algorithms.parallel.exceptions]).
 	template <class Container>
 #if __cplusplus > 201709L
 		requires Iterable<Container>
@@ -311,18 +324,20 @@ namespace internal {
         return getting_iter<Iterator>(iter);
     }
 
-    /// TODO doc
-    /// \tparam ExecPolicy
-    /// \tparam RandIt
-    /// \tparam Chunk
-    /// \tparam ChunkRet
-    /// \tparam A
-    /// \param policy
-    /// \param first
-    /// \param last
+    /// splits [first, last) into chunks, runs `chunk(begin, end, chunk_args...)`
+    /// on each in its own `std::thread` and waits for all of them (no pool).
+    /// \tparam ExecPolicy execution policy
+    /// \tparam RandIt random access iterator
+    /// \tparam Chunk callable on a sub range
+    /// \tparam ChunkRet return type of `chunk` (ignored)
+    /// \tparam A additional arguments for `chunk`
+    /// \param policy its thread count is used if it has one and nthreads == 0
+    /// \param first begin of the range
+    /// \param last end of the range
     /// \param chunk
-    /// \param extra_split_factor
-    /// \param nthreads
+    /// \param extra_split_factor number of chunks per thread
+    /// \param nthreads number of threads, 0: from the policy, or
+    ///     `std::thread::hardware_concurrency()`
     /// \param chunk_args
     /// \returns the chunk size
     template <class ExecPolicy,
@@ -343,11 +358,16 @@ namespace internal {
                                    const uint32_t nthreads,
                                    A&&... chunk_args) noexcept {
         std::vector<std::thread> threads;
-        const uint32_t t = nthreads == 0 ? std::thread::hardware_concurrency() : nthreads;
+        uint32_t t = nthreads;
+        if (t == 0) {
+            if constexpr (requires { policy.get_num_threads(); }) {
+                t = policy.get_num_threads();
+            } else {
+                (void)policy;
+                t = std::thread::hardware_concurrency();
+            }
+        }
         auto chunk_size = get_chunk_size(first, last, extra_split_factor * t);
-
-        // TODO
-        (void)policy;
 
         while (first < last) {
             auto iter_chunk_size = get_iter_chunk_size(first, last, chunk_size);
@@ -448,18 +468,19 @@ namespace internal {
         return futures;
     }
 
-    /// TODO doc
-	/// \tparam ExecPolicy
-    /// \tparam RandIt
-    /// \tparam Chunk
-    /// \tparam ChunkRet
+    /// splits [first, last) into chunks and submits `chunk(begin, end)` for
+    /// each to the thread pool of the policy (without waiting).
+	/// \tparam ExecPolicy execution policy with a `pool()`
+    /// \tparam RandIt random access iterator
+    /// \tparam Chunk callable on a sub range
+    /// \tparam ChunkRet return type of `chunk`
     /// \param policy
-    /// \param first
-    /// \param last
+    /// \param first begin of the range
+    /// \param last end of the range
     /// \param chunk
-    /// \param extra_split_factor
-    /// \param nthreads
-    /// \return
+    /// \param extra_split_factor number of chunks per thread
+    /// \param nthreads number of threads, 0: all threads of the pool
+    /// \return one future per chunk
 template<class ExecPolicy,
              class RandIt,
              class Chunk,

@@ -10,25 +10,12 @@
 
 #include "growth_policy.h"
 
-/// TODO doc
+/// Port of Malte Skarupke's `ska::flat_hash_map` (sherwood_v3_table):
+/// open addressing with robin hood hashing (every entry stores its distance
+/// from the desired bucket, at most `max_lookups` probes), Fibonacci hashing
+/// to map hashes to buckets, max load factor 0.5.
+/// https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/
 
-// TODO remove
-template<typename T, bool>
-struct AssignIfTrue{
-	void operator()(T & lhs, const T & rhs){
-		lhs = rhs;
-	}
-	void operator()(T & lhs, T && rhs) {
-		lhs = std::move(rhs);
-	}
-};
-template<typename T>
-struct AssignIfTrue<T, false>{
-	void operator()(T &, const T &)
-	{}
-	void operator()(T &, T &&)
-	{}
-};
 
 
 template<typename Result, typename Functor>
@@ -323,7 +310,7 @@ public:
 			if (static_cast<EntryAlloc &>(*this) != static_cast<const EntryAlloc &>(other)) {
 				reset_to_empty_state();
 			}
-			AssignIfTrue<EntryAlloc, AllocatorTraits::propagate_on_container_copy_assignment::value>()(*this, other);
+			if constexpr (AllocatorTraits::propagate_on_container_copy_assignment::value) { static_cast<EntryAlloc &>(*this) = static_cast<const EntryAlloc &>(other); }
 		}
 
 		_max_load_factor = other._max_load_factor;
@@ -340,7 +327,7 @@ public:
 		} else if (AllocatorTraits::propagate_on_container_move_assignment::value) {
 			clear();
 			reset_to_empty_state();
-			AssignIfTrue<EntryAlloc, AllocatorTraits::propagate_on_container_move_assignment::value>()(*this, std::move(other));
+			if constexpr (AllocatorTraits::propagate_on_container_move_assignment::value) { static_cast<EntryAlloc &>(*this) = std::move(static_cast<EntryAlloc &>(other)); }
 			swap_pointers(other);
 		} else if (static_cast<EntryAlloc &>(*this) == static_cast<EntryAlloc &>(other)) {
 			swap_pointers(other);
@@ -421,16 +408,12 @@ public:
 			return {current};
 		}
 
+		/// \return the mapped value of the current element (maps only)
 		template<class U = ValueSelect,
 		         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
-		constexpr templated_iterator value() const noexcept {
-            // TODO
-			assert(false);
-			// if (!current->is_empty()) {
-			// 	return U()(current->value());
-			// }
-
-			// return U()(*current);
+		constexpr auto &value() const noexcept {
+			assert(current->has_value());
+			return U()(current->value);
 		}
 	};
 
@@ -471,13 +454,23 @@ public:
 	template<class K, class U = ValueSelect,
 	         typename std::enable_if<has_mapped_type<U>::value>::type * = nullptr>
 	constexpr inline typename ValueSelect::value_type &operator[](K &&key) noexcept {
-		// TODO implement
-		assert(false);
-		(void) key;
+		// inserts a value initialized mapped value, if `key` is new
+		return ValueSelect()(*emplace(std::forward<K>(key), typename ValueSelect::value_type()).first);
 	}
 
 	constexpr inline iterator find(const FindKey &key) noexcept {
-		size_t index = hash_policy.bucket_for_hash(hash_object(key));
+		return find(key, hash_object(key));
+	}
+
+	constexpr inline const_iterator find(const FindKey &key) const noexcept {
+		return const_cast<sherwood_v3_table *>(this)->find(key);
+	}
+
+	/// find with a precomputed `hash` (must be `hash_function()(key)`)
+	template<class K>
+	constexpr inline iterator find(const K &key,
+	                               const std::size_t hash) noexcept {
+		size_t index = hash_policy.bucket_for_hash(hash);
 		EntryPointer it = entries + ptrdiff_t(index);
 		for (int8_t distance = 0; it->distance_from_desired >= distance; ++distance, ++it) {
 			if (compares_equal(key, it->value)) {
@@ -487,24 +480,11 @@ public:
 		return end();
 	}
 
-	constexpr inline const_iterator find(const FindKey &key) const noexcept {
-		return const_cast<sherwood_v3_table *>(this)->find(key);
-	}
-
-	/// TODO use hash
-	template<class K>
-	constexpr inline iterator find(const K &key,
-	                               const std::size_t hash) noexcept {
-		(void) hash;
-		return find(key);
-	}
-
-	/// TODO use hash
+	/// find with a precomputed `hash` (must be `hash_function()(key)`)
 	template<class K>
 	constexpr inline const_iterator find(const K &key,
 	                                     const std::size_t hash) const noexcept {
-		(void) hash;
-		return const_cast<sherwood_v3_table *>(this)->find(key);
+		return const_cast<sherwood_v3_table *>(this)->find(key, hash);
 	}
 
 	constexpr inline size_t count(const FindKey &key) const noexcept {
@@ -613,11 +593,17 @@ public:
 			rehash(required_buckets);
 	}
 
+	/// removes the element with `key`
+	/// \return number of removed elements (0 or 1)
 	template<class K>
+		requires (!std::is_convertible_v<const K &, const_iterator>)
 	constexpr inline size_type erase(const K &key) noexcept {
-		assert(false); // TODO
-		(void) key;
-		return 0;
+		const iterator it = find(key);
+		if (it == end()) {
+			return 0;
+		}
+		erase(const_iterator(it));
+		return 1;
 	}
 
 	// the return value is a type that can be converted to an iterator
@@ -977,8 +963,8 @@ public:
 			if (static_cast<EntryAlloc &>(*this) != static_cast<const EntryAlloc &>(other) || static_cast<BucketAllocator &>(*this) != static_cast<const BucketAllocator &>(other)) {
 				reset_to_empty_state();
 			}
-			AssignIfTrue<EntryAlloc, AllocatorTraits::propagate_on_container_copy_assignment::value>()(*this, other);
-			AssignIfTrue<BucketAllocator, BucketAllocatorTraits::propagate_on_container_copy_assignment::value>()(*this, other);
+			if constexpr (AllocatorTraits::propagate_on_container_copy_assignment::value) { static_cast<EntryAlloc &>(*this) = static_cast<const EntryAlloc &>(other); }
+			if constexpr (BucketAllocatorTraits::propagate_on_container_copy_assignment::value) { static_cast<BucketAllocator &>(*this) = static_cast<const BucketAllocator &>(other); }
 		}
 		_max_load_factor = other._max_load_factor;
 		static_cast<Hasher &>(*this) = other;
@@ -995,8 +981,8 @@ public:
 		else if (AllocatorTraits::propagate_on_container_move_assignment::value) {
 			clear();
 			reset_to_empty_state();
-			AssignIfTrue<EntryAlloc, AllocatorTraits::propagate_on_container_move_assignment::value>()(*this, std::move(other));
-			AssignIfTrue<BucketAllocator, BucketAllocatorTraits::propagate_on_container_move_assignment::value>()(*this, std::move(other));
+			if constexpr (AllocatorTraits::propagate_on_container_move_assignment::value) { static_cast<EntryAlloc &>(*this) = std::move(static_cast<EntryAlloc &>(other)); }
+			if constexpr (BucketAllocatorTraits::propagate_on_container_move_assignment::value) { static_cast<BucketAllocator &>(*this) = std::move(static_cast<BucketAllocator &>(other)); }
 			swap_pointers(other);
 		} else if (static_cast<EntryAlloc &>(*this) == static_cast<EntryAlloc &>(other) && static_cast<BucketAllocator &>(*this) == static_cast<BucketAllocator &>(other)) {
 			swap_pointers(other);

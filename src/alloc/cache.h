@@ -45,7 +45,9 @@ class CacheAllocator {
 		/// \param ptr[in]: pointer to check ownership for
 		/// \return true if the pointer is within this node's memory range
 		[[nodiscard]] constexpr inline bool owns(const T *ptr) noexcept {
-			return ((((uintptr_t)(data + bits)) - ((uintptr_t)ptr)) / sizeof(T)) <= bits;
+			// NOTE: was `<= bits` on the distance to the end, which also
+			// 	accepted `data + bits` (and then shifted by `bits` on free)
+			return (((uintptr_t)ptr) - ((uintptr_t)data)) < (bits * sizeof(T));
 		}
 
 		/// Deallocates a previously allocated pointer from this node
@@ -90,7 +92,9 @@ class CacheAllocator {
 		/// \param t[in]: node to copy from
 		constexpr Node(const Node &t) noexcept {
 			this->free.store(t.free.load());
-			cryptanalysislib::memcpy(data, t.data, sizeof(T));
+			// NOTE: `memcpy` takes the number of elements. Was `sizeof(T)`,
+			// 	i.e. it over-copied for `sizeof(T) > bits`.
+			cryptanalysislib::memcpy(data, t.data, bits);
 		}
 
 		/// Equality operator - compares if two nodes have the same data pointer

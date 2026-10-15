@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include <cstdint>
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -29,7 +30,7 @@ TYPED_TEST_P(Max, simd) {
 	auto d = new TypeParam [s];
 	for (size_t i = 0; i < s; ++i) { d[i] = i; }
 
-	const auto t = max_simd_uXX(d, s);
+	const auto t = internal::max_simd_uXX(d, s);
 	EXPECT_EQ(t, s-1);
 
 	delete[] d;
@@ -40,14 +41,15 @@ TYPED_TEST_P(Max, simd_rng) {
     std::vector<TypeParam> d; d.resize(s);
 	for (size_t i = 0; i < s; ++i) { d[i] = rand(); }
 
-	const auto t = max_simd_uXX(d.data(), s);
+	const auto t = internal::max_simd_uXX(d.data(), s);
     for (const auto &k : d) {
         EXPECT_GE(t, k);
     }
 }
 
 TYPED_TEST_P(Max, multithreading) {
-	constexpr size_t b = sizeof(TypeParam)*8u - 1u;
+	// capped at 2^20: `1 << (bits-1)` elements would be 2^63 for uint64_t
+	constexpr size_t b = (sizeof(TypeParam)*8u - 1u) < 20u ? (sizeof(TypeParam)*8u - 1u) : 20u;
     constexpr static size_t s = 1ull<<b;
     std::vector<TypeParam> in; in.resize(s);
 	for (size_t i = 0; i < s; ++i) { in[i] = s - i - 1; }
@@ -67,12 +69,64 @@ TYPED_TEST_P(Max, multithreading_rnd) {
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd);
+TYPED_TEST_P(Max, scalar) {
+	const TypeParam a = 3, b = 7;
+	EXPECT_EQ(cryptanalysislib::max(a, b), b);
+	EXPECT_EQ(cryptanalysislib::max(b, a), b);
+	EXPECT_EQ(cryptanalysislib::max(a, a), a);
+	// with std::max also visible the constrained overload is chosen (no ambiguity)
+	using std::max;
+	EXPECT_EQ(max(a, b), b);
+}
+
+/// max_element against std::max_element: sizes around the SIMD threshold,
+/// random data with few distinct values, so the maximum occurs repeatedly
+/// (the first occurrence must be returned)
+TYPED_TEST_P(Max, max_element) {
+	for (size_t s = 1; s <= 300; ++s) {
+		std::vector<TypeParam> in(s);
+		for (auto &x : in) { x = TypeParam(rng() % 7u); }
+		const auto e = std::max_element(in.begin(), in.end());
+		EXPECT_EQ(cryptanalysislib::max_element(in.begin(), in.end()), e) << s;
+		EXPECT_EQ(cryptanalysislib::max_element(in.begin(), in.end(), std::less<TypeParam>()), e) << s;
+	}
+	std::vector<TypeParam> empty;
+	EXPECT_EQ(cryptanalysislib::max_element(empty.begin(), empty.end()), empty.end());
+}
+
+/// parallel max_element against std::max_element, the maximum placed
+/// (several times) in different chunks
+TYPED_TEST_P(Max, max_element_multithreading) {
+	constexpr size_t s = 1u << 20u;
+	std::vector<TypeParam> in(s);
+	for (auto &x : in) { x = TypeParam(rng() % 100u); }
+	for (const size_t pos : {size_t(0), s / 3, s / 2 + 1, s - 1}) {
+		std::vector<TypeParam> v = in;
+		v[pos] = TypeParam(200);
+		v[s - 1] = TypeParam(200); // later duplicate: the first one wins
+		EXPECT_EQ(cryptanalysislib::max_element(par_if(true), v.begin(), v.end()),
+		          std::max_element(v.begin(), v.end())) << pos;
+	}
+}
+
+REGISTER_TYPED_TEST_SUITE_P(Max, simple, simd, simd_rng, multithreading, multithreading_rnd, scalar, max_element, max_element_multithreading);
 using MyTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, Max, MyTypes);
 
 
 
+
+/// branchless max of non negative values (msb clear)
+TEST(max, max_branchless) {
+	for (uint32_t i = 0; i < 100000; ++i) {
+		const uint32_t a = rng<uint32_t>() >> 1, b = rng<uint32_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<uint32_t>(a, b), std::max(a, b)) << a << " " << b;
+		const uint64_t c = rng<uint64_t>() >> 1, d = rng<uint64_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<uint64_t>(c, d), std::max(c, d)) << c << " " << d;
+		const int16_t e = rng<uint16_t>() >> 1, f = rng<uint16_t>() >> 1;
+		ASSERT_EQ(cryptanalysislib::internal::max_branchless<int16_t>(e, f), std::max(e, f));
+	}
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

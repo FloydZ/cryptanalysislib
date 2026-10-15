@@ -2,6 +2,7 @@
 name = "cryptanalysislib"
 version = "0.1.0"
 description = "breaking all the crypto"
+requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
@@ -21,3 +22,6 @@ packages = ["cryptanalysislib", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = [ "tests", "cryptanalysislib"]
+markers = [
+    "integration: compiles and runs the C++ library (needs submodules, cmake and a C++23 compiler)",
+]

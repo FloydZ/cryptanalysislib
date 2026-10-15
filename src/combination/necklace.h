@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cassert>
+
 #include "algorithm/bits/periodic.h"
+#include "combination/enumerator.h"
 #include "math/math.h"
 
 /// Binary necklace generation class
@@ -38,6 +41,9 @@ public:
     T tfb_;
 
 public:
+    /// starts at the first necklace (all zeros)
+    bit_necklace() { init(); }
+
     /// Destructor
     ~bit_necklace()  { ; }
 
@@ -46,10 +52,17 @@ public:
     void init() {
         n_ = n;
 
-        n2_ = 1UL<<(n-1);
-        mm_ = (~0UL) >> (BITS-n);
-        tfb_ = tiny_factors_tab[n] >> 1;
-        tfb_ |= n2_;  // needed for n==BITS_PER_LONG
+        n2_ = T(T(1) << (n-1));
+        // NOTE: shift a `T`. Was `(~0UL) >> (BITS-n)`, i.e. all ones in the
+        // 	lower `BITS` bits for `BITS < 64`, so `next()` never terminated.
+        mm_ = T(T(~T(0)) >> (BITS-n));
+        // bit `d-1` is set for each divisor `d` of `n`
+        // NOTE: was `tiny_factors_tab[n] >> 1`, the table has 64 entries, so
+        // 	`n == 64` read past its end
+        tfb_ = 0;
+        for (uint32_t d = 1; d <= n; ++d) {
+            if ((n % d) == 0) { tfb_ |= T(T(1) << (d - 1)); }
+        }
         first();
     }
 
@@ -65,16 +78,19 @@ public:
     /// Gets the current necklace data
     /// \return current necklace as a binary word
     T data() const { return  a_; }
-    
+
+    /// \return current necklace as a binary word
+    T current() const { return  a_; }
+
     /// Gets the period of the current necklace
     /// \return period of the current necklace
     T period() const { return j_; }
 
-    /// Creates the next necklace in the sequence
-    /// \return the period of the new necklace, or 0 if the current necklace was the last
-    T next()
+    /// Creates the next necklace in the sequence, see `period()` for its period
+    /// \return false if the current necklace is the last one (all ones, unchanged)
+    bool next()
     {
-        if ( a_==mm_ )  { first();  return 0; }
+        if ( a_==mm_ )  { return false; }
 
         do
         {
@@ -93,7 +109,15 @@ public:
         }
         while ( 0==(tfb_ & j2_) );  // necklaces only
 
-        return  j_;
+        return  true;
+    }
+
+    /// not possible: the necklaces are only generated forwards
+    /// \return false
+    bool previous()
+    {
+        assert(false);
+        return false;
     }
 
     /// Determines if the current necklace is a Lyndon word
@@ -102,11 +126,11 @@ public:
     T is_lyndon_word()  const  { return (j2_ & n2_); }
 
     /// Creates the next Lyndon word in the sequence
-    /// \return the period of the new Lyndon word (==n), or 0 if the current necklace was the last
+    /// \return the period of the new Lyndon word (==n), or 0 if there is no
+    /// 	further Lyndon word (the current necklace is the last one then)
     T next_lyn()
     {
-        if ( a_==mm_ )  { first();  return 0; }
-        do  { next(); }  while ( !is_lyndon_word() );
+        do  { if ( !next() )  { return 0; } }  while ( !is_lyndon_word() );
         return  n_;
     }
 };

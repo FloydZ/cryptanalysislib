@@ -2,15 +2,56 @@
 #include <stdint.h>
 
 #include "helper.h"
+#include "algorithm/countl.h"
+#include "algorithm/countr.h"
 
 // based on: https://github.com/qlibs/swar/blob/main/swar
-/// TODO copy tests from  https://github.com/qlibs/swar/blob/main/swar and add them
+// NOTE: the tests of qlibs/swar are in `tests/simd/swar.cpp`
 
 namespace cryptanalysislib::swar {
-    /// TODO
+    /// replicates `value` every `N` bits across a `T`
+    /// e.g. broadcast<uint16_t, 4>(0b111) == 0b0111'0111'0111'0111
+    template<class T, const size_t N>
+    [[nodiscard]] constexpr auto broadcast(const T value) noexcept -> T {
+        T result{};
+        for (size_t i = 0; i < (sizeof(T) * __CHAR_BIT__) / N; ++i) {
+            result = T(result | T(T(value) << (i * N)));
+        }
+        return result;
+    }
+
+    namespace internal {
+        // bit helpers on the register type (at most 64 bits wide)
+        // NOTE: `countr_zero`/`countl_zero` are defined for 0, they return
+        // 	the width of A
+        template<class A>
+        [[nodiscard]] constexpr size_t ctz(const A value) noexcept {
+            return cryptanalysislib::countr_zero(std::make_unsigned_t<A>(value));
+        }
+
+        template<class A>
+        [[nodiscard]] constexpr size_t clz(const A value) noexcept {
+            // counts only the leading zeros within the width of A
+            return cryptanalysislib::countl_zero(std::make_unsigned_t<A>(value));
+        }
+
+        /// NOTE: not `cryptanalysislib::popcount::popcount`: including its
+        /// 	header makes `popcount(mask)` ambiguous with the namespace
+        /// 	`cryptanalysislib::popcount` for `using namespace cryptanalysislib`
+        template<class A>
+        [[nodiscard]] constexpr size_t popcount(const A value) noexcept {
+            return __builtin_popcountll(uint64_t(value));
+        }
+    } // end namespace internal
+
+    /// result of a lane-wise comparison of two `swar`: lane i is true, iff
+    /// the msb of lane i of `value` is set (all other bits are zero).
+    /// \tparam T lane type
+    /// \tparam Width number of lanes
+    /// \tparam TAbi register type, holding all lanes
     template<class T,
              const size_t Width = sizeof(uint64_t) / sizeof(T),
-             typename TAbi = LogTypeTemplate<T>>
+             typename TAbi = LogTypeTemplate<uint32_t(sizeof(T) * __CHAR_BIT__ * Width)>>
         requires((sizeof(T) * Width) <= sizeof(TAbi))
     struct swar_mask {
     	using value_type = bool;/// predefined
@@ -39,10 +80,14 @@ namespace cryptanalysislib::swar {
     	abi_type value{};
     };
     
-    /// TODO
+    /// SIMD within a register: `Width` lanes of `T`, packed into a single
+    /// register `TAbi`, lane i in the bits [i*nbits, (i+1)*nbits).
+    /// \tparam T lane type
+    /// \tparam Width number of lanes, by default as many as fit into 64 bits
+    /// \tparam TAbi register type, holding all lanes
     template<typename T, 
              const size_t Width = sizeof(uint64_t) / sizeof(T),
-             typename TAbi = LogTypeTemplate<T, Width>>
+             typename TAbi = LogTypeTemplate<uint32_t(sizeof(T) * __CHAR_BIT__ * Width)>>
       requires ((sizeof(T) * Width) <= sizeof(TAbi))
     struct swar {
         using value_type = T;
@@ -65,25 +110,31 @@ namespace cryptanalysislib::swar {
             }
         }
     
-        /// TODO doc
+        /// lane i is set to `gen(i)`
+        /// \param gen generator, called with the lane index
         constexpr explicit swar(const auto& gen) noexcept requires requires(size_t i) { gen(i); } {
             for (auto i = 0u; i < Width; ++i) {
                 value |= abi_type(gen(i)) << (nbits * i);
             }
         }
-        /// TODO doc
+        /// \return the register, holding all lanes
         [[nodiscard]] constexpr explicit operator abi_type() const noexcept { 
             return value; 
         }
-        /// TODO doc
+        /// \param index lane, < Width
+        /// \return the value of lane `index`
         [[nodiscard]] constexpr auto operator[](const size_t index) const noexcept -> T {
-            return (value >> (index * nbits)) & ((T(1u) << nbits) - 1u);
+            // nbits is the full width of T, so the cast truncates to the lane
+            return T(value >> (index * nbits));
         }
-        /// TODO doc
+        /// \return the number of lanes
         [[nodiscard]] static constexpr auto size() noexcept -> size_t {
             return Width; 
         }
-        /// TODO doc
+        /// lane-wise equality, branch free: a lane of `(lhs ^ rhs) | msb`
+        /// minus `lsb` keeps its msb set iff the lane of `lhs ^ rhs` is non
+        /// zero, so the negation leaves the msb of the equal lanes.
+        /// \return the mask of the equal lanes
         [[nodiscard]] friend constexpr 
         auto operator==(const swar& lhs,
                         const swar& rhs) noexcept -> swar_mask<T, Width, TAbi> {
@@ -93,22 +144,6 @@ namespace cryptanalysislib::swar {
         abi_type value{};
     };
     
-    
-    // TODO use cryptanalysislib functions
-    // [[nodiscard]] constexpr auto ctz(const auto value) noexcept -> size_t {
-    //       if constexpr (sizeof(value) <= sizeof(u32)) { return __builtin_ctz(value); }
-    //  else if constexpr (sizeof(value) <= sizeof(u64)) { return __builtin_ctzl(value); }
-    // }
-    // 
-    // [[nodiscard]] constexpr auto clz(const auto value) noexcept -> size_t {
-    //       if constexpr (sizeof(value) <= sizeof(u32)) { return __builtin_clz(value); }
-    //  else if constexpr (sizeof(value) <= sizeof(u64)) { return __builtin_clzl(value); }
-    // }
-    // 
-    // [[nodiscard]] constexpr auto popcount(const auto value) noexcept -> size_t {
-    //       if constexpr (sizeof(value) <= sizeof(u32)) { return __builtin_popcount(value); }
-    //  else if constexpr (sizeof(value) <= sizeof(u64)) { return __builtin_popcountl(value); }
-    // }
     
     template<class T, size_t Width, class TAbi>
     [[nodiscard]] constexpr auto all_of(const swar_mask<T, Width, TAbi>& s) noexcept -> bool {
@@ -132,17 +167,17 @@ namespace cryptanalysislib::swar {
     
     template<class T, size_t Width, class TAbi>
     [[nodiscard]] constexpr auto find_first_set(const swar_mask<T, Width, TAbi>& s) noexcept -> size_t {
-      return ctz(s.value) / s.nbits;
+      return internal::ctz(s.value) / s.nbits;
     }
     
     template<class T, size_t Width, class TAbi>
     [[nodiscard]] constexpr auto find_last_set(const swar_mask<T, Width, TAbi>& s) noexcept -> size_t {
-      return s.size() - (clz(s.value) / s.nbits) - 1u;
+      return s.size() - (internal::clz(s.value) / s.nbits) - 1u;
     }
     
     template<class T, size_t Width, class TAbi>
     [[nodiscard]] constexpr auto popcount(const swar_mask<T, Width, TAbi>& s) noexcept -> size_t {
-      return popcount(s.value);
+      return internal::popcount(s.value);
     }
     
     template<class> inline constexpr auto is_swar_v = false;

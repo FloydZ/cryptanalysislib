@@ -16,13 +16,18 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// NOT implemented
-// using Triple = triple<uint64_t, std::const_array<uint32_t, 2>, Label>;
-// 
-// TEST(Triple, first) {
-// 	Triple a{};
-// 	// std::cout << std::format("{} " , a) << "\n";
-// }
+constexpr static ConfigTriple configTriple{};
+using Triple = triple<uint64_t, uint32_t, uint16_t, configTriple>;
+
+TEST(Triple, first) {
+	const Triple a{};
+	EXPECT_TRUE((a.first == 0) && (a.second == 0) && (a.third == 0));
+
+	const Triple b{1, 2, 3};
+	EXPECT_TRUE((b.first == 1) && (b.second == 2) && (b.third == 3));
+	EXPECT_TRUE(b == Triple(1, 2, 3));
+	EXPECT_FALSE(a == b);
+}
 
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);

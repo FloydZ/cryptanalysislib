@@ -1,8 +1,12 @@
 #pragma once 
 
+#include <cstdint>
+
 
 #include <cstdlib>
 #include <type_traits>
+
+#include "algorithm/swap.h"
 
 // Whether f[] is sorted wrt. bits b0,...,b0+z-1 where z is the number of bits
 // set in m. m must contain a single run of bits starting at bit zero.
@@ -13,9 +17,9 @@ template<typename T>
                                                 const size_t b0,
                                                 T m) noexcept {
     m <<= b0;
-    for (ulong k=1; k<n; ++k) {
-        ulong xm = (f[k-1] & m ) >> b0;
-        ulong xp = (f[k] & m ) >> b0;
+    for (uint64_t k=1; k<n; ++k) {
+        uint64_t xm = (f[k-1] & m ) >> b0;
+        uint64_t xp = (f[k] & m ) >> b0;
         if ( xm > xp )  return false;
     }
 
@@ -28,14 +32,14 @@ template<typename T>
 template<typename T>
     requires std::is_integral_v<T>
 constexpr void counting_sort_core(const T *__restrict__ f,
-                                  const ulong n,
+                                  const uint64_t n,
                                   T *__restrict__ g,
                                   const size_t b0,
                                   size_t m) noexcept {
-    ulong nb = m + 1;
+    uint64_t nb = m + 1;
     m <<= b0;
-    //ALLOCA(ulong, cv, nb);
-    size_t *cv = (size_t *)calloc(1, nb);
+    //ALLOCA(uint64_t, cv, nb);
+    size_t *cv = (size_t *)calloc(nb, sizeof(size_t));
     // size_t cv[nb] = {0};
 
     // --- count:
@@ -48,13 +52,13 @@ constexpr void counting_sort_core(const T *__restrict__ f,
     for (size_t k=1; k<nb; ++k) { cv[k] += cv[k-1]; }
 
     // --- reorder:
-    ulong k = n;
+    uint64_t k = n;
     // backwards ==> stable sort
     while ( k-- ) {
         T fk = f[k];
         T x = (fk & m) >> b0;
         --cv[x];
-        ulong i = cv[x];
+        uint64_t i = cv[x];
         g[i] = fk;
     }
 
@@ -64,26 +68,26 @@ constexpr void counting_sort_core(const T *__restrict__ f,
 /// \param f[in/out]: vector to sort 
 /// \param n[in]; length of the vector 
 template<typename T>
-    requires std::is_integral_v<T>
+    requires std::is_unsigned_v<T>
 constexpr void radix_sort(T *f,
                           const size_t n) noexcept  {
     // Number of bits sorted with each step
     const size_t nb = 8;  
     const size_t tnb = sizeof(T) * 8;
 
-    ulong *fi = f;
-    ulong *g = new ulong[n];
+    T *fi = f;
+    T *g = new T[n];
 
-    ulong m = (1UL<<nb) - 1;
-    for (ulong b0=0;  b0<tnb; b0+=nb) {
+    uint64_t m = (1UL<<nb) - 1;
+    for (uint64_t b0=0;  b0<tnb; b0+=nb) {
         counting_sort_core(f, n, g, b0, m);
-        swap2(f, g);
+        cryptanalysislib::swap(f, g);
     }
 
     // result is actually in g[]
     if ( f!=fi ) {
-        swap2(f, g);
-        for (ulong k=0; k<n; ++k)  f[k] = g[k];
+        cryptanalysislib::swap(f, g);
+        for (uint64_t k=0; k<n; ++k)  f[k] = g[k];
     }
 
     delete [] g;

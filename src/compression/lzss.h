@@ -38,15 +38,19 @@
 #define MAX_WINDOWSIZE 4095
 #define ITERATIONS_BEFORE_CALLBACK 64
 
-// TODO:
-//	- class
-//	- benchmark
-
 typedef uint32_t (*PFNCOMPRESSCALLBACK)(uint8_t *, uint8_t *, uint8_t *);
+
+/// \return number of bytes `dest` needs in `CompressData` for `src_length`
+/// 	input bytes: in the worst case every byte is a literal (+ 1 control
+/// 	byte per 8 tokens) plus the 2 byte end of stream marker
+constexpr inline unsigned long CompressBound(const unsigned long src_length) noexcept {
+	return src_length + (src_length / 8u) + 4u;
+}
 
 /// \param src[in]
 /// \param out[out]
-unsigned long DecompressData(const uint8_t *src,
+/// \return number of decompressed bytes
+inline unsigned long DecompressData(const uint8_t *src,
                              uint8_t *dest) noexcept {
 	uint8_t control;
 	unsigned int phrase_index, control_count = 0;
@@ -88,7 +92,7 @@ unsigned long DecompressData(const uint8_t *src,
 /// \param src[in]:
 /// \param src[in]:
 /// \param src[in]:
-unsigned int CompressCallback(uint8_t *src,
+inline unsigned int CompressCallback(uint8_t *src,
                               uint8_t *src_end, 
                               uint8_t *p) {
 	printf("\r%lu%% complete.   ",
@@ -99,13 +103,17 @@ unsigned int CompressCallback(uint8_t *src,
 /// \param str1[in]
 /// \param str2[in]
 /// \param maxlength[in]
-/// \return max length on which str1==str2
-unsigned long DataCompare(const uint8_t *str1,
+/// \return 1 + the length of the common prefix of `str1` and `str2`, at most
+/// 	`maxlength`. I.e. the length of a phrase whose first byte (the byte
+/// 	before `str1`/`str2`) already matched.
+/// NOTE: the doc said "max length on which str1==str2", which is 1 less
+inline unsigned long DataCompare(const uint8_t *str1,
                           const uint8_t *str2,
                           const size_t maxlength) {
 	if (maxlength == 0) { return 0; }
 	unsigned long length = 1;
-	for (; (*str1 == *str2) && (length < maxlength); length++) {
+	// NOTE: check the length first, so nothing past `maxlength` is read
+	for (; (length < maxlength) && (*str1 == *str2); length++) {
 		str1++; str2++;
 	}
 	return length;
@@ -116,7 +124,7 @@ unsigned long DataCompare(const uint8_t *str1,
 /// \param src[in]:
 /// \param maxlength[in]:
 /// \param str[in]:
-unsigned char *SearchForPhrase(uint8_t *str,
+inline unsigned char *SearchForPhrase(uint8_t *str,
                                uint8_t *src,
                                unsigned long maxlength,
                                unsigned long *bestlength) {
@@ -126,9 +134,8 @@ unsigned char *SearchForPhrase(uint8_t *str,
 	p--;
 	while (p >= src) {
 		if (*p == *str) {
-			// curlength = DataCompare((p + 1), (str + 1), maxlength);
-			// TODO double comparsion
-			curlength = DataCompare(p, str, maxlength);
+			// the first byte matches, so compare from the second one on
+			curlength = DataCompare((p + 1), (str + 1), maxlength);
 			if (curlength > *bestlength) {
 				*bestlength = curlength;
 				best = p;
@@ -139,25 +146,33 @@ unsigned char *SearchForPhrase(uint8_t *str,
 	return best;
 }
 
-unsigned long CompressData(unsigned char *src,
+/// \param src[in]: input
+/// \param dest[out]: output, must hold `CompressBound(src_length)` bytes
+/// \param src_length[in]: number of input bytes
+/// \param windowsize[in]: <= MAX_WINDOWSIZE
+/// \param CallbackProc[in]: progress callback, can be nullptr
+/// \return number of compressed bytes
+inline unsigned long CompressData(unsigned char *src,
                            unsigned char *dest,
                            unsigned long src_length,
                            unsigned long windowsize,
                            PFNCOMPRESSCALLBACK CallbackProc) {
+	assert(windowsize <= MAX_WINDOWSIZE);
 	unsigned char *src_end = src + src_length,
-	              *dest_end = dest + src_length,
 	              *phrase_ptr = nullptr,
-	              *lazy_ptr,
+	              *lazy_ptr = nullptr,
 	              *control_ptr,
 	              *start_dest = dest,
 	              *temp,
 	              *p = src;
-	unsigned long phrase_length, maxlength, lazy_length, control_counter = 0, iterationcnt = 0;
+	unsigned long phrase_length = 0, maxlength, lazy_length = 0, control_counter = 0, iterationcnt = 0;
 	unsigned short phrase_index;
 	unsigned char control = 0;
 	control_ptr = dest;
 	dest++;
-	while (p < src_end && dest < dest_end) {
+	// NOTE: no output bound: `dest` holds `CompressBound(src_length)` bytes,
+	// stopping early would silently truncate the stream
+	while (p < src_end) {
 		control_counter++;
 		if (control_counter == 9) {
 			*control_ptr = control;
@@ -180,6 +195,9 @@ unsigned long CompressData(unsigned char *src,
 
 		if (maxlength > 1) {
 			lazy_ptr = SearchForPhrase((p + 1), (temp + 1), --maxlength, &lazy_length);
+		} else {
+			lazy_ptr = nullptr;
+			lazy_length = 0;
 		}
 
 		if (((lazy_ptr != NULL) && lazy_length > phrase_length) || !phrase_ptr || !maxlength) {
@@ -206,10 +224,20 @@ unsigned long CompressData(unsigned char *src,
 		iterationcnt++;
 		if (iterationcnt == ITERATIONS_BEFORE_CALLBACK) {
 			iterationcnt = 0;
-			CallbackProc(src, src_end, p);
+			if (CallbackProc) {
+				CallbackProc(src, src_end, p);
+			}
 		}
 	}
+	// the end of stream marker needs its own control bit
 	control_counter++;
+	if (control_counter == 9) {
+		*control_ptr = control;
+		control_ptr = dest;
+		dest++;
+		control = 0;
+		control_counter = 1;
+	}
 	control <<= 1;
 	control |= CONTROL_CODEWORD;
 	*dest = 0;
@@ -221,6 +249,42 @@ unsigned long CompressData(unsigned char *src,
 		control_counter++;
 	}
 	*control_ptr = control;
-	CompressCallback(src, src_end, src_end);
+	if (CallbackProc) {
+		CallbackProc(src, src_end, src_end);
+	}
 	return (unsigned long) (dest - start_dest);
 }
+
+namespace cryptanalysislib {
+	/// class interface of the LZSS functions above
+	/// \tparam windowsize size of the search window, <= MAX_WINDOWSIZE
+	template<const unsigned long windowsize = MAX_WINDOWSIZE>
+	struct lzss {
+		static_assert(windowsize > 0 && windowsize <= MAX_WINDOWSIZE);
+
+		/// \return number of bytes the output of `compress` needs
+		[[nodiscard]] constexpr static unsigned long bound(const unsigned long n) noexcept {
+			return CompressBound(n);
+		}
+
+		/// \param dst[out]: `bound(n)` bytes
+		/// \param src[in]: `n` input bytes
+		/// \param n[in]: number of input bytes
+		/// \return number of compressed bytes
+		static unsigned long compress(uint8_t *dst,
+		                              const uint8_t *src,
+		                              const unsigned long n) noexcept {
+			// NOTE: `CompressData` only reads `src`
+			return CompressData(const_cast<uint8_t *>(src), dst, n, windowsize, nullptr);
+		}
+
+		/// \param dst[out]: buffer for the uncompressed data (its size is not
+		/// 	stored in the stream, the caller has to know it)
+		/// \param src[in]: compressed bytes
+		/// \return number of decompressed bytes
+		static unsigned long decompress(uint8_t *dst,
+		                                const uint8_t *src) noexcept {
+			return DecompressData(src, dst);
+		}
+	};
+} // end namespace cryptanalysislib

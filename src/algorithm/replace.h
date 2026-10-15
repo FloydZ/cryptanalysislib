@@ -1,9 +1,29 @@
 #pragma once
+#include <cstddef>
 #include <iterator>
+#include <memory>
+#include <type_traits>
 
 namespace cryptanalysislib {
     namespace internal {
-        // TODO implement SIMD optimized version
+        /// SIMD version of `replace` for arithmetic types: written as a
+        /// branchless select over contiguous memory, which compilers vectorize
+        /// (compare + blend). The branchy conditional store of the generic
+        /// version is not vectorized without masked stores.
+        template<typename T>
+            requires std::is_arithmetic_v<T>
+        constexpr inline void replace_simd(T *data,
+                                           const size_t n,
+                                           const T old_value,
+                                           const T new_value) noexcept {
+#if defined(__clang__)
+            #pragma clang loop vectorize(enable)
+#endif
+            for (size_t i = 0; i < n; ++i) {
+                const T t = data[i];
+                data[i] = (t == old_value) ? new_value : t;
+            }
+        }
     };
 
     /// Replaces all elements equal to old_value with new_value in a range
@@ -20,6 +40,16 @@ namespace cryptanalysislib {
                  ForwardIt last,
                  const T& old_value,
                  const T& new_value) {
+        using V = std::iter_value_t<ForwardIt>;
+        if constexpr (std::contiguous_iterator<ForwardIt> &&
+                      std::is_arithmetic_v<V> &&
+                      std::is_same_v<V, T>) {
+            internal::replace_simd<V>(std::to_address(first),
+                                      static_cast<size_t>(last - first),
+                                      old_value, new_value);
+            return;
+        }
+
         for (; first != last; ++first)
             if (*first == old_value)
                 *first = new_value;

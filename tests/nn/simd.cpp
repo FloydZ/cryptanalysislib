@@ -546,6 +546,63 @@ TEST(Bruteforce, avx512_32_8x8) {
 }
 #endif
 
+/// the filter steps with list sizes which are no multiple of the SIMD block
+/// sizes: all matching elements (and only those) are moved to the front
+template<typename A, typename LT>
+static bool nn_lower_match(const LT x, const LT z) {
+	LT t = x ^ z;
+	if constexpr (A::k < sizeof(LT) * 8u) { t &= LT((LT(1) << A::k) - 1u); }
+	return uint32_t(__builtin_popcountll(uint64_t(t))) <= A::dk;
+}
+
+template<typename A, typename LT, const uint32_t limb, typename F>
+static void check_filter_tail(F f) {
+	const size_t es[] = {A::LIST_SIZE, A::LIST_SIZE - 1, 37, 33, 31, 5, 1};
+	for (const size_t e: es) {
+		A a{};
+		a.generate_random_instance(false);
+		const LT z = LT(rng());
+		// matches at the end of the list
+		for (size_t p = (e > 3 ? e - 3 : 0); p < e; p++) { ((LT *) a.L1[p])[limb] = z; }
+
+		size_t expected = 0;
+		for (size_t i = 0; i < e; i++) {
+			expected += nn_lower_match<A, LT>(((LT *) a.L1[i])[limb], z);
+		}
+
+		const size_t ret = f(a, e, z);
+		EXPECT_EQ(ret, expected);
+		for (size_t i = 0; i < ret; i++) {
+			EXPECT_TRUE((nn_lower_match<A, LT>(((LT *) a.L1[i])[limb], z)));
+		}
+	}
+}
+
+TEST(NearestNeighborAVX, sort_nn_tails) {
+	constexpr size_t LS2 = 1003;
+	constexpr static NN_Config c32{64, 2, 1, 32, LS2, 10, 5, 0, 512};
+	constexpr static NN_Config c64{128, 2, 1, 64, LS2, 20, 10, 0, 512};
+	using A32 = NN<c32>;
+	using A64 = NN<c64>;
+
+	check_filter_tail<A32, uint32_t, 1>([](A32 &a, size_t e, uint32_t z) { return a.simd_sort_nn_on32_simple<1>(e, z, a.L1); });
+	check_filter_tail<A32, uint32_t, 1>([](A32 &a, size_t e, uint32_t z) { return a.simd_sort_nn_on32<1>(e, z, a.L1); });
+	check_filter_tail<A64, uint64_t, 1>([](A64 &a, size_t e, uint64_t z) { return a.simd_sort_nn_on64_simple<1>(e, z, a.L1); });
+	check_filter_tail<A64, uint64_t, 1>([](A64 &a, size_t e, uint64_t z) { return a.simd_sort_nn_on64<1>(e, z, a.L1); });
+
+	// both lists with different lengths
+	check_filter_tail<A32, uint32_t, 1>([](A32 &a, size_t e, uint32_t z) {
+		size_t n1 = 0, n2 = 0;
+		a.simd_sort_nn_on_double32<1, 4>(e, 9, n1, n2, z);
+		return n1;
+	});
+	check_filter_tail<A64, uint64_t, 1>([](A64 &a, size_t e, uint64_t z) {
+		size_t n1 = 0, n2 = 0;
+		a.simd_sort_nn_on_double64<1, 4>(e, 9, n1, n2, z);
+		return n1;
+	});
+}
+
 int main(int argc, char **argv) {
 	rng_seed(0);
 	InitGoogleTest(&argc, argv);

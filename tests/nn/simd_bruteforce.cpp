@@ -266,6 +266,89 @@ TEST(Bruteforce, simd_256_64_4x4_rearrange) {
 	EXPECT_EQ(algo.all_solutions_correct(), true);
 }
 
+/// moves the golden pair of `algo` to the given positions
+template<typename A>
+static void move_solution(A &algo, const size_t pl, const size_t pr) {
+	for (uint32_t i = 0; i < A::ELEMENT_NR_LIMBS; i++) {
+		std::swap(algo.L1[algo.solution_l][i], algo.L1[pl][i]);
+		std::swap(algo.L2[algo.solution_r][i], algo.L2[pr][i]);
+	}
+	algo.solution_l = pl;
+	algo.solution_r = pr;
+}
+
+/// list sizes, which are no multiple of the SIMD block sizes, and the
+/// solution in the tails of the lists
+TEST(Bruteforce, tails) {
+	constexpr size_t LS2 = 1000;
+	const size_t pos[][2] = {{LS2 - 1, LS2 - 1}, {LS2 - 1, 0}, {0, LS2 - 1}, {992, 993}};
+
+	constexpr static NN_Config c128{128, 1, 1, 64, LS2, 48, 6, 0, 512};
+	NN<c128> a128{};
+	a128.generate_random_instance();
+	constexpr static NN_Config c256{256, 4, 1, 64, LS2, 30, 16, 0, 512};
+	NN<c256> a256{};
+	a256.generate_random_instance();
+
+	for (const auto &p: pos) {
+		move_solution(a128, p[0], p[1]);
+		a128.solutions_nr = 0;
+		a128.bruteforce_simd_128_32_2_uxv<4, 4>(LS2, LS2);
+		EXPECT_GE(a128.solutions_nr, 1);
+		EXPECT_EQ(a128.all_solutions_correct(), true);
+
+		a128.solutions_nr = 0;
+		a128.bruteforce_simd_128_32_2_uxv<2, 4>(LS2, LS2);
+		EXPECT_GE(a128.solutions_nr, 1);
+		EXPECT_EQ(a128.all_solutions_correct(), true);
+
+		move_solution(a256, p[0], p[1]);
+		a256.solutions_nr = 0;
+		a256.bruteforce_simd_256_64_4x4(LS2, LS2);
+		EXPECT_GE(a256.solutions_nr, 1);
+		EXPECT_EQ(a256.all_solutions_correct(), true);
+
+		// the dispatcher with small lists of different sizes
+		move_solution(a256, 3, 5);
+		a256.solutions_nr = 0;
+		a256.bruteforce(20, 6);
+		EXPECT_GE(a256.solutions_nr, 1);
+		EXPECT_EQ(a256.all_solutions_correct(), true);
+	}
+}
+
+/// two solutions in the same pair of 8-blocks at the same rotation
+TEST(Bruteforce, uxv_two_lanes) {
+	constexpr size_t LS2 = 1000;
+	constexpr static NN_Config c128{128, 1, 1, 64, LS2, 48, 6, 0, 512};
+	NN<c128> a128{};
+	a128.generate_random_instance();
+	move_solution(a128, 0, 0);
+	// second solution: lane 3 of the first blocks, rotation 0
+	for (uint32_t i = 0; i < NN<c128>::ELEMENT_NR_LIMBS; i++) {
+		a128.L1[3][i] = a128.L2[3][i];
+	}
+
+	const auto found = [&](const size_t l, const size_t r) {
+		for (size_t i = 0; i < a128.solutions_nr; i++) {
+			if (a128.solutions[i] == std::pair<size_t, size_t>{l, r}) { return true; }
+		}
+		return false;
+	};
+
+	a128.solutions_nr = 0;
+	a128.bruteforce_simd_128_32_2_uxv<4, 4>(LS2, LS2);
+	EXPECT_TRUE(found(0, 0));
+	EXPECT_TRUE(found(3, 3));
+	EXPECT_EQ(a128.all_solutions_correct(), true);
+
+	a128.solutions_nr = 0;
+	a128.bruteforce_simd_128_32_2_uxv<2, 4>(LS2, LS2);
+	EXPECT_TRUE(found(0, 0));
+	EXPECT_TRUE(found(3, 3));
+	EXPECT_EQ(a128.all_solutions_correct(), true);
+}
+
 int main(int argc, char **argv) {
 	rng_seed(time(NULL));
 	InitGoogleTest(&argc, argv);

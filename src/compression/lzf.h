@@ -35,6 +35,9 @@
  * either the BSD or the GPL.
  */
 
+#ifndef CRYPTANALYSISLIB_COMPRESSION_LZF_H
+#define CRYPTANALYSISLIB_COMPRESSION_LZF_H
+
 #include <climits>
 #include <cstdint>
 #include <cstring>
@@ -125,15 +128,13 @@
 #define MAX_REF ((1 << 8) + (1 << 3))
 
 #if __GNUC__ >= 3
-#define expect(expr, value) __builtin_expect((expr), (value))
-#define inline inline
+#define LZF_EXPECT(expr, value) __builtin_expect((expr), (value))
 #else
-#define expect(expr, value) (expr)
-#define inline static
+#define LZF_EXPECT(expr, value) (expr)
 #endif
 
-#define expect_false(expr) expect((expr) != 0, 0)
-#define expect_true(expr) expect((expr) != 0, 1)
+#define LZF_EXPECT_FALSE(expr) LZF_EXPECT((expr) != 0, 0)
+#define LZF_EXPECT_TRUE(expr) LZF_EXPECT((expr) != 0, 1)
 
 #define LZF_HSLOT_BIAS ((const uint8_t *) in_data)
 typedef unsigned int LZF_HSLOT;
@@ -182,7 +183,9 @@ lzf_compress(const void *const in_data,
 	lit = 0;
 	op++; /* start run */
 
-	hval = FRST(ip);
+	// NOTE: `FRST` reads 2 bytes, before `ip[1]` was read for `in_len == 1`.
+	// 	For `in_len < 3` the loop below does not run.
+	hval = (in_len >= 2) ? FRST(ip) : 0;
 	while (ip < in_end - 2) {
 		LZF_HSLOT *hslot;
 
@@ -195,13 +198,14 @@ lzf_compress(const void *const in_data,
 #if INIT_HTAB
 		    && ref < ip /* the next test will actually take care of this, but this is faster */
 #endif
-		    && (off = ip - ref - 1) < MAX_OFF && ref > (uint8_t *) in_data && ref[2] == ip[2] && *(uint16_t *) ref == *(uint16_t *) ip) {
+		    && (off = ip - ref - 1) < MAX_OFF && ref > (uint8_t *) in_data && ref[2] == ip[2] && ref[0] == ip[0] && ref[1] == ip[1]) {
+			// NOTE: was `*(uint16_t *) ref == *(uint16_t *) ip`, a misaligned load
 			/* match found at *ref++ */
 			unsigned int len = 2;
 			unsigned int maxlen = in_end - ip - len;
 			maxlen = maxlen > MAX_REF ? MAX_REF : maxlen;
 
-			if (expect_false(op + 3 + 1 >= out_end)) /* first a faster conservative test */
+			if (LZF_EXPECT_FALSE(op + 3 + 1 >= out_end)) /* first a faster conservative test */
 				if (op - !lit + 3 + 1 >= out_end)    /* second the exact but rare test */
 					return 0;
 
@@ -209,7 +213,7 @@ lzf_compress(const void *const in_data,
 			op -= !lit;             /* undo run if length is zero */
 
 			for (;;) {
-				if (expect_true(maxlen > 16)) {
+				if (LZF_EXPECT_TRUE(maxlen > 16)) {
 					len++;
 					if (ref[len] != ip[len]) break;
 					len++;
@@ -271,7 +275,7 @@ lzf_compress(const void *const in_data,
 
 			ip += len + 1;
 
-			if (expect_false(ip >= in_end - 2))
+			if (LZF_EXPECT_FALSE(ip >= in_end - 2))
 				break;
 
 #if ULTRA_FAST || VERY_FAST
@@ -301,13 +305,13 @@ lzf_compress(const void *const in_data,
 #endif
 		} else {
 			/* one more literal byte we must copy */
-			if (expect_false(op >= out_end))
+			if (LZF_EXPECT_FALSE(op >= out_end))
 				return 0;
 
 			lit++;
 			*op++ = *ip++;
 
-			if (expect_false(lit == MAX_LIT)) {
+			if (LZF_EXPECT_FALSE(lit == MAX_LIT)) {
 				op[-lit - 1] = lit - 1; /* stop run */
 				lit = 0;
 				op++; /* start run */
@@ -322,7 +326,7 @@ lzf_compress(const void *const in_data,
 		lit++;
 		*op++ = *ip++;
 
-		if (expect_false(lit == MAX_LIT)) {
+		if (LZF_EXPECT_FALSE(lit == MAX_LIT)) {
 			op[-lit - 1] = lit - 1; /* stop run */
 			lit = 0;
 			op++; /* start run */
@@ -336,7 +340,7 @@ lzf_compress(const void *const in_data,
 }
 
 
-unsigned int
+inline unsigned int
 lzf_decompress(const void *const in_data,
                unsigned int in_len,
                void *out_data,
@@ -368,66 +372,97 @@ lzf_decompress(const void *const in_data,
 			switch (ctrl) {
 				case 32:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 31:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 30:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 29:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 28:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 27:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 26:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 25:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 24:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 23:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 22:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 21:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 20:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 19:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 18:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 17:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 16:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 15:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 14:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 13:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 12:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 11:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 10:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 9:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 8:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 7:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 6:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 5:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 4:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 3:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 2:
 					*op++ = *ip++;
+					[[fallthrough]];
 				case 1:
 					*op++ = *ip++;
 			}
@@ -485,22 +520,31 @@ lzf_decompress(const void *const in_data,
 
 				case 9:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 8:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 7:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 6:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 5:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 4:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 3:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 2:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 1:
 					*op++ = *ref++;
+					[[fallthrough]];
 				case 0:
 					*op++ = *ref++; /* two octets more */
 					*op++ = *ref++;
@@ -511,3 +555,24 @@ lzf_decompress(const void *const in_data,
 
 	return op - (uint8_t *) out_data;
 }
+
+// NOTE: the configuration macros above are only needed in this file
+#undef LZF_USE_OFFSETS
+#undef HLOG
+#undef VERY_FAST
+#undef ULTRA_FAST
+#undef INIT_HTAB
+#undef HSIZE
+#undef CHECK_INPUT
+#undef FRST
+#undef NEXT
+#undef IDX
+#undef MAX_LIT
+#undef MAX_OFF
+#undef MAX_REF
+#undef LZF_EXPECT
+#undef LZF_EXPECT_FALSE
+#undef LZF_EXPECT_TRUE
+#undef LZF_HSLOT_BIAS
+
+#endif // CRYPTANALYSISLIB_COMPRESSION_LZF_H

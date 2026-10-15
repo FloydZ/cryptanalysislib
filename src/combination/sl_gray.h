@@ -1,5 +1,10 @@
 #pragma once
 
+#include <cassert>
+#include <cstdint>
+
+#include "combination/enumerator.h"
+
 /// Class for generating binary words in SL-Gray order (subset-lex Gray code)
 /// Implements a minimal-change order related to subset-lex order
 /// Successive transitions are mostly adjacent (one-close),
@@ -12,13 +17,13 @@
 class bit_sl_gray {
 public:
     /// Current Gray code word
-    ulong x_;
+    uint64_t x_;
     
     /// Current track (a one-bit word) that controls bit changes
-    ulong tr_;
+    uint64_t tr_;
     
     /// Highest allowed track position
-    ulong h_;
+    uint64_t h_;
     
     /// Direction track tries to move in: true means try to move right
     bool dt_;
@@ -26,14 +31,14 @@ public:
 public:
     /// Constructor initializes the SL-Gray code generator
     /// \param n[in]: number of bits in the words to generate
-    explicit bit_sl_gray(ulong n)  { first(n); }
+    explicit bit_sl_gray(uint64_t n)  { first(n); }
     
     /// Destructor
     ~bit_sl_gray()  { ; }
 
     /// Sets the generator to the first word in the SL-Gray sequence
     /// \param n[in]: number of bits in the words to generate
-    void first(ulong n) {
+    void first(uint64_t n) {
         tr_ = 1UL << (n-1);
         h_ = tr_;
         dt_ = true;
@@ -49,12 +54,35 @@ public:
 
     /// Gets the current SL-Gray code word
     /// \return current Gray code word
-    ulong data()  const  { return x_; }
+    uint64_t data()  const  { return x_; }
+
+    /// \return current Gray code word
+    uint64_t current()  const  { return x_; }
+
+    /// not implemented: the loopless algorithm only steps forwards
+    /// \return false
+    bool previous() {
+        assert(false);
+        return false;
+    }
 
     /// Advances to the next word in the SL-Gray sequence
     /// The algorithm is "loopless" meaning it has constant time per word
+    /// \return false if the current word is the last one (unchanged)
+    bool next() {
+        const uint64_t x = x_, tr = tr_;
+        const bool dt = dt_;
+        if (step() == 0) {
+            x_ = x; tr_ = tr; dt_ = dt;
+            return false;
+        }
+        return true;
+    }
+
+private:
+    /// one step of the loopless algorithm
     /// \return the next SL-Gray code word, or 0 if at the end of the sequence
-    ulong next() {
+    uint64_t step() {
         if ( dt_ ) {
             // Try to append trailing ones (moving right)
             if ( (x_ & tr_) == 0 ) {

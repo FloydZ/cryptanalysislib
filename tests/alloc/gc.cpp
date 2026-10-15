@@ -150,6 +150,15 @@ TEST(GarbageCollector, Cleanup) {
 	}
 }
 
+TEST(AllocationMap, put_delete) {
+	// the destructor frees the remaining allocation objects
+	auto* am = new AllocationMap(8, 16, 0.5, 0.2, 0.8);
+	int *f = (int *)malloc(sizeof(int));
+	EXPECT_NE(am->put(f, sizeof(int)), nullptr);
+	delete am;
+	free(f);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

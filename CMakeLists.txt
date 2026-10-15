@@ -62,9 +62,10 @@ check_ipo_supported(RESULT lto_supported OUTPUT error)
 find_library(LINKER_SUPPORTS_ATOMIC atomic)
 
 # check for compiler warnings
-check_cxx_compiler_flag(-Wno-c11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
-check_cxx_compiler_flag(-Wno-zero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
-check_cxx_compiler_flag(-Wno-gnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
+# NOTE: gcc accepts any unknown `-Wno-*` flag, so the positive form is checked.
+check_cxx_compiler_flag(-Wc11-extensions COMPILER_SUPPORTS_C11_EXCEPTION)
+check_cxx_compiler_flag(-Wzero-length-array COMPILER_SUPPORTS_ZERO_LENGTH_ARRAY)
+check_cxx_compiler_flag(-Wgnu-label-as-value COMPILER_SUPPORTS_GNU_LABEL_AS_VALUE)
 check_cxx_compiler_flag(-Wthread-safety COMPILER_SUPPORTS_THREAD_SAFETY)
 
 # find needed packages: the good thing only is: we only have a single external
@@ -82,10 +83,30 @@ find_package(OpenCLHeaders QUIET)
 # now check if we have to add the cuda runtime
 # NOTE: apparently this is not how its done: find_package(CUDA QUIET)
 find_package(CUDAToolkit QUIET)
+
+# compile for the GPU(s) of the build machine. Must be set before
+# `enable_language(CUDA)`, otherwise the compiler default is used. If no GPU
+# is found, nvcc falls back to its default architecture.
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+	set(CMAKE_CUDA_ARCHITECTURES native)
+endif()
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
 	enable_language(CUDA)
 	message(STATUS "CUDA ENABLED")
+
+	# arch specific features (e.g. the mxf4 MMA in `nn/full_length.cuh`) are
+	# only available for `sm_120a`/`sm_121a`, not for `sm_120`/`sm_121`. Hence
+	# for a native GPU of these, the arch specific target is used (CUDA 12.8+).
+	if("${CMAKE_CUDA_ARCHITECTURES}" STREQUAL "native" AND
+	   CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8)
+		list(TRANSFORM CMAKE_CUDA_ARCHITECTURES_NATIVE REPLACE "^(12[01])(-real)?$" "\\1a\\2"
+		     OUTPUT_VARIABLE CRYPTANALYSISLIB_CUDA_ARCHS)
+		if(NOT "${CRYPTANALYSISLIB_CUDA_ARCHS}" STREQUAL "${CMAKE_CUDA_ARCHITECTURES_NATIVE}")
+			set(CMAKE_CUDA_ARCHITECTURES ${CRYPTANALYSISLIB_CUDA_ARCHS})
+		endif()
+	endif()
+	message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 endif()
 
 if(OpenCL_FOUND AND OpenCLHeaders_FOUND)
@@ -96,10 +117,13 @@ if(${USE_TRACY})
 	FetchContent_Declare(
 		tracy
 		GIT_REPOSITORY 	https://github.com/wolfpld/tracy
-		GIT_TAG 		master
+		# keep in sync with the tracy-capture version in .github/workflows/ubuntu_x86_tracy.yml
+		GIT_TAG 		v0.14.1
 		GIT_SHALLOW 	TRUE
 		GIT_PROGRESS 	TRUE
 	)
+	# tracy disables the client by default, which turns all its macros into no-ops
+	set(TRACY_ENABLE ON CACHE BOOL "Enable profiling" FORCE)
 	FetchContent_MakeAvailable(tracy)
 endif ()
 
@@ -107,7 +131,7 @@ endif ()
 FetchContent_Declare(
 		reflect-cpp
 		GIT_REPOSITORY https://github.com/getml/reflect-cpp.git
-		GIT_TAG        v0.19.0
+		GIT_TAG        v0.25.0
 )
 FetchContent_MakeAvailable(reflect-cpp)
 include_directories(${reflect-cpp_SOURCE_DIR}/include)
@@ -200,7 +224,12 @@ message(STATUS "System Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") 
 	message(STATUS "ARM CPU detected")
 	# TODO port this to the cmake project
-    set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
+	if(${USE_SIMD})
+		set(ADDITIONAL_FLAGS "-DUSE_ARM -flax-vector-conversions -march=native")
+	else()
+		# NOTE: `-DUSE_SIMD=OFF` selects the generic (no SIMD) code path, as on x86
+		set(ADDITIONAL_FLAGS "-march=native")
+	endif()
 	set(DEBUG_FLAGS "-g -Og -Wall -Wextra -DDEBUG ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${SANITIZER_FLAGS} ${ADDITIONAL_FLAGS}")
     set(OPTIMIZE_FLAGS "-g -O3 -DNDEBUG  ${INLINE_FLAGS} ${ALLOWED_WARNINGS} ${ADDITIONAL_FLAGS}")
 else()
@@ -286,13 +315,6 @@ if(CMAKE_CUDA_COMPILER)
     if(NOT DEFINED CMAKE_CUDA_STANDARD)
         set(CMAKE_CUDA_STANDARD 17)
         set(CMAKE_CUDA_STANDARD_REQUIRED True)
-    endif()
-
-
-    # fall back, if one does not directly have a CUDA ready card, but rather a 
-	# optimus (internal laptop) card.
-    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        set(CMAKE_CUDA_ARCHITECTURES 61)
     endif()
 
     #add_executable(test_cuda tests/test_cuda.cu)

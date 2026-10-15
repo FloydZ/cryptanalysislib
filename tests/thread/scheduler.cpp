@@ -12,14 +12,13 @@
 #include <shared_mutex>
 #include <string>
 #include <thread>
+#include <version>
 
-#include "thread/steal_scheduler.h"
+#include "thread/steal.h"
 
 using ::testing::InitGoogleTest;
 using ::testing::Test;
 #define REPEATS 10000
-
-#ifndef __APPLE__
 
 using namespace cryptanalysislib;
 
@@ -28,19 +27,19 @@ auto multiply(int a, int b) { return a * b; }
 
 TEST(Thread, GlobalMultiply) {
 	StealingScheduler pool{};
-	auto result = pool.enqueue(multiply, 3, 4);
+	auto result = pool.submit(multiply, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
 
 TEST(Thread, LambdaMultiply) {
 	StealingScheduler pool{};
-	auto result = pool.enqueue([](int a, int b) { return a * b; }, 3, 4);
+	auto result = pool.submit([](int a, int b) { return a * b; }, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
 
 TEST(Thread, FunctorMultiply) {
 	StealingScheduler pool{};
-	auto result = pool.enqueue(std::multiplies<int>{}, 3, 4);
+	auto result = pool.submit(std::multiplies<int>{}, 3, 4);
 	EXPECT_EQ(result.get(), 12);
 }
 
@@ -48,7 +47,7 @@ TEST(Thread, PassReference) {
 	int x = 2;
 	{
 		StealingScheduler pool{};
-		pool.enqueue_detach([](int& a) { a *= 2; }, std::ref(x));
+		pool.submit_detach([](int& a) { a *= 2; }, std::ref(x));
 	}
 	EXPECT_EQ(x, 4);
 }
@@ -57,7 +56,7 @@ TEST(Thread, PassRawReference) {
 	int x = 2;
 	{
 		StealingScheduler pool{};
-		pool.enqueue_detach([](int& a) { a *= 2; }, x);
+		pool.submit_detach([](int& a) { a *= 2; }, x);
 	}
 	EXPECT_EQ(x, 2);
 }
@@ -65,7 +64,7 @@ TEST(Thread, PassRawReference) {
 TEST(Thread, EnqueWithVoidReturn) {
 	StealingScheduler pool{};
 	auto value = 8;
-	auto future = pool.enqueue([](int& x) { x *= 2; }, std::ref(value));
+	auto future = pool.submit([](int& x) { x *= 2; }, std::ref(value));
 	future.wait();
 	EXPECT_EQ(value, 16);
 }
@@ -74,7 +73,7 @@ TEST(Thread, EnqueDetachWithVoidReturn) {
 	auto value = 8;
 	{
 		StealingScheduler pool;
-		pool.enqueue_detach([](int& x) { x *= 2; }, std::ref(value));
+		pool.submit_detach([](int& x) { x *= 2; }, std::ref(value));
 	}
 	EXPECT_EQ(value, 16);
 }
@@ -83,7 +82,7 @@ TEST(Thread, EnqueDetachWithNonVoidReturn) {
 	auto value = 8;
 	{
 		StealingScheduler pool;
-		pool.enqueue_detach(
+		pool.submit_detach(
 		        [](int& x) {
 			        x *= 2;
 			        return x;
@@ -101,7 +100,7 @@ TEST(Thread, InputParams) {
 	for (auto i = 0; i < total_tasks; i++) {
 		auto task = [index = i]() { return index; };
 
-		futures.push_back(pool.enqueue(task));
+		futures.push_back(pool.submit(task));
 	}
 
 	for (auto j = 0; j < total_tasks; j++) {
@@ -125,7 +124,7 @@ TEST(Thread, ParamsDifferentType) {
 		return test_struct{x, y};
 	};
 
-	auto future = pool.enqueue(task, 2, 3.2);
+	auto future = pool.submit(task, 2, 3.2);
 	const auto result = future.get();
 	EXPECT_EQ(result.value, test.value);
 	EXPECT_EQ(result.d_value, test.d_value);
@@ -141,7 +140,7 @@ TEST(Thread, EnsureWaitBeforDesctructor) {
 				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
 				++counter;
 			};
-			pool.enqueue_detach(task);
+			pool.submit_detach(task);
 		}
 	}
 
@@ -165,7 +164,7 @@ TEST(Thread, LoadEvenlySpread) {
 			if (i % 4 == 0) {
 				delay_amount = std::chrono::seconds(long_task_time);
 			}
-			pool.enqueue_detach(delay_task, delay_amount);
+			pool.submit_detach(delay_task, delay_amount);
 		}
 		// wait for tasks to complete
 	}
@@ -204,20 +203,22 @@ TEST(Thread, LoadEvenlySpread) {
 //	{
 //		StealingScheduler pool{};
 //
-//		auto throw_future = pool.enqueue(throw_task, 1);
-//		auto no_throw_future = pool.enqueue(regular_task, 2);
+//		auto throw_future = pool.submit(throw_task, 1);
+//		auto no_throw_future = pool.submit(regular_task, 2);
 //		throw_future.get();
 //		// CHECK_THROWS();
 //		EXPECT_EQ(no_throw_future.get(), 4);
 //
 //		// do similar check for tasks without return
-//		pool.enqueue_detach(throw_no_return);
-//		pool.enqueue_detach(no_throw_no_return);
+//		pool.submit_detach(throw_no_return);
+//		pool.submit_detach(no_throw_no_return);
 //	}
 //
 //	EXPECT_EQ(count.load(), 1);
 //}
 
+// NOTE: apple's libc++ only ships `std::jthread` with `-fexperimental-library`
+#ifdef __cpp_lib_jthread
 class might_throw_thread {
 public:
 	explicit might_throw_thread() = default;
@@ -266,6 +267,7 @@ private:
 	}
 	std::jthread impl_;
 };
+#endif // __cpp_lib_jthread
 
 //TEST(Thread, CreateFewerThread) {
 //	const StealingScheduler<dp::details::default_function_type, might_throw_thread> thread_pool{};
@@ -285,7 +287,7 @@ private:
 //				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
 //				++counter;
 //			};
-//			pool.enqueue_detach(task);
+//			pool.submit_detach(task);
 //		}
 //	}
 //
@@ -299,13 +301,13 @@ TEST(Thread, WorkCompletes) {
 		StealingScheduler thread_pool{2};
 
 		// tie up the first thread
-		thread_pool.enqueue_detach([&last_thread]() {
+		thread_pool.submit_detach([&last_thread]() {
 			std::this_thread::sleep_for(std::chrono::seconds{5});
 			last_thread = 1;
 		});
 
 		// run a quick job on the second thread
-		thread_pool.enqueue_detach([&last_thread]() {
+		thread_pool.submit_detach([&last_thread]() {
 			std::this_thread::sleep_for(std::chrono::milliseconds{50});
 			last_thread = 2;
 		});
@@ -314,7 +316,7 @@ TEST(Thread, WorkCompletes) {
 		std::this_thread::sleep_for(std::chrono::seconds{1});
 
 		// enqueue a quick job
-		thread_pool.enqueue_detach([&last_thread]() {
+		thread_pool.submit_detach([&last_thread]() {
 			std::this_thread::sleep_for(std::chrono::milliseconds{50});
 			last_thread = 3;
 		});
@@ -326,7 +328,7 @@ TEST(Thread, WorkCompletes) {
 void recursive_sequential_sum(std::atomic_int32_t& counter, int count, StealingScheduler<>& pool) {
 	counter.fetch_add(count);
 	if (count > 1) {
-		pool.enqueue_detach(recursive_sequential_sum, std::ref(counter), count - 1, std::ref(pool));
+		pool.submit_detach(recursive_sequential_sum, std::ref(counter), count - 1, std::ref(pool));
 	}
 }
 
@@ -360,14 +362,14 @@ void recursive_parallel_sort(int* begin,
 		const auto mid = begin + (end - begin) / 2;
 		if (split_level == 2) {
 			const auto future =
-			        pool.enqueue(recursive_parallel_sort, begin, mid, split_level / 2, std::ref(pool));
+			        pool.submit(recursive_parallel_sort, begin, mid, split_level / 2, std::ref(pool));
 			std::sort(mid, end);
 			future.wait();
 		} else {
 			const auto left =
-			        pool.enqueue(recursive_parallel_sort, begin, mid, split_level / 2, std::ref(pool));
+			        pool.submit(recursive_parallel_sort, begin, mid, split_level / 2, std::ref(pool));
 			const auto right =
-			        pool.enqueue(recursive_parallel_sort, mid, end, split_level / 2, std::ref(pool));
+			        pool.submit(recursive_parallel_sort, mid, end, split_level / 2, std::ref(pool));
 
 			left.wait();
 			right.wait();
@@ -408,17 +410,17 @@ TEST(Thread, PrematureExit) {
 
 		auto task_2 = [&testPool, end]() {
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			testPool.enqueue_detach(end);
+			testPool.submit_detach(end);
 			std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 		};
 
 		auto task_1 = [&testPool, &id_task_1, task_2]() {
 			id_task_1 = std::this_thread::get_id();
-			testPool.enqueue_detach(task_2);
+			testPool.submit_detach(task_2);
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		};
 
-		testPool.enqueue_detach(task_1);
+		testPool.submit_detach(task_1);
 	}
 
 	EXPECT_EQ(id_task_1, id_end);
@@ -453,13 +455,13 @@ TEST(Thread, PrematureExit) {
 		auto task_3 = [short_task, long_task, spawned_task, &task_3_id, &pool] {
 			task_3_id = std::this_thread::get_id();
 			short_task();
-			pool.enqueue_detach(spawned_task);
+			pool.submit_detach(spawned_task);
 			long_task();
 		};
 
-		pool.enqueue_detach(task_1);
-		pool.enqueue_detach(task_2);
-		pool.enqueue_detach(task_3);
+		pool.submit_detach(task_1);
+		pool.submit_detach(task_2);
+		pool.submit_detach(task_3);
 	}
 
 	// the task that spawns the new task should not run the new task
@@ -477,7 +479,7 @@ TEST(Thread, Wait) {
 				std::this_thread::sleep_for(std::chrono::milliseconds((i + 1) * 10));
 				++counter;
 			};
-			pool.enqueue_detach(task);
+			pool.submit_detach(task);
 		}
 		pool.wait_for_tasks();
 
@@ -501,7 +503,7 @@ TEST(Thread, Wait2) {
 
 		for (size_t var1 = 0; var1 < 17; var1++) {
 			for (int var2 = 0; var2 < 12; var2++) {
-				local_pool.enqueue_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
+				local_pool.submit_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
 			}
 		}
 		local_pool.wait_for_tasks();
@@ -532,7 +534,7 @@ TEST(Thread, Wait3) {
 
 		for (size_t var1 = 0; var1 < 16; var1++) {
 			for (int var2 = 0; var2 < 13; var2++) {
-				local_pool.enqueue_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
+				local_pool.submit_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
 			}
 		}
 		local_pool.wait_for_tasks();
@@ -551,7 +553,7 @@ TEST(Thread, Wait3) {
 
 		for (size_t var1 = 0; var1 < 17; var1++) {
 			for (int var2 = 0; var2 < 12; var2++) {
-				local_pool.enqueue_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
+				local_pool.submit_detach([&cnt_wrp]() { cnt_wrp.increment_counter(); });
 			}
 		}
 		local_pool.wait_for_tasks();
@@ -584,7 +586,9 @@ TEST(StealingScheduler, clear_task_same_task) {
 	//   tasks), we use a mutex to prevent the tasks from running, until all tasks have been added
 	//   to the pool.
 
-	for (uint32_t  thread_count = 0; thread_count < 4; ++thread_count) {
+	// NOTE: starts at 1. A pool of 0 threads gets 1 worker, and a
+	// 	`std::barrier(0)` cannot be arrived at.
+	for (uint32_t  thread_count = 1; thread_count < 4; ++thread_count) {
 		std::atomic<unsigned int> counter = 0;
 		std::shared_mutex mutex;
 		StealingScheduler pool(thread_count);
@@ -606,7 +610,7 @@ TEST(StealingScheduler, clear_task_same_task) {
 
 		{
 			std::unique_lock lock(mutex);
-			for (int i = 0; i < 10; i++) pool.enqueue_detach(func);
+			for (int i = 0; i < 10; i++) pool.submit_detach(func);
 		}
 
 		pool.wait_for_tasks();
@@ -636,7 +640,7 @@ TEST(StealingScheduler, clear_task) {
 			/* fill the thread_pool twice over, and wait until all threads running and locked in a
              * task */
 			std::lock_guard lock(mutex);
-			for (unsigned int i = 0; i < 2 * thread_count; i++) pool.enqueue_detach(func);
+			for (unsigned int i = 0; i < 2 * thread_count; i++) pool.submit_detach(func);
 
 			while (counter != thread_count)
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -664,28 +668,64 @@ TEST(Thread, Simple) {
 
 	thread_safe_queue<int> queue;
 	{
-		std::jthread t1([&queue, &barrier, &removed_count] {
+		std::thread t1([&queue, &barrier, &removed_count] {
 			queue.push_front(1);
 			barrier.arrive_and_wait();
 			removed_count = queue.clear();
 			barrier.arrive_and_wait();
 		});
-		std::jthread t2([&queue, &barrier] {
+		std::thread t2([&queue, &barrier] {
 			queue.push_front(2);
 			barrier.arrive_and_wait();
 			barrier.arrive_and_wait();
 		});
-		std::jthread t3([&queue, &barrier] {
+		std::thread t3([&queue, &barrier] {
 			queue.push_front(3);
 			barrier.arrive_and_wait();
 			barrier.arrive_and_wait();
 		});
+		t1.join();
+		t2.join();
+		t3.join();
 	}
 
 	EXPECT_TRUE(queue.empty());
 	EXPECT_EQ(removed_count, 3);
 };
-#endif // __APPLE__
+
+TEST(StealingScheduler, lvalues_are_copied) {
+	StealingScheduler pool(2);
+	std::string s = "hello";
+	std::function<size_t(std::string)> fn = [](std::string x) { return x.size(); };
+	auto f = pool.submit(fn, s);
+	EXPECT_EQ(f.get(), 5u);
+	EXPECT_EQ(s, "hello");
+	EXPECT_TRUE(bool(fn));
+}
+
+TEST(StealingScheduler, pause) {
+	StealingScheduler pool(2);
+	pool.pause();
+	EXPECT_TRUE(pool.is_paused());
+	std::atomic<int> ran{0};
+	for (int i = 0; i < 8; i++) { pool.submit_detach([&ran] { ran++; }); }
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	EXPECT_EQ(ran.load(), 0);
+	EXPECT_EQ(pool.get_num_queued_tasks(), 8u);
+
+	pool.unpause();
+	pool.wait_for_tasks();
+	EXPECT_EQ(ran.load(), 8);
+	EXPECT_EQ(pool.get_num_queued_tasks(), 0u);
+}
+
+TEST(StealingScheduler, zero_threads) {
+	StealingScheduler pool(0);
+	EXPECT_EQ(pool.size(), 1u);
+	auto f = pool.submit([] { return 42; });
+	EXPECT_EQ(f.get(), 42);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

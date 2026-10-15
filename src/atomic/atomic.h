@@ -5,6 +5,6 @@
 #include "annotated_mutex.h"
 #include "futex.h"
 #include "pipe.h"
-// TODO #include "semaphore.h"
+#include "semaphore.h"
 #include "latch.h"
 #endif
