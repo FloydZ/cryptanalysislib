@@ -176,13 +176,13 @@ public:
 	}
 
     /// \return: pointer to the internal load array
-	[[nodiscard]] constexpr inline load_type load_ptr() noexcept {
-		return __internal_load_array;
+	[[nodiscard]] constexpr inline load_type *load_ptr() noexcept {
+		return __internal_load_array.data();
 	}
 
 	/// \return: pointer to the internal data array
 	[[nodiscard]] constexpr inline valueType *ptr() noexcept {
-		return __internal_hashmap_array;
+		return __internal_hashmap_array.data();
 	}
 
 	using inner_data_type = typename std::remove_all_extents<data_type>::type;

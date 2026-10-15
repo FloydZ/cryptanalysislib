@@ -296,7 +296,9 @@ public:
 	      list_size((list_size == size_t(0)) ? max_list_size : list_size) {
 
 		static_assert(chase_size > 0);
-		static_assert(gray_size > 0);
+		// NOTE: for `w == 0` (Prange) nothing is enumerated, hence the gray
+		// 	code is empty (`gray_cl` is still allocated with one element).
+		static_assert((w == 0) || (gray_size > 0));
 		assert(max_list_size >= list_size);
 
 		if constexpr (w > 0) {

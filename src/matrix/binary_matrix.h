@@ -213,12 +213,12 @@ public:
 	
 	// constructor from a string
 	constexpr FqMatrix(const char *data, const uint32_t cols = ncols) noexcept {
+		init_matrix_data();
 		from_string(data, cols);
 	}
 
 	/// constructor reading from string
 	constexpr void from_string(const char *data, const uint32_t cols = ncols) noexcept {
-		init_matrix_data();
 		clear();
 
 		char input[2] = {0};
@@ -2042,7 +2042,8 @@ public:
 			t[3] = wks[3 * rowstride_src];
 			if (--i == 0) break;
 			wks += 4 * rowstride_src;
-			for (int shift = 16;; shift += 16) {
+			// NOTE: n <= 16, hence at most 3 iterations. The bound is only for gcc.
+			for (int shift = 16; shift < 64; shift += 16) {
 				t[0] |= (*wks << shift);
 				if (--i == 0) break;
 				t[1] |= (wks[rowstride_src] << shift);
@@ -2086,7 +2087,8 @@ public:
 			wk[3 * rowstride_dst] = (uint16_t) t[3];
 			if (--i == 0) break;
 			wk += 4 * rowstride_dst;
-			for (int shift = 16;; shift += 16) {
+			// NOTE: m <= 16, hence at most 3 iterations. The bound is only for gcc.
+			for (int shift = 16; shift < 64; shift += 16) {
 				wk[0] = (uint16_t) (t[0] >> shift);
 				if (--i == 0) break;
 				wk[rowstride_dst] = (uint16_t) (t[1] >> shift);
@@ -2130,14 +2132,15 @@ public:
 				t[j] = *wks;
 				wks += rowstride_src;
 			}
-			int j = 0;
-			do {
-				t[j++] |= (*wks << 32);
+			// NOTE: i = n - 16 <= 16. The bound on j is only for gcc.
+			for (int j = 0; (j < i) && (j < 16); ++j) {
+				t[j] |= (*wks << 32);
 				wks += rowstride_src;
-			} while (--i);
+			}
 		} else {
 			int j;
-			for (j = 0; j < n; ++j) {
+			// NOTE: n <= 16 in this branch. The bound on j is only for gcc.
+			for (j = 0; (j < n) && (j < 16); ++j) {
 				t[j] = *wks;
 				wks += rowstride_src;
 			}
@@ -2153,14 +2156,14 @@ public:
 				wk[rowstride_dst] = (t[j + 1] & 0xFFFF) | ((t[j + 1] >> 16) & 0xFFFF0000);
 				wk += 2 * rowstride_dst;
 			}
-			for (int j = 1; j < m; j += 2) {
+			for (int j = 1; (j < m) && (j < 16); j += 2) {
 				*wk = ((t[j - 1] >> 16) & 0xFFFF) | ((t[j - 1] >> 32) & 0xFFFF0000);
 				wk[rowstride_dst] = ((t[j] >> 16) & 0xFFFF) | ((t[j] >> 32) & 0xFFFF0000);
 				wk += 2 * rowstride_dst;
 			}
 			if (one_more) { *wk = ((t[m - 1] >> 16) & 0xFFFF) | ((t[m - 1] >> 32) & 0xFFFF0000); }
 		} else {
-			for (int j = 1; j < m; j += 2) {
+			for (int j = 1; (j < m) && (j < 16); j += 2) {
 				*wk = (t[j - 1] & 0xFFFF) | ((t[j - 1] >> 16) & 0xFFFF0000);
 				wk[rowstride_dst] = (t[j] & 0xFFFF) | ((t[j] >> 16) & 0xFFFF0000);
 				wk += 2 * rowstride_dst;
@@ -2360,8 +2363,8 @@ public:
 				T const *__restrict__ fws_right = fws + offset;
 				T *__restrict__ fwd_up = fwd;
 				T *__restrict__ fwd_down = fwd + large_size * rowstride_dst;
-				const uint32_t maxsize_left = std::max(nrows, large_size);
-				const uint32_t maxsize_right = std::max(nrows, ncols - large_size);
+				const uint32_t maxsize_left = std::max(_nrows, large_size);
+				const uint32_t maxsize_right = std::max(_nrows, _ncols - large_size);
 				_mzd_transpose_notsmall(fwd_up, fws_left, rowstride_dst, rowstride_src, _nrows, large_size, maxsize_left);
 				_mzd_transpose_notsmall(fwd_down, fws_right, rowstride_dst, rowstride_src, _nrows, _ncols - large_size, maxsize_right);
 			}

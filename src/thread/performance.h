@@ -1,8 +1,15 @@
 #pragma once 
 
+#include <cerrno>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <iostream>
 #include <string>
 #include <thread>
+#include <type_traits>
+#include <vector>
 
 // NOTE only available on unix
 #include <assert.h>
@@ -23,9 +30,6 @@
 #endif
 
 #include <version>
-
-#include <rfl.hpp>
-#include <rfl/json.hpp>
 
 namespace cryptanalysislib {
 	namespace details {
@@ -61,9 +65,7 @@ inline constexpr SchedulerConfig schedulerConfig;
 
 namespace cryptanalysislib {
 	// NOTE: this is linux only
-	// NOTE: this is needed, as the real internal `rusage`
-	// uses strange unions, which are not supported by
-	// `reflect-cpp`
+	// NOTE: plain copy of the internal `rusage`, which uses unions.
 	struct rusage__ {
 		struct timeval ru_utime;
 		struct timeval ru_stime;
@@ -199,8 +201,11 @@ namespace cryptanalysislib {
 	};
 
 
+	// NOTE: the per thread data is send as raw bytes over the socket
+	static_assert(std::is_trivially_copyable_v<SchedulerThreadLoad>);
+
 	/// NOTE: just the data container. To access it use the Manager
-	/// class. This is needed for the reflect-cpp framework
+	/// class.
 	struct SchedulerPerformance {
 		// per thread information
 		std::vector<SchedulerThreadLoad> schedulerThreadLoad;
@@ -216,6 +221,14 @@ namespace cryptanalysislib {
 	struct SchedulerPerformanceManager {
 	private:
 		SchedulerPerformance schedulerPerformance;
+
+		/// wire format of a message: this header, followed by
+		/// `nr_threads` raw `SchedulerThreadLoad` entries.
+		struct MessageHeader {
+			uint64_t nr_threads;
+			int number_active_threads;
+			int number_enqueud_tasks;
+		};
 
 		const bool server;
 
@@ -287,27 +300,26 @@ namespace cryptanalysislib {
 					// 	`accept` loop with a stop condition (or `fork`).
 					// NOTE: a stream socket has no message boundaries: several
 					// 	messages can arrive in one `read`, or one message in
-					// 	several. Each message ends with '\n' (see `send`). Before,
-					// 	every `read` was parsed as one document, and two merged
-					// 	messages aborted via `.value()`.
+					// 	several. Hence a message is only parsed, once all
+					// 	bytes announced by its header are received (see `send`).
 					std::string pending;
 					while (true) {
 						const ssize_t n = read(newsockfd, buf, buffer_size);
 						if (n <= 0) { break; }
 						pending.append(buf, n);
 
-						size_t pos;
-						while ((pos = pending.find('\n')) != std::string::npos) {
-							const std::string msg = pending.substr(0, pos);
-							pending.erase(0, pos + 1);
-							const auto res = rfl::json::read<SchedulerPerformance>(msg);
-							if (!res) {
-								std::cout << "ERROR: parsing: " << res.error().what() << std::endl;
-								std::cout << msg << std::endl;
-								continue;
-							}
+						while (pending.size() >= sizeof(MessageHeader)) {
+							MessageHeader h;
+							std::memcpy(&h, pending.data(), sizeof(MessageHeader));
+							const size_t data_size = h.nr_threads * sizeof(SchedulerThreadLoad);
+							if (pending.size() < sizeof(MessageHeader) + data_size) { break; }
 
-							schedulerPerformance = res.value();
+							auto &loads = schedulerPerformance.schedulerThreadLoad;
+							loads.resize(h.nr_threads);
+							std::memcpy((void *)loads.data(), pending.data() + sizeof(MessageHeader), data_size);
+							schedulerPerformance.number_active_threads = h.number_active_threads;
+							schedulerPerformance.number_enqueud_tasks = h.number_enqueud_tasks;
+							pending.erase(0, sizeof(MessageHeader) + data_size);
 							print();
 						}
 					}
@@ -369,12 +381,16 @@ namespace cryptanalysislib {
 
 		/// write the gathered benchmark information.
 		void send() noexcept {
-			const std::string data = rfl::json::write(schedulerPerformance);
-			std::cout << "sending data:" << std::endl;
-			std::cout << data << std::endl;
+			const auto &loads = schedulerPerformance.schedulerThreadLoad;
+			const MessageHeader h{loads.size(),
+			                      schedulerPerformance.number_active_threads,
+			                      schedulerPerformance.number_enqueud_tasks};
+			const size_t data_size = loads.size() * sizeof(SchedulerThreadLoad);
 
-			// NOTE: '\n' terminates a message, the JSON itself contains none
-			const std::string msg = data + '\n';
+			std::string msg(sizeof(MessageHeader) + data_size, '\0');
+			std::memcpy(msg.data(), &h, sizeof(MessageHeader));
+			std::memcpy(msg.data() + sizeof(MessageHeader), (const void *)loads.data(), data_size);
+
 			size_t written = 0;
 			while (written < msg.size()) {
 				const ssize_t k = write(sockfd, msg.data() + written, msg.size() - written);

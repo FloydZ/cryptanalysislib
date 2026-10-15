@@ -1471,9 +1471,10 @@ public:
 	template<typename TT = DataType>
 	constexpr static inline TT neg_T(const TT a) noexcept {
 		// int(0b0101010101010101010101010101010101010101010101010101010101010101)
-		constexpr TT c1 = sizeof(TT) == 16 ? (__uint128_t(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u);
+		// NOTE: the explicit cast, as the ternary is always of type `__uint128_t`
+		constexpr TT c1 = TT(sizeof(TT) == 16 ? (__uint128_t(6148914691236517205u) << 64u) | TT(6148914691236517205u) : TT(6148914691236517205u));
 		//int(0b1010101010101010101010101010101010101010101010101010101010101010)
-		constexpr TT c2 = sizeof(TT) == 16 ? (__uint128_t(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u);
+		constexpr TT c2 = TT(sizeof(TT) == 16 ? (__uint128_t(12297829382473034410u) << 64u) | TT(12297829382473034410u) : TT(12297829382473034410u));
 
 		const TT e1 = a & c1;// filter the ones
 		const TT e2 = a & c2;// filter the twos

@@ -796,15 +796,16 @@ public:
 			for (size_t j = s2; j < e2; j++) {
 				if constexpr (EXACT) {
 					const uint32_t t = (L1[i][0] == L2[j][0]) &
-					                   (L1[i][1] == L2[j][1]) &
 					                   (L1[i][1] == L2[j][1]);
 					if (t) {
 						found_solution(i, j);
 					}
 				} else {
-					const uint32_t t = (popcount::popcount(L1[i][0] ^ L2[j][0]) <= d) +
-					                   (popcount::popcount(L1[i][1] ^ L2[j][1]) <= d) +
-					                   (popcount::popcount(L1[i][2] ^ L2[j][2]) <= d);
+					// NOTE: 3x 32 bit chunks
+					const uint32_t *a = (const uint32_t *)L1[i], *b = (const uint32_t *)L2[j];
+					const uint32_t t = (popcount::popcount(a[0] ^ b[0]) <= d) +
+					                   (popcount::popcount(a[1] ^ b[1]) <= d) +
+					                   (popcount::popcount(a[2] ^ b[2]) <= d);
 					if (t == 3) {
 						solutions.resize(solutions_nr + 1);
 						solutions[solutions_nr++] = std::pair<size_t, size_t>{i, j};
