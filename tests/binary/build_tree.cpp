@@ -186,8 +186,10 @@ TEST(TreeTest, join8lists) {
 	EXPECT_EQ(0, wrong);
 	// NOTE: 2^20 4-tuples per side matching on 4+7 bits: 2^9 each, then
 	// 	2^18 pairs matching on the last 3 bits: 2^15 expected
-	EXPECT_GT(out.load(),1u<<14);
-	EXPECT_LT(out.load(),1u<<16);
+	// NOTE: the base lists only have 2^5 elements, so the number of outputs
+	// 	varies a lot: about 1 in 200 seeds is below 2^14
+	EXPECT_GT(out.load(),1u<<13);
+	EXPECT_LT(out.load(),1u<<17);
 }
 
 #ifndef EXTERNAL_MAIN

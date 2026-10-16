@@ -104,8 +104,9 @@ class StaticSort {
 			enum { L = M >> 1,
 				   IAddL = I + L,
 				   MSubL = M - L };
-			PS<A, C, I, L, (L <= 1)> ps0(a, c);
-			PS<A, C, IAddL, MSubL, (MSubL <= 1)> ps1(a, c);
+			// NOTE: `[[maybe_unused]]`, as clang warns about the empty `PS<..., 1>` ones
+			[[maybe_unused]] PS<A, C, I, L, (L <= 1)> ps0(a, c);
+			[[maybe_unused]] PS<A, C, IAddL, MSubL, (MSubL <= 1)> ps1(a, c);
 			PB<A, C, I, IAddL, L, MSubL> pb(a, c);
 		}
 	};
@@ -125,7 +126,7 @@ public:
 	 */
 	template<class Container>
 	constexpr inline void operator()(Container &arr) const noexcept {
-		PS<Container, LT, 1, NumElements, (NumElements <= 1)> ps(arr, LT());
+		[[maybe_unused]] PS<Container, LT, 1, NumElements, (NumElements <= 1)> ps(arr, LT());
 	}
 
 	/**
@@ -134,7 +135,7 @@ public:
 	 */
 	template<class T>
 	constexpr inline void operator()(T *arr) const noexcept {
-		PS<T *, LT, 1, NumElements, (NumElements <= 1)> ps(arr, LT());
+		[[maybe_unused]] PS<T *, LT, 1, NumElements, (NumElements <= 1)> ps(arr, LT());
 	}
 
 	/**
@@ -145,7 +146,7 @@ public:
 	template<class Container, class Compare>
 	constexpr inline void operator()(Container &arr, Compare &lt) const noexcept {
 		typedef Compare &C;
-		PS<Container, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
+		[[maybe_unused]] PS<Container, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
 	}
 
 	/**
@@ -156,7 +157,7 @@ public:
 	template<class T, class Compare>
 	constexpr inline void operator()(T *arr, Compare &lt) const noexcept {
 		typedef Compare &C;
-		PS<T *, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
+		[[maybe_unused]] PS<T *, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
 	}
 
 	/**
@@ -167,7 +168,7 @@ public:
 	template<class Container, class Compare>
 	constexpr inline void operator()(Container &arr, const Compare &lt) const noexcept {
 		typedef const Compare &C;
-		PS<Container, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
+		[[maybe_unused]] PS<Container, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
 	}
 
 	/**
@@ -178,7 +179,7 @@ public:
 	template<class T, class Compare>
 	constexpr inline void operator()(T *arr, const Compare &lt) const noexcept {
 		typedef const Compare &C;
-		PS<T *, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
+		[[maybe_unused]] PS<T *, C, 1, NumElements, (NumElements <= 1)> ps(arr, lt);
 	}
 };
 

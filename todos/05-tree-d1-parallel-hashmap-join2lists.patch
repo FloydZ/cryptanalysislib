@@ -1,0 +1,191 @@
+--- a/src/tree.h
++++ b/src/tree.h
+@@ -1045,23 +1045,29 @@
+ 				return false;
+ 	        }) noexcept;
+ 
+-	/// \tparam k_lower
+-	/// \tparam k_upper
+-	/// \tparam bucketsize
+-	/// \tparam nthreads
+-	/// \tparam ExecPolicy
+-	/// \tparam HashMapIn
+-	/// \tparam HashMapOut
+-	/// \tparam F
+-	/// \param policy
+-	/// \param out
+-	/// \param L1
+-	/// \param L2
+-	/// \param hm2
++	/// multithreaded version of the function above: `L2` is hashed into
++	/// `hm2` and `L1` is matched against it by `nthreads` threads.
++	/// NOTE: `L1` and `L2` must have (at least) `nthreads` chunks, thread `i`
++	/// 	works on the chunk `i`.
++	/// NOTE: `f` is called concurrently, so `hm2` and `out` must be
++	/// 	configured for `nthreads` threads (atomic inserts).
++	/// \tparam k_lower lower coordinate to match on
++	/// \tparam k_upper upper coordinate to match on
++	/// \tparam bucketsize unused
++	/// \tparam nthreads number of threads, if 0: sequential
++	/// \tparam ExecPolicy threading policy: see thread subfolder
++	/// \tparam HashMapIn type of the hashmap of `L2`
++	/// \tparam HashMapOut type of the output hashmap
++	/// \tparam F `bool(HashMapOut &out, const List &L1, const List &L2, size_t i, size_t j)`
++	/// \param policy threading policy, if sequential: the function above is called
++	/// \param out output hashmap, will be cleared
++	/// \param L1 input list const, will NOT be sorted
++	/// \param L2 input list const, will be hashed into `hm2` if prepare==true
++	/// \param hm2 hashmap of list L2
+ 	/// \param target
+-	/// \param prepare
+-	/// \param f
+-	/// \return
++	/// \param prepare if true: `hm2` is cleared and `L2` hashed into it
++	/// \param f function to apply for each collision
++	/// \return the number of found collisions
+ 	template<const uint32_t k_lower,
+ 	         const uint32_t k_upper,
+ 			 const uint32_t bucketsize,
+--- a/src/tree/d1.h
++++ b/src/tree/d1.h
+@@ -467,7 +467,6 @@
+ 	return ret;
+ }
+ 
+-// TODO test
+ /// see tree.h for doc
+ template<class List,
+          const TreeConfig &config>
+@@ -497,31 +496,36 @@
+ 	if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
+ 		return join2lists_on_iT_v2
+ 				<k_lower, k_upper>
+-				(out, L1, L2, hm2, target, prepare);
++				(out, L1, L2, hm2, target, prepare, f);
+ 	}
+ 	// NOTE: the pool only exists for parallel policies (`seq.pool()` is
+ 	// 	null), so it is not dereferenced before the sequential check
+ 	auto& task_pool = *policy.pool();
+ 
++	out.clear();
+ 
+ 	std::vector<std::future<size_t>> futures;
+-	for (size_t tid = 0; tid < nthreads; tid++) {
+-		futures.emplace_back(task_pool.enqueue([tid, &hm2, &L2]() __attribute__((always_inline)) {
+-			const size_t spos = L2.start_pos(tid);
+-			const size_t epos = L2.end_pos(tid);
+-			for (size_t i = spos; i < epos; ++i) {
+-				hm2.insert(L2[i].label.value(), i);
+-			}
+-		}));
+-	}
++	if (prepare) {
++		hm2.clear();
++		for (size_t tid = 0; tid < nthreads; tid++) {
++			futures.emplace_back(task_pool.submit([tid, &hm2, &L2]() __attribute__((always_inline)) {
++				const size_t spos = L2.start_pos(tid);
++				const size_t epos = L2.end_pos(tid);
++				for (size_t i = spos; i < epos; ++i) {
++					hm2.insert(L2[i].label.value(), i);
++				}
++				return size_t(0);
++			}));
++		}
+ 
+-	cryptanalysislib::internal::wait_futures(futures);
+-	futures.clear();
++		cryptanalysislib::internal::wait_futures(futures);
++		futures.clear();
++	}
+ 
+ 	using LoadType = typename HashMapIn::load_type;
+ 
+ 	for (size_t tid = 0; tid < nthreads; tid++) {
+-		futures.emplace_back(task_pool.enqueue([tid, &hm2, &out, &L1, &L2, &target, &f]() __attribute__((always_inline)) {
++		futures.emplace_back(task_pool.submit([tid, &hm2, &out, &L1, &L2, &target, &f]() __attribute__((always_inline)) {
+ 		    LabelType sigma_t;
+ 		    LoadType load = 0;
+ 		    size_t ret = 0;
+--- a/tests/algorithm/subsetsum/join2lists_multithreading.cpp
++++ b/tests/algorithm/subsetsum/join2lists_multithreading.cpp
+@@ -111,6 +111,80 @@
+ 	EXPECT_EQ(out_load, num);
+ }
+ 
++TEST(SubSetSum, join2lists_on_iT_v2_hashmap_out_multithreaded) {
++	Matrix A; A.random();
++	constexpr uint32_t k_lower=0, k_higher=8, k_higher2=16;
++	constexpr uint32_t p = 2;
++	constexpr uint32_t nthreads = 2;
++
++	constexpr size_t baselist_size = sum_bc(n/2, p);
++	List l1{baselist_size, nthreads}, l2{baselist_size, nthreads};
++
++	using Enumerator = BinaryLexicographicEnumerator<List, n/2, p>;
++	Enumerator e{A};
++	e.run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
++			(&l1, &l2, n/2);
++
++	using D = typename Label::DataType;
++	using E = std::pair<size_t, size_t>;
++	constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
++			100, 1ul<<(k_higher-k_lower), nthreads
++	};
++	constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
++			100, 1ul<<(k_higher2-k_higher), nthreads
++	};
++	using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower, k_higher, 2>>;
++	using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_higher, k_higher2, 2>>;
++	HML0 *hml0 = new HML0{};
++	HML1 *hml1 = new HML1{};
++
++	Label target;
++	target.random();
++
++	auto f = [](HML1 &out, const List &L1, const List &L2, const size_t i, const size_t j) {
++		Label s;
++		Label::add(s, L1[i].label, L2[j].label);
++		out.insert(s.value(), E{i, j});
++		return false;
++	};
++
++	Tree t{1, A, 0};
++	const size_t found = t.template join2lists_on_iT_v2
++			<k_lower, k_higher, 100, nthreads>
++			(par_if(true), *hml1, l1, l2, *hml0, target, true, f);
++
++	// brute force
++	size_t num = 0;
++	Label s;
++	for (size_t i = 0; i < l1.load(); ++i) {
++		for (size_t j = 0; j < l2.load(); ++j) {
++			Label::add(s, l1[i].label, l2[j].label);
++			num += s.is_equal(target, k_lower, k_higher);
++		}
++	}
++
++	EXPECT_GT(num, 0);
++	EXPECT_EQ(found, num);
++	EXPECT_EQ(hml1->load(), num);
++	for (size_t i = 0; i < HML1::nrbuckets; ++i) {
++		for (size_t j = 0; j < hml1->load_without_hash(i); ++j) {
++			const E a = (*hml1)[i*HML1::bucketsize + j];
++			Label::add(s, l1[a.first].label, l2[a.second].label);
++			EXPECT_TRUE(s.is_equal(target, k_lower, k_higher));
++		}
++	}
++
++	// the sequential policy computes the same
++	const size_t found2 = t.template join2lists_on_iT_v2
++			<k_lower, k_higher, 100, nthreads>
++			(par_if(false), *hml1, l1, l2, *hml0, target, true, f);
++	EXPECT_EQ(found2, num);
++	EXPECT_EQ(hml1->load(), num);
++
++	delete hml0;
++	delete hml1;
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(nullptr));

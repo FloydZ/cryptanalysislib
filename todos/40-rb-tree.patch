@@ -1,0 +1,1128 @@
+diff --git a/src/container/README.md b/src/container/README.md
+index e89fdf3..8bd04ce 100644
+--- a/src/container/README.md
++++ b/src/container/README.md
+@@ -30,7 +30,7 @@ Overview
+ | `misof_tree.h` | `misof_tree` | multiset of 15 bit integers: insert/erase/n-th smallest |
+ | `priorityqueue.h` | `priority_queue<T>` | priority queue |
+ | `queue.h` | `concurrent_queue`, `thread_safe_queue` | queues for threads, see also `queue/spsc_fixed_queue.h` |
+-| `rb_tree.h` | | red-black tree (unfinished port) |
++| `rb_tree.h` | `RB_Tree<K, V, KeyOfValue, Compare>` | red-black tree: ordered set/map/multiset (`insert_unique`/`insert_equal`) |
+ | `ringbuffer.h` | `RingBuffer<T>` | ring buffer |
+ | `segment_tree.h` | `SegmentTree`, `lazy_segment_tree` | range queries/updates |
+ | `signal_tree/` | `tree<N>` | signal tree: counters for task schedulers |
+diff --git a/src/container/rb_tree.h b/src/container/rb_tree.h
+index e4fa665..ec41314 100644
+--- a/src/container/rb_tree.h
++++ b/src/container/rb_tree.h
+@@ -1,386 +1,589 @@
+ #ifndef CRYPTANALYSISLIB_RB_TREE_H
+ #define CRYPTANALYSISLIB_RB_TREE_H
+ 
++#include <cassert>
+ #include <cstddef>
+-#include <cstdlib>
+-#include <vector>
+-
+-#include "helper.h"
+-#include <bits/stl_tree.h>
++#include <cstdint>
++#include <functional>
++#include <iterator>
++#include <memory>
++#include <utility>
++
++namespace cryptanalysislib {
++/// `KeyOfValue` for sets: the value is the key
++struct rb_identity {
++	template<typename T>
++	[[nodiscard]] constexpr const T &operator()(const T &v) const noexcept { return v; }
++};
+ 
+-enum RB_Tree_Color {
+-	RED,
+-	BLACK,
++/// `KeyOfValue` for maps: the key is the first element of a pair
++struct rb_select1st {
++	template<typename P>
++	[[nodiscard]] constexpr const typename P::first_type &operator()(const P &p) const noexcept { return p.first; }
+ };
+-struct _Rb_tree_node_base {
+-	typedef _Rb_tree_node_base *_Base_ptr;
+-	typedef const _Rb_tree_node_base *_Const_Base_ptr;
+ 
+-	RB_Tree_Color _M_color;
+-	_Base_ptr _M_parent;
+-	_Base_ptr _M_left;
+-	_Base_ptr _M_right;
++/// red-black tree (Cormen et al., "Introduction to Algorithms", chapter 13),
++/// the base of ordered sets/maps/multisets. insert/erase/find in O(log n).
++/// Invariants (checked by `check()`):
++/// 	- the root is black,
++/// 	- a red node has no red child,
++/// 	- every path from a node to its leaves has the same number of black nodes,
++/// 	- in-order traversal is sorted, the parent pointers are consistent.
++/// \tparam K key type
++/// \tparam V value type, stored in the nodes
++/// \tparam KeyOfValue functor: `const K &operator()(const V &)`, e.g. `rb_identity`
++/// \tparam Compare strict weak ordering on `K`
++/// \tparam Allocator allocator, rebound to the node type
++template<typename K,
++         typename V,
++         typename KeyOfValue = rb_identity,
++         typename Compare = std::less<K>,
++         class Allocator = std::allocator<V>>
++class RB_Tree {
++private:
++	enum class Color : uint8_t { red, black };
+ 
+-	constexpr inline static _Base_ptr
+-	_S_minimum(_Base_ptr __x) noexcept {
+-		while (__x->_M_left != 0) __x = __x->_M_left;
+-		return __x;
+-	}
++	struct Node {
++		Node *parent = nullptr;
++		Node *left = nullptr;
++		Node *right = nullptr;
++		Color color = Color::red;
++		V value;
+ 
+-	constexpr inline static _Const_Base_ptr
+-	_S_minimum(_Const_Base_ptr __x) noexcept {
+-		while (__x->_M_left != 0) __x = __x->_M_left;
+-		return __x;
+-	}
++		template<typename... Args>
++		explicit Node(Args &&...args) noexcept : value(std::forward<Args>(args)...) {}
++	};
+ 
+-	constexpr inline static _Base_ptr
+-	_S_maximum(_Base_ptr __x) noexcept {
+-		while (__x->_M_right != 0) __x = __x->_M_right;
+-		return __x;
+-	}
++	using NodeAllocator = typename std::allocator_traits<Allocator>::template rebind_alloc<Node>;
++	using NodeTraits = std::allocator_traits<NodeAllocator>;
+ 
+-	constexpr inline static _Const_Base_ptr
+-	_S_maximum(_Const_Base_ptr __x) noexcept {
+-		while (__x->_M_right != 0) __x = __x->_M_right;
+-		return __x;
+-	}
+-};
++	Node *root = nullptr;
++	size_t size_ = 0;
++	NodeAllocator alloc{};
++	Compare comp{};
+ 
+-// Helper type offering value initialization guarantee on the compare functor.
+-template<typename _Key_compare>
+-struct _Rb_tree_key_compare {
+-	_Key_compare _M_key_compare;
++	[[nodiscard]] static constexpr bool is_red(const Node *n) noexcept {
++		return n && (n->color == Color::red);
++	}
+ 
+-	constexpr _Rb_tree_key_compare() noexcept : _M_key_compare() {}
+-	constexpr _Rb_tree_key_compare(const _Key_compare &__comp) noexcept : _M_key_compare(__comp) {}
+-};
++	[[nodiscard]] static constexpr const K &key(const Node *n) noexcept {
++		return KeyOfValue{}(n->value);
++	}
+ 
+-// Helper type to manage default initialization of node count and header.
+-struct _Rb_tree_header {
+-	_Rb_tree_node_base _M_header;
+-	size_t _M_node_count;// Keeps track of size of tree.
++	[[nodiscard]] static constexpr Node *minimum(Node *n) noexcept {
++		while (n->left) { n = n->left; }
++		return n;
++	}
+ 
+-	// base constructor
+-	constexpr _Rb_tree_header() noexcept {
+-		_M_header._M_color = RED;
+-		_M_reset();
++	[[nodiscard]] static constexpr Node *maximum(Node *n) noexcept {
++		while (n->right) { n = n->right; }
++		return n;
+ 	}
+ 
+-	// copy constructor
+-	constexpr _Rb_tree_header(_Rb_tree_header &&__x) noexcept {
+-		if (__x._M_header._M_parent != nullptr) {
+-			_M_move_data(__x);
+-		} else {
+-			_M_header._M_color = RED;
+-			_M_reset();
++	/// in-order successor, nullptr after the maximum
++	[[nodiscard]] static constexpr Node *next(Node *n) noexcept {
++		if (n->right) { return minimum(n->right); }
++		Node *p = n->parent;
++		while (p && (n == p->right)) {
++			n = p;
++			p = p->parent;
+ 		}
++		return p;
+ 	}
+ 
+-	constexpr void _M_move_data(_Rb_tree_header &__from) noexcept {
+-		_M_header._M_color = __from._M_header._M_color;
+-		_M_header._M_parent = __from._M_header._M_parent;
+-		_M_header._M_left = __from._M_header._M_left;
+-		_M_header._M_right = __from._M_header._M_right;
+-		_M_header._M_parent->_M_parent = &_M_header;
+-		_M_node_count = __from._M_node_count;
+-		__from._M_reset();
++	/// in-order predecessor, nullptr before the minimum
++	[[nodiscard]] static constexpr Node *prev(Node *n) noexcept {
++		if (n->left) { return maximum(n->left); }
++		Node *p = n->parent;
++		while (p && (n == p->left)) {
++			n = p;
++			p = p->parent;
++		}
++		return p;
+ 	}
+ 
+-	constexpr inline void _M_reset() noexcept {
+-		_M_header._M_parent = 0;
+-		_M_header._M_left = &_M_header;
+-		_M_header._M_right = &_M_header;
+-		_M_node_count = 0;
++	template<typename... Args>
++	Node *make_node(Args &&...args) noexcept {
++		Node *n = NodeTraits::allocate(alloc, 1);
++		NodeTraits::construct(alloc, n, std::forward<Args>(args)...);
++		return n;
+ 	}
+-};
+-
+-template<typename V>
+-struct _Rb_tree_node : public _Rb_tree_node_base {
+-private:
+-	alignas(alignof(V)) V _M_storage;
+ 
+-public:
+-	typedef _Rb_tree_node<V> *_Link_type;
++	void destroy_node(Node *n) noexcept {
++		NodeTraits::destroy(alloc, n);
++		NodeTraits::deallocate(alloc, n, 1);
++	}
+ 
+-	constexpr inline V *ptr() { return &_M_storage; }
+-};
++	void destroy_tree(Node *n) noexcept {
++		while (n) {
++			destroy_tree(n->right);
++			Node *l = n->left;
++			destroy_node(n);
++			n = l;
++		}
++	}
+ 
++	/// deep copy of the subtree `n`, `p` is the parent of the copy
++	Node *copy_tree(const Node *n, Node *p) noexcept {
++		if (!n) { return nullptr; }
++		Node *c = make_node(n->value);
++		c->color = n->color;
++		c->parent = p;
++		c->left = copy_tree(n->left, c);
++		c->right = copy_tree(n->right, c);
++		return c;
++	}
+ 
+-template<typename K,
+-         typename V,
+-         typename _KeyOfValue,
+-         typename _Compare = std::equal_to<K>,
+-         typename _Alloc = std::allocator<V>>
+-class RB_Tree {
+-	typedef typename __gnu_cxx::__alloc_traits<_Alloc>::template rebind<_Rb_tree_node<V>>::other _Node_allocator;
+-	typedef __gnu_cxx::__alloc_traits<_Node_allocator> _Alloc_traits;
++	/**     x                y
++	 *     / \              / \
++	 *    a   y     ->     x   c
++	 *       / \          / \
++	 *      b   c        a   b      */
++	constexpr void rotate_left(Node *x) noexcept {
++		Node *y = x->right;
++		x->right = y->left;
++		if (y->left) { y->left->parent = x; }
++		y->parent = x->parent;
++		if (!x->parent) {
++			root = y;
++		} else if (x == x->parent->left) {
++			x->parent->left = y;
++		} else {
++			x->parent->right = y;
++		}
++		y->left = x;
++		x->parent = y;
++	}
+ 
+-protected:
+-	typedef _Rb_tree_node_base *_Base_ptr;
+-	typedef const _Rb_tree_node_base *_Const_Base_ptr;
+-	typedef _Rb_tree_node<V> *_Link_type;
+-	typedef const _Rb_tree_node<V> *_Const_Link_type;
++	/// mirror of `rotate_left`
++	constexpr void rotate_right(Node *x) noexcept {
++		Node *y = x->left;
++		x->left = y->right;
++		if (y->right) { y->right->parent = x; }
++		y->parent = x->parent;
++		if (!x->parent) {
++			root = y;
++		} else if (x == x->parent->right) {
++			x->parent->right = y;
++		} else {
++			x->parent->left = y;
++		}
++		y->right = x;
++		x->parent = y;
++	}
+ 
+-private:
+-	// Functor recycling a pool of nodes and using allocation once the pool
+-	// is empty.
+-	struct _Reuse_or_alloc_node {
+-		constexpr _Reuse_or_alloc_node(RB_Tree &__t) noexcept
+-		    : _M_root(__t._M_root()), _M_nodes(__t._M_rightmost()), _M_t(__t) {
+-			if (_M_root) {
+-				_M_root->_M_parent = 0;
+-
+-				if (_M_nodes->_M_left) {
+-					_M_nodes = _M_nodes->_M_left;
++	/// links the red node `z` as child of `p` (left if `left`) and rebalances
++	constexpr void insert_fixup(Node *z, Node *p, const bool left) noexcept {
++		z->parent = p;
++		if (!p) {
++			root = z;
++		} else if (left) {
++			p->left = z;
++		} else {
++			p->right = z;
++		}
++		size_ += 1;
++
++		while (is_red(z->parent)) {
++			// the parent is red, hence not the root: the grandparent exists
++			p = z->parent;
++			Node *g = p->parent;
++			if (p == g->left) {
++				Node *u = g->right;
++				if (is_red(u)) {
++					p->color = Color::black;
++					u->color = Color::black;
++					g->color = Color::red;
++					z = g;
++				} else {
++					if (z == p->right) {
++						z = p;
++						rotate_left(z);
++						p = z->parent;
++					}
++					p->color = Color::black;
++					g->color = Color::red;
++					rotate_right(g);
+ 				}
+ 			} else {
+-				_M_nodes = 0;
++				Node *u = g->left;
++				if (is_red(u)) {
++					p->color = Color::black;
++					u->color = Color::black;
++					g->color = Color::red;
++					z = g;
++				} else {
++					if (z == p->left) {
++						z = p;
++						rotate_right(z);
++						p = z->parent;
++					}
++					p->color = Color::black;
++					g->color = Color::red;
++					rotate_left(g);
++				}
+ 			}
+ 		}
++		root->color = Color::black;
++	}
+ 
+-		constexpr _Reuse_or_alloc_node(const _Reuse_or_alloc_node &) = delete;
+-		constexpr ~_Reuse_or_alloc_node() { _M_t._M_erase(static_cast<_Link_type>(_M_root)); }
+-
+-		template<typename _Arg>
+-		constexpr _Link_type
+-		operator()(_Arg &&__arg) noexcept {
+-			_Link_type __node = static_cast<_Link_type>(_M_extract());
+-			if (__node) {
+-				_M_t._M_destroy_node(__node);
+-				_M_t._M_construct_node(__node, _GLIBCXX_FORWARD(_Arg, __arg));
+-				return __node;
+-			}
+-
+-			return _M_t._M_create_node(_GLIBCXX_FORWARD(_Arg, __arg));
++	/// replaces the subtree `u` by the subtree `v` (may be nullptr)
++	constexpr void transplant(Node *u, Node *v) noexcept {
++		if (!u->parent) {
++			root = v;
++		} else if (u == u->parent->left) {
++			u->parent->left = v;
++		} else {
++			u->parent->right = v;
+ 		}
++		if (v) { v->parent = u->parent; }
++	}
+ 
+-	private:
+-		constexpr _Base_ptr _M_extract() noexcept {
+-			if (!_M_nodes) {
+-				return _M_nodes;
+-			}
+-
+-			_Base_ptr __node = _M_nodes;
+-			_M_nodes = _M_nodes->_M_parent;
+-			if (_M_nodes) {
+-				if (_M_nodes->_M_right == __node) {
+-					_M_nodes->_M_right = 0;
+-
+-					if (_M_nodes->_M_left) {
+-						_M_nodes = _M_nodes->_M_left;
+-
+-						while (_M_nodes->_M_right) {
+-							_M_nodes = _M_nodes->_M_right;
+-						}
+-
+-						if (_M_nodes->_M_left) {
+-							_M_nodes = _M_nodes->_M_left;
+-						}
++	/// restores the invariants after a black node was removed above `x`
++	/// \param x the node (may be nullptr) which carries an extra black
++	/// \param xp the parent of `x`
++	constexpr void erase_fixup(Node *x, Node *xp) noexcept {
++		while ((x != root) && !is_red(x)) {
++			// NOTE: if `x` is nullptr and on the right, the left sibling is
++			// 	not nullptr (it has a black height >= 1), so this is correct.
++			if (x == xp->left) {
++				Node *w = xp->right;
++				if (is_red(w)) {
++					w->color = Color::black;
++					xp->color = Color::red;
++					rotate_left(xp);
++					w = xp->right;
++				}
++				if (!is_red(w->left) && !is_red(w->right)) {
++					w->color = Color::red;
++					x = xp;
++					xp = x->parent;
++				} else {
++					if (!is_red(w->right)) {
++						w->left->color = Color::black;
++						w->color = Color::red;
++						rotate_right(w);
++						w = xp->right;
+ 					}
+-				} else {// __node is on the left.
+-					_M_nodes->_M_left = 0;
++					w->color = xp->color;
++					xp->color = Color::black;
++					w->right->color = Color::black;
++					rotate_left(xp);
++					x = root;
+ 				}
+ 			} else {
+-				_M_root = 0;
++				Node *w = xp->left;
++				if (is_red(w)) {
++					w->color = Color::black;
++					xp->color = Color::red;
++					rotate_right(xp);
++					w = xp->left;
++				}
++				if (!is_red(w->right) && !is_red(w->left)) {
++					w->color = Color::red;
++					x = xp;
++					xp = x->parent;
++				} else {
++					if (!is_red(w->left)) {
++						w->right->color = Color::black;
++						w->color = Color::red;
++						rotate_left(w);
++						w = xp->left;
++					}
++					w->color = xp->color;
++					xp->color = Color::black;
++					w->left->color = Color::black;
++					rotate_right(xp);
++					x = root;
++				}
+ 			}
+-
+-			return __node;
+ 		}
+-
+-		_Base_ptr _M_root;
+-		_Base_ptr _M_nodes;
+-		RB_Tree &_M_t;
+-	};// end Reuse of Alloc Node
+-
+-	// Functor similar to the previous one but without any pool of nodes to
+-	// recycle.
+-	struct _Alloc_node {
+-		constexpr _Alloc_node(RB_Tree &__t) noexcept : _M_t(__t) {}
+-
+-		template<typename _Arg>
+-		constexpr _Link_type
+-		operator()(_Arg &&__arg) const {
+-			return _M_t._M_create_node(_GLIBCXX_FORWARD(_Arg, __arg));
+-		}
+-
+-	private:
+-		RB_Tree &_M_t;
+-	};// end _Alloc_Node
+-
+-public:
+-	typedef K key_type;
+-	typedef V value_type;
+-	typedef value_type *pointer;
+-	typedef const value_type *const_pointer;
+-	typedef value_type &reference;
+-	typedef const value_type &const_reference;
+-	typedef size_t size_type;
+-	typedef ptrdiff_t difference_type;
+-	typedef _Alloc allocator_type;
+-
+-protected:
+-	constexpr inline _Link_type
+-	_M_get_node() {
+-		return _Alloc_traits::allocate(_M_get_Node_allocator(), 1);
++		if (x) { x->color = Color::black; }
+ 	}
+ 
+-	constexpr inline void
+-	_M_put_node(_Link_type __p) noexcept {
+-		_Alloc_traits::deallocate(_M_get_Node_allocator(), __p, 1);
+-	}
+-
+-	/// allocator stuff
+-	constexpr inline _Node_allocator &
+-	_M_get_Node_allocator() noexcept { return this->_M_impl; }
+-
+-	constexpr inline const _Node_allocator &
+-	_M_get_Node_allocator() const noexcept { return this->_M_impl; }
+-
+-	constexpr inline allocator_type
+-	get_allocator() const noexcept { return allocator_type(_M_get_Node_allocator()); }
++	/// unlinks `z` from the tree and frees it
++	constexpr void erase_node(Node *z) noexcept {
++		Node *y = z;
++		Color y_color = y->color;
++		Node *x, *xp;
++		if (!z->left) {
++			x = z->right;
++			xp = z->parent;
++			transplant(z, z->right);
++		} else if (!z->right) {
++			x = z->left;
++			xp = z->parent;
++			transplant(z, z->left);
++		} else {
++			// the successor `y` takes the place of `z`
++			y = minimum(z->right);
++			y_color = y->color;
++			x = y->right;
++			if (y->parent == z) {
++				xp = y;
++			} else {
++				xp = y->parent;
++				transplant(y, y->right);
++				y->right = z->right;
++				y->right->parent = y;
++			}
++			transplant(z, y);
++			y->left = z->left;
++			y->left->parent = y;
++			y->color = z->color;
++		}
+ 
++		if (y_color == Color::black) {
++			erase_fixup(x, xp);
++		}
+ 
+-	template<typename... _Args>
+-	void
+-	_M_construct_node(_Link_type __node, _Args &&...__args) {
+-		::new (__node) _Rb_tree_node<value_type>;
+-		_Alloc_traits::construct(_M_get_Node_allocator(),
+-		                         __node->_M_valptr(),
+-		                         std::forward<_Args>(__args)...);
++		destroy_node(z);
++		size_ -= 1;
+ 	}
+ 
+-	template<typename... _Args>
+-	_Link_type
+-	_M_create_node(_Args &&...__args) {
+-		_Link_type __tmp = _M_get_node();
+-		_M_construct_node(__tmp, std::forward<_Args>(__args)...);
+-		return __tmp;
++	/// \return black height of `n`, 0 if an invariant is violated
++	[[nodiscard]] constexpr size_t check(const Node *n, const Node *p) const noexcept {
++		if (!n) { return 1; }
++		if (n->parent != p) { return 0; }
++		if (is_red(n) && (is_red(n->left) || is_red(n->right))) { return 0; }
++		if (n->left && comp(key(n), key(n->left))) { return 0; }
++		if (n->right && comp(key(n->right), key(n))) { return 0; }
++		const size_t l = check(n->left, n), r = check(n->right, n);
++		if ((l == 0) || (l != r)) { return 0; }
++		return l + !is_red(n);
+ 	}
+ 
+-	/// base allocator class
+-	template<typename _Key_compare>
+-	struct _Rb_tree_impl
+-	    : public _Node_allocator,
+-	      public _Rb_tree_key_compare<_Key_compare>,
+-	      public _Rb_tree_header {
+-
+-		typedef _Rb_tree_key_compare<_Key_compare> _Base_key_compare;
++public:
++	using key_type = K;
++	using value_type = V;
++	using size_type = size_t;
++	using key_compare = Compare;
++	using allocator_type = Allocator;
++
++	/// bidirectional iterator over the values in order. The values are
++	/// immutable (changing the key would break the order).
++	class iterator {
++	public:
++		using iterator_category = std::bidirectional_iterator_tag;
++		using value_type = V;
++		using difference_type = std::ptrdiff_t;
++		using pointer = const V *;
++		using reference = const V &;
++
++		constexpr iterator() noexcept = default;
++
++		[[nodiscard]] constexpr reference operator*() const noexcept { return n->value; }
++		[[nodiscard]] constexpr pointer operator->() const noexcept { return &n->value; }
++
++		constexpr iterator &operator++() noexcept {
++			n = next(n);
++			return *this;
++		}
+ 
+-		constexpr _Rb_tree_impl() noexcept
+-		    : _Node_allocator() {}
++		constexpr iterator operator++(int) noexcept {
++			iterator tmp = *this;
++			++(*this);
++			return tmp;
++		}
+ 
+-		constexpr _Rb_tree_impl(const _Rb_tree_impl &__x) noexcept
+-		    : _Node_allocator(_Alloc_traits::_S_select_on_copy(__x)), _Base_key_compare(__x._M_key_compare), _Rb_tree_header() {}
++		/// NOTE: decrementing `end()` gives the maximum
++		constexpr iterator &operator--() noexcept {
++			n = n ? prev(n) : maximum(t->root);
++			return *this;
++		}
+ 
+-		_Rb_tree_impl(_Rb_tree_impl &&) noexcept(std::is_nothrow_move_constructible<_Base_key_compare>::value) = default;
++		constexpr iterator operator--(int) noexcept {
++			iterator tmp = *this;
++			--(*this);
++			return tmp;
++		}
+ 
+-		explicit _Rb_tree_impl(_Node_allocator &&__a)
+-		    : _Node_allocator(std::move(__a)) {}
++		[[nodiscard]] constexpr bool operator==(const iterator &o) const noexcept { return n == o.n; }
++		[[nodiscard]] constexpr bool operator!=(const iterator &o) const noexcept { return n != o.n; }
+ 
+-		_Rb_tree_impl(_Rb_tree_impl &&__x, _Node_allocator &&__a)
+-		    : _Node_allocator(std::move(__a)),
+-		      _Base_key_compare(std::move(__x)),
+-		      _Rb_tree_header(std::move(__x)) {}
++	private:
++		friend RB_Tree;
++		constexpr iterator(const RB_Tree *t, Node *n) noexcept : t(t), n(n) {}
+ 
+-		_Rb_tree_impl(const _Key_compare &__comp, _Node_allocator &&__a)
+-		    : _Node_allocator(std::move(__a)), _Base_key_compare(__comp) {}
++		const RB_Tree *t = nullptr;
++		Node *n = nullptr; // nullptr = end()
+ 	};
++	using const_iterator = iterator;
+ 
+-	/// This is really interesting.
+-	_Rb_tree_impl<_Compare> _M_impl;
+-
+-
+-
++	constexpr RB_Tree() noexcept = default;
+ 
++	explicit RB_Tree(const Compare &c) noexcept : comp(c) {}
+ 
++	RB_Tree(const RB_Tree &o) noexcept : size_(o.size_), alloc(NodeTraits::select_on_container_copy_construction(o.alloc)), comp(o.comp) {
++		root = copy_tree(o.root, nullptr);
++	}
+ 
++	RB_Tree(RB_Tree &&o) noexcept : root(o.root), size_(o.size_), alloc(std::move(o.alloc)), comp(std::move(o.comp)) {
++		o.root = nullptr;
++		o.size_ = 0;
++	}
+ 
++	RB_Tree &operator=(const RB_Tree &o) noexcept {
++		if (this != &o) {
++			clear();
++			comp = o.comp;
++			root = copy_tree(o.root, nullptr);
++			size_ = o.size_;
++		}
++		return *this;
++	}
+ 
+-	template<typename _Arg>
+-	pair<iterator, bool>
+-	_M_insert_unique(_Arg &&__x);
++	RB_Tree &operator=(RB_Tree &&o) noexcept {
++		if (this != &o) {
++			clear();
++			std::swap(root, o.root);
++			std::swap(size_, o.size_);
++			std::swap(alloc, o.alloc);
++			std::swap(comp, o.comp);
++		}
++		return *this;
++	}
+ 
+-	template<typename _Arg>
+-	iterator
+-	_M_insert_equal(_Arg &&__x);
++	~RB_Tree() noexcept { clear(); }
+ 
+-	template<typename _Arg, typename _NodeGen>
+-	iterator
+-	_M_insert_unique_(const_iterator __pos, _Arg &&__x, _NodeGen &);
++	[[nodiscard]] constexpr size_t size() const noexcept { return size_; }
++	[[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
+ 
+-	template<typename _Arg>
+-	iterator
+-	_M_insert_unique_(const_iterator __pos, _Arg &&__x) {
+-		_Alloc_node __an(*this);
+-		return _M_insert_unique_(__pos, std::forward<_Arg>(__x), __an);
++	void clear() noexcept {
++		destroy_tree(root);
++		root = nullptr;
++		size_ = 0;
+ 	}
+ 
+-	template<typename _Arg, typename _NodeGen>
+-	iterator
+-	_M_insert_equal_(const_iterator __pos, _Arg &&__x, _NodeGen &);
++	[[nodiscard]] constexpr iterator begin() const noexcept {
++		return iterator{this, root ? minimum(root) : nullptr};
++	}
+ 
+-	template<typename _Arg>
+-	iterator
+-	_M_insert_equal_(const_iterator __pos, _Arg &&__x) {
+-		_Alloc_node __an(*this);
+-		return _M_insert_equal_(__pos, std::forward<_Arg>(__x), __an);
++	[[nodiscard]] constexpr iterator end() const noexcept {
++		return iterator{this, nullptr};
+ 	}
+ 
+-	template<typename... _Args>
+-	pair<iterator, bool>
+-	_M_emplace_unique(_Args &&...__args);
++	/// inserts `v` if no value with an equivalent key exists
++	/// \return the iterator to the (inserted or existing) value and
++	/// 	true if `v` was inserted
++	template<typename... Args>
++	std::pair<iterator, bool> emplace_unique(Args &&...args) noexcept {
++		Node *z = make_node(std::forward<Args>(args)...);
++		Node *p = nullptr, *c = root;
++		bool left = true;
++		while (c) {
++			p = c;
++			left = comp(key(z), key(c));
++			c = left ? c->left : c->right;
++		}
+ 
+-	template<typename... _Args>
+-	iterator
+-	_M_emplace_equal(_Args &&...__args);
++		// the only candidate for an equivalent key is the predecessor of
++		// the insert position
++		Node *pred = left ? (p ? prev(p) : nullptr) : p;
++		if (pred && !comp(key(pred), key(z))) {
++			destroy_node(z);
++			return {iterator{this, pred}, false};
++		}
+ 
+-	template<typename... _Args>
+-	iterator
+-	_M_emplace_hint_unique(const_iterator __pos, _Args &&...__args);
++		insert_fixup(z, p, left);
++		return {iterator{this, z}, true};
++	}
+ 
+-	template<typename... _Args>
+-	iterator
+-	_M_emplace_hint_equal(const_iterator __pos, _Args &&...__args);
++	/// inserts `v`, after all values with an equivalent key
++	template<typename... Args>
++	iterator emplace_equal(Args &&...args) noexcept {
++		Node *z = make_node(std::forward<Args>(args)...);
++		Node *p = nullptr, *c = root;
++		bool left = true;
++		while (c) {
++			p = c;
++			left = comp(key(z), key(c));
++			c = left ? c->left : c->right;
++		}
++		insert_fixup(z, p, left);
++		return iterator{this, z};
++	}
+ 
+-	template<typename _Iter>
+-	using __same_value_type = is_same<value_type, typename iterator_traits<_Iter>::value_type>;
++	std::pair<iterator, bool> insert_unique(const V &v) noexcept { return emplace_unique(v); }
++	iterator insert_equal(const V &v) noexcept { return emplace_equal(v); }
+ 
+-	template<typename _InputIterator>
+-	__enable_if_t<__same_value_type<_InputIterator>::value>
+-	_M_insert_range_unique(_InputIterator __first, _InputIterator __last) {
+-		_Alloc_node __an(*this);
+-		for (; __first != __last; ++__first)
+-			_M_insert_unique_(end(), *__first, __an);
++	/// \return first value with a key not less than `k`
++	[[nodiscard]] constexpr iterator lower_bound(const K &k) const noexcept {
++		Node *r = nullptr, *c = root;
++		while (c) {
++			if (!comp(key(c), k)) {
++				r = c;
++				c = c->left;
++			} else {
++				c = c->right;
++			}
++		}
++		return iterator{this, r};
+ 	}
+ 
+-	template<typename _InputIterator>
+-	__enable_if_t<!__same_value_type<_InputIterator>::value>
+-	_M_insert_range_unique(_InputIterator __first, _InputIterator __last) {
+-		for (; __first != __last; ++__first)
+-			_M_emplace_unique(*__first);
++	/// \return first value with a key greater than `k`
++	[[nodiscard]] constexpr iterator upper_bound(const K &k) const noexcept {
++		Node *r = nullptr, *c = root;
++		while (c) {
++			if (comp(k, key(c))) {
++				r = c;
++				c = c->left;
++			} else {
++				c = c->right;
++			}
++		}
++		return iterator{this, r};
+ 	}
+ 
+-	template<typename _InputIterator>
+-	__enable_if_t<__same_value_type<_InputIterator>::value>
+-	_M_insert_range_equal(_InputIterator __first, _InputIterator __last) {
+-		_Alloc_node __an(*this);
+-		for (; __first != __last; ++__first)
+-			_M_insert_equal_(end(), *__first, __an);
++	/// \return the first value with key `k`, or `end()`
++	[[nodiscard]] constexpr iterator find(const K &k) const noexcept {
++		const iterator it = lower_bound(k);
++		if ((it == end()) || comp(k, key(it.n))) { return end(); }
++		return it;
+ 	}
+ 
+-	template<typename _InputIterator>
+-	__enable_if_t<!__same_value_type<_InputIterator>::value>
+-	_M_insert_range_equal(_InputIterator __first, _InputIterator __last) {
+-		for (; __first != __last; ++__first)
+-			_M_emplace_equal(*__first);
++	[[nodiscard]] constexpr bool contains(const K &k) const noexcept {
++		return find(k) != end();
+ 	}
+ 
++	/// \return number of values with key `k`
++	[[nodiscard]] constexpr size_t count(const K &k) const noexcept {
++		size_t r = 0;
++		for (iterator it = lower_bound(k); (it != end()) && !comp(k, key(it.n)); ++it) { r += 1; }
++		return r;
++	}
+ 
++	/// removes the value at `it` (must not be `end()`)
++	/// \return iterator to the next value
++	iterator erase(const iterator it) noexcept {
++		assert(it.n);
++		Node *nx = next(it.n);
++		erase_node(it.n);
++		return iterator{this, nx};
++	}
+ 
++	/// removes all values with key `k`
++	/// \return number of removed values
++	size_t erase(const K &k) noexcept {
++		size_t r = 0;
++		iterator it = lower_bound(k);
++		while ((it != end()) && !comp(k, key(it.n))) {
++			it = erase(it);
++			r += 1;
++		}
++		return r;
++	}
+ 
++	/// \return true if all red-black and search tree invariants hold
++	[[nodiscard]] constexpr bool check() const noexcept {
++		if (is_red(root)) { return false; }
++		if (check(root, nullptr) == 0) { return false; }
+ 
+-
+-};// end of tree class
+-
++		size_t n = 0;
++		for (iterator it = begin(); it != end(); ++it) { n += 1; }
++		return n == size_;
++	}
++};
++} // end namespace cryptanalysislib
+ 
+ #endif
+diff --git a/tests/container/rb_tree.cpp b/tests/container/rb_tree.cpp
+index 52a9250..e502d14 100644
+--- a/tests/container/rb_tree.cpp
++++ b/tests/container/rb_tree.cpp
+@@ -1,31 +1,203 @@
+ #include <cstdint>
+ #include <gtest/gtest.h>
+ #include <iostream>
++#include <map>
++#include <memory_resource>
++#include <set>
++#include <vector>
+ 
+-// TODO currently dev
+-#if 0
+ #include "container/rb_tree.h"
+ #include "helper.h"
+ #include "random.h"
+ 
+-using ::testing::EmptyTestEventListener;
+ using ::testing::InitGoogleTest;
+-using ::testing::Test;
+-using ::testing::TestEventListeners;
+-using ::testing::TestInfo;
+-using ::testing::TestPartResult;
+-using ::testing::UnitTest;
++using namespace cryptanalysislib;
+ 
+ using K = uint64_t;
+-using V = uint64_t;
+-TEST(RBTree, first) {
+-	auto t = RB_Tree<K, V, K>{};
+ 
++/// compares the tree with the reference container (same order)
++template<class Tree, class Ref>
++static void expect_same(const Tree &t, const Ref &ref) {
++	EXPECT_TRUE(t.check());
++	ASSERT_EQ(t.size(), ref.size());
++	EXPECT_EQ(t.empty(), ref.empty());
++	auto it = t.begin();
++	for (const auto &v : ref) {
++		ASSERT_NE(it, t.end());
++		EXPECT_EQ(*it, v);
++		++it;
++	}
++	EXPECT_EQ(it, t.end());
++
++	// backwards from end()
++	auto rit = t.end();
++	for (auto r = ref.rbegin(); r != ref.rend(); ++r) {
++		--rit;
++		EXPECT_EQ(*rit, *r);
++	}
++	EXPECT_EQ(rit, t.begin());
++}
++
++TEST(RBTree, empty) {
++	RB_Tree<K, K> t;
++	EXPECT_TRUE(t.empty());
++	EXPECT_EQ(t.size(), 0u);
++	EXPECT_EQ(t.begin(), t.end());
++	EXPECT_EQ(t.find(1), t.end());
++	EXPECT_EQ(t.erase(1), 0u);
++	EXPECT_TRUE(t.check());
++}
++
++/// set semantics vs std::set: random inserts/erases, small key range (many duplicates)
++TEST(RBTree, unique_vs_set) {
++	for (const K range : {K(16), K(1000), K(1ull << 40)}) {
++		RB_Tree<K, K> t;
++		std::set<K> ref;
++		for (uint32_t i = 0; i < 20000; ++i) {
++			const K k = rng<K>(range);
++			if (rng<uint32_t>(3) != 0) {
++				const auto [it, ins] = t.insert_unique(k);
++				const auto [rit, rins] = ref.insert(k);
++				EXPECT_EQ(ins, rins);
++				EXPECT_EQ(*it, *rit);
++			} else {
++				EXPECT_EQ(t.erase(k), ref.erase(k));
++			}
++
++			if ((i % 1000) == 0) { expect_same(t, ref); }
++		}
++		expect_same(t, ref);
++
++		// queries
++		for (uint32_t i = 0; i < 1000; ++i) {
++			const K k = rng<K>(range + 2);
++			EXPECT_EQ(t.contains(k), ref.count(k) == 1);
++			EXPECT_EQ(t.count(k), ref.count(k));
++			const auto lb = t.lower_bound(k);
++			const auto rlb = ref.lower_bound(k);
++			EXPECT_EQ(lb == t.end(), rlb == ref.end());
++			if (rlb != ref.end()) { EXPECT_EQ(*lb, *rlb); }
++			const auto ub = t.upper_bound(k);
++			const auto rub = ref.upper_bound(k);
++			EXPECT_EQ(ub == t.end(), rub == ref.end());
++			if (rub != ref.end()) { EXPECT_EQ(*ub, *rub); }
++		}
++
++		// erase everything via iterators
++		for (auto it = t.begin(); it != t.end();) { it = t.erase(it); }
++		EXPECT_TRUE(t.empty());
++		EXPECT_TRUE(t.check());
++	}
++}
++
++/// multiset semantics vs std::multiset
++TEST(RBTree, equal_vs_multiset) {
++	RB_Tree<K, K> t;
++	std::multiset<K> ref;
++	for (uint32_t i = 0; i < 20000; ++i) {
++		const K k = rng<K>(64);
++		const uint32_t op = rng<uint32_t>(4);
++		if (op < 2) {
++			EXPECT_EQ(*t.insert_equal(k), k);
++			ref.insert(k);
++		} else if (op == 2) {
++			EXPECT_EQ(t.erase(k), ref.erase(k));
++		} else {
++			// erase a single one
++			const auto it = t.find(k);
++			const auto rit = ref.find(k);
++			EXPECT_EQ(it == t.end(), rit == ref.end());
++			if (it != t.end()) {
++				t.erase(it);
++				ref.erase(rit);
++			}
++		}
++		EXPECT_EQ(t.count(k), ref.count(k));
++		if ((i % 1000) == 0) { expect_same(t, ref); }
++	}
++	expect_same(t, ref);
++}
++
++/// sorted and reverse sorted inserts (worst case for unbalanced trees)
++TEST(RBTree, sorted_inserts) {
++	RB_Tree<K, K> t;
++	std::set<K> ref;
++	for (K i = 0; i < 5000; ++i) { t.insert_unique(i); ref.insert(i); }
++	for (K i = 10000; i > 5000; --i) { t.insert_unique(i); ref.insert(i); }
++	expect_same(t, ref);
++	for (K i = 0; i < 10000; i += 2) { EXPECT_EQ(t.erase(i), ref.erase(i)); }
++	expect_same(t, ref);
++}
++
++/// copy, move, custom comparator
++TEST(RBTree, copy_move_compare) {
++	using T = RB_Tree<K, K, rb_identity, std::greater<K>>;
++	T t;
++	std::set<K, std::greater<K>> ref;
++	for (uint32_t i = 0; i < 1000; ++i) {
++		const K k = rng<K>(10000);
++		t.insert_unique(k);
++		ref.insert(k);
++	}
++	expect_same(t, ref);
++
++	T c{t};
++	expect_same(c, ref);
++	c.insert_unique(10001);
++	EXPECT_EQ(c.size(), t.size() + 1);
++
++	T m{std::move(c)};
++	EXPECT_EQ(c.size(), 0u);
++	EXPECT_TRUE(c.check());
++	EXPECT_TRUE(m.contains(10001));
++
++	T a;
++	a.insert_unique(5);
++	a = t;
++	expect_same(a, ref);
++	a = std::move(m);
++	EXPECT_TRUE(a.contains(10001));
++	EXPECT_TRUE(a.check());
++}
++
++/// map: pair values, key = first
++TEST(RBTree, map) {
++	using P = std::pair<K, uint32_t>;
++	RB_Tree<K, P, rb_select1st> t;
++	std::map<K, uint32_t> ref;
++	for (uint32_t i = 0; i < 5000; ++i) {
++		const K k = rng<K>(2000);
++		const auto [it, ins] = t.emplace_unique(k, i);
++		const auto [rit, rins] = ref.emplace(k, i);
++		EXPECT_EQ(ins, rins);
++		EXPECT_EQ(it->second, rit->second);
++	}
++
++	EXPECT_TRUE(t.check());
++	EXPECT_EQ(t.size(), ref.size());
++	auto it = t.begin();
++	for (const auto &[k, v] : ref) {
++		EXPECT_EQ(it->first, k);
++		EXPECT_EQ(it->second, v);
++		++it;
++	}
++}
++
++/// other allocator type (rebound to the nodes)
++TEST(RBTree, allocator) {
++	using T = RB_Tree<K, K, rb_identity, std::less<K>, std::pmr::polymorphic_allocator<K>>;
++	T t;
++	std::set<K> ref;
++	for (uint32_t i = 0; i < 1000; ++i) {
++		const K k = rng<K>(500);
++		t.insert_unique(k);
++		ref.insert(k);
++	}
++	expect_same(t, ref);
+ }
+ 
+ int main(int argc, char **argv) {
+-    InitGoogleTest(&argc, argv);
+-	random_seed(time(NULL));
+-    return RUN_ALL_TESTS();
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(nullptr));
++	return RUN_ALL_TESTS();
+ }
+-#endif
+\ No newline at end of file

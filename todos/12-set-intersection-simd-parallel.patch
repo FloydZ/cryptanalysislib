@@ -1,0 +1,274 @@
+--- a/src/algorithm/set_intersection.h
++++ b/src/algorithm/set_intersection.h
+@@ -2,17 +2,25 @@
+ 
+ #include <iterator>
+ #include <cstdint>
++#include <future>
++#include <vector>
+ 
+-#ifdef USE_AVX512F
++#include "algorithm/algorithm.h"
++#include "algorithm/bits/popcount.h"
++#include "algorithm/copy.h"
++#include "algorithm/remove.h"
++#include "memory/memcpy.h"
++#include "thread/thread.h"
++
++#if defined(USE_AVX512F) || defined(USE_AVX2)
+ #include <immintrin.h>
++#endif
++
++#ifdef USE_AVX512F
+ #include "simd/simd.h"
+ #include "algorithm/countl.h"
+-#include "algorithm/bits/popcount.h"
+ #endif
+ 
+-// TODO simd version 
+-// TODO parrallel version
+-
+ namespace cryptanalysislib {
+     struct AlgorithmSetIntersectionConfig {
+     public:
+@@ -152,6 +160,81 @@
+             *results += c; // And merge it with the main body result
+         }
+ #endif
++
++        /// writes the common elements of the sorted, duplicate free arrays `a`
++        /// and `b` to `out` (two pointer merge)
++        /// \return number of written elements
++        static inline size_t intersect_u32_serial(uint32_t const *a, uint32_t const *b,
++                                                  const size_t n, const size_t m,
++                                                  uint32_t *out) noexcept {
++            size_t i = 0, j = 0, c = 0;
++            while ((i < n) && (j < m)) {
++                if (a[i] < b[j]) { ++i; }
++                else if (b[j] < a[i]) { ++j; }
++                else { out[c++] = a[i]; ++i; ++j; }
++            }
++            return c;
++        }
++
++        /// SIMD version of `intersect_u32_serial`: blocks of `L` elements of
++        /// `a` are compared against all `L` lane rotations of a block of `b`,
++        /// the matching lanes of `a` are written to `out`. Then the block
++        /// with the smaller maximum is skipped (both if equal).
++        /// NOTE: the inputs must be duplicate free.
++        /// \return number of written elements
++        static inline size_t intersect_u32_simd(uint32_t const *a, uint32_t const *b,
++                                                const size_t n, const size_t m,
++                                                uint32_t *out) noexcept {
++            size_t i = 0, j = 0, c = 0;
++#if defined(USE_AVX512F)
++            constexpr size_t L = 16;
++            const __m512i one = _mm512_set1_epi32(1), mask = _mm512_set1_epi32(15);
++            while (((i + L) <= n) && ((j + L) <= m)) {
++                const __m512i va = _mm512_loadu_si512((const void *)(a + i));
++                const __m512i vb = _mm512_loadu_si512((const void *)(b + j));
++                __m512i idx = _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
++                __mmask16 match = 0;
++                for (uint32_t r = 0; r < L; ++r) {
++                    match |= _mm512_cmpeq_epi32_mask(va, _mm512_permutexvar_epi32(idx, vb));
++                    idx = _mm512_and_si512(_mm512_add_epi32(idx, one), mask);
++                }
++                _mm512_mask_compressstoreu_epi32(out + c, match, va);
++                c += cryptanalysislib::popcount::popcount((uint32_t)match);
++
++                const uint32_t amax = a[i + L - 1], bmax = b[j + L - 1];
++                if (amax <= bmax) { i += L; }
++                if (bmax <= amax) { j += L; }
++            }
++#elif defined(USE_AVX2)
++            // NOTE: the matching lanes are moved to the front of a register,
++            // 	which is stored into a buffer, as `out` may not have space for
++            // 	8 elements.
++            constexpr size_t L = 8;
++            const __m256i one = _mm256_set1_epi32(1), mask = _mm256_set1_epi32(7);
++            alignas(32) uint32_t buf[8];
++            while (((i + L) <= n) && ((j + L) <= m)) {
++                const __m256i va = _mm256_loadu_si256((const __m256i *)(a + i));
++                const __m256i vb = _mm256_loadu_si256((const __m256i *)(b + j));
++                __m256i idx = _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0);
++                __m256i eq = _mm256_setzero_si256();
++                for (uint32_t r = 0; r < L; ++r) {
++                    eq = _mm256_or_si256(eq, _mm256_cmpeq_epi32(va, _mm256_permutevar8x32_epi32(vb, idx)));
++                    idx = _mm256_and_si256(_mm256_add_epi32(idx, one), mask);
++                }
++                const uint32_t match = (uint32_t)_mm256_movemask_ps(_mm256_castsi256_ps(eq));
++                const uint32_t k = cryptanalysislib::popcount::popcount(match);
++                const __m256i perm = _mm256_loadu_si256((const __m256i *)remove_u32_lut[match].data());
++                _mm256_store_si256((__m256i *)buf, _mm256_permutevar8x32_epi32(va, perm));
++                cryptanalysislib::memcpy(out + c, buf, k);
++                c += k;
++
++                const uint32_t amax = a[i + L - 1], bmax = b[j + L - 1];
++                if (amax <= bmax) { i += L; }
++                if (bmax <= amax) { j += L; }
++            }
++#endif
++            return c + intersect_u32_serial(a + i, b + j, n - i, m - j, out + c);
++        }
+     };
+ 
+ 
+@@ -234,4 +317,106 @@
+         return set_intersection(first1, last1, first2, last2, d_first, std::less{});
+     }
+ 
++    /// SIMD version of `set_intersection` for sorted, DUPLICATE FREE ranges
++    /// of `uint32_t` (AVX2, AVX-512; otherwise a scalar merge). Blocks of
++    /// both ranges are compared lane wise against each other.
++    /// \param first1[in]: pointer to the beginning of the first range
++    /// \param last1[in]: pointer to the end of the first range
++    /// \param first2[in]: pointer to the beginning of the second range
++    /// \param last2[in]: pointer to the end of the second range
++    /// \param d_first[out]: output, must have space for min(n1, n2) elements
++    /// \return pointer to the end of the constructed range
++    static inline uint32_t *set_intersection_simd(const uint32_t *first1,
++                                                  const uint32_t *last1,
++                                                  const uint32_t *first2,
++                                                  const uint32_t *last2,
++                                                  uint32_t *d_first) noexcept {
++        return d_first + internal::intersect_u32_simd(first1, first2,
++                                                      size_t(last1 - first1),
++                                                      size_t(last2 - first2),
++                                                      d_first);
++    }
++
++    /// `set_intersection` (parallel version): the first range is split into
++    /// `nthreads` chunks (only between elements which are not equivalent),
++    /// the matching part of the second range is found by binary search. The
++    /// chunks are intersected in parallel into buffers, which are then
++    /// copied (in order) to `d_first`.
++    /// NOTE: same output as the sequential version (also with duplicates).
++    /// \param policy[in]: execution policy
++    /// \param first1[in]: iterator to the beginning of the first range
++    /// \param last1[in]: iterator to the end of the first range
++    /// \param first2[in]: iterator to the beginning of the second range
++    /// \param last2[in]: iterator to the end of the second range
++    /// \param d_first[out]: iterator to the beginning of the destination range
++    /// \param comp[in]: comparison function object
++    /// \return iterator to the end of the constructed range
++    template<class ExecPolicy,
++             class RandIt1,
++             class RandIt2,
++             class RandIt3,
++             class Compare = std::less<>,
++             const AlgorithmSetIntersectionConfig &config = algorithmSetIntersectionConfig>
++#if __cplusplus > 201709L
++    requires ExecutionPolicy<ExecPolicy> &&
++             std::random_access_iterator<RandIt1> &&
++             std::random_access_iterator<RandIt2> &&
++             std::random_access_iterator<RandIt3>
++#endif
++    RandIt3 set_intersection(ExecPolicy &&policy,
++                             RandIt1 first1,
++                             RandIt1 last1,
++                             RandIt2 first2,
++                             RandIt2 last2,
++                             RandIt3 d_first,
++                             Compare comp = Compare{}) noexcept {
++        using T = typename std::iterator_traits<RandIt1>::value_type;
++        const size_t n1 = static_cast<size_t>(std::distance(first1, last1));
++        const uint32_t nthreads = should_par(policy, config, n1);
++        if (is_seq<ExecPolicy>(policy) || nthreads < 2) {
++            return cryptanalysislib::set_intersection(first1, last1, first2, last2, d_first, comp);
++        }
++
++        // chunk boundaries in the first range, never between equivalent elements
++        std::vector<size_t> b1(nthreads + 1), b2(nthreads + 1);
++        b1[0] = 0; b2[0] = 0;
++        b1[nthreads] = n1; b2[nthreads] = static_cast<size_t>(std::distance(first2, last2));
++        for (uint32_t k = 1; k < nthreads; ++k) {
++            size_t s = (n1 * k) / nthreads;
++            if (s < b1[k - 1]) { s = b1[k - 1]; }
++            while ((s > 0) && (s < n1) && !comp(first1[s - 1], first1[s])) { s += 1; }
++            b1[k] = s;
++
++            // first element of the second range which is not less than `first1[s]`
++            size_t lo = b2[k - 1], hi = b2[nthreads];
++            while ((s < n1) && (lo < hi)) {
++                const size_t mid = lo + (hi - lo) / 2;
++                if (comp(first2[mid], first1[s])) { lo = mid + 1; } else { hi = mid; }
++            }
++            b2[k] = (s == n1) ? b2[nthreads] : lo;
++        }
++
++        auto &task_pool = *policy.pool();
++        std::vector<std::vector<T>> tmp(nthreads);
++        std::vector<std::future<size_t>> futures;
++        for (uint32_t k = 0; k < nthreads; ++k) {
++            futures.emplace_back(task_pool.submit([&, k]() {
++                const size_t l1 = b1[k + 1] - b1[k], l2 = b2[k + 1] - b2[k];
++                tmp[k].resize(l1 < l2 ? l1 : l2);
++                const auto e = cryptanalysislib::set_intersection(first1 + b1[k], first1 + b1[k + 1],
++                                                                  first2 + b2[k], first2 + b2[k + 1],
++                                                                  tmp[k].begin(), comp);
++                return static_cast<size_t>(e - tmp[k].begin());
++            }));
++        }
++
++        std::vector<size_t> c(nthreads);
++        for (uint32_t k = 0; k < nthreads; ++k) { c[k] = futures[k].get(); }
++
++        for (uint32_t k = 0; k < nthreads; ++k) {
++            d_first = cryptanalysislib::copy(tmp[k].begin(), tmp[k].begin() + c[k], d_first);
++        }
++        return d_first;
++    }
++
+ }; // end namespace
+--- a/tests/algorithm/set_intersection.cpp
++++ b/tests/algorithm/set_intersection.cpp
+@@ -62,6 +62,49 @@
+ 	}
+ }
+ 
++/// SIMD version (sorted, duplicate free uint32_t) against std::set_intersection
++TEST(set_intersection, simd_u32) {
++	for (const uint32_t mod : {40u, 300u, 2000u, 1u << 30u}) {
++		for (size_t n1 = 0; n1 <= 140; n1 += 7) {
++			for (size_t n2 = 0; n2 <= 140; n2 += 11) {
++				std::set<uint32_t> sa, sb;
++				while (sa.size() < std::min<size_t>(n1, mod)) { sa.insert(rng<uint32_t>() % mod); }
++				while (sb.size() < std::min<size_t>(n2, mod)) { sb.insert(rng<uint32_t>() % mod); }
++				const std::vector<uint32_t> a(sa.begin(), sa.end()), b(sb.begin(), sb.end());
++
++				std::vector<uint32_t> o(std::min(a.size(), b.size())), e;
++				std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), std::back_inserter(e));
++				const uint32_t *r = cryptanalysislib::set_intersection_simd(a.data(), a.data() + a.size(),
++				                                                            b.data(), b.data() + b.size(), o.data());
++				ASSERT_EQ(size_t(r - o.data()), e.size()) << n1 << " " << n2 << " " << mod;
++				EXPECT_TRUE(std::equal(e.begin(), e.end(), o.begin())) << n1 << " " << n2 << " " << mod;
++			}
++		}
++	}
++}
++
++/// parallel version (with duplicates) against std::set_intersection
++TEST(set_intersection, parallel) {
++	constexpr size_t N = 1u << 16u;
++	for (const uint32_t mod : {7u, 1000u, 1u << 20u}) {
++		std::vector<uint32_t> a(N), b(N / 2), o(N), e(N);
++		for (auto &x : a) { x = rng<uint32_t>() % mod; }
++		for (auto &x : b) { x = rng<uint32_t>() % mod; }
++		std::sort(a.begin(), a.end());
++		std::sort(b.begin(), b.end());
++		const auto r1 = cryptanalysislib::set_intersection(par_if(true), a.begin(), a.end(), b.begin(), b.end(), o.begin());
++		const auto r2 = std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), e.begin());
++		ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << mod;
++		EXPECT_TRUE(std::equal(o.begin(), r1, e.begin())) << mod;
++
++		std::vector<uint32_t> ra(a.rbegin(), a.rend()), rb(b.rbegin(), b.rend());
++		const auto r3 = cryptanalysislib::set_intersection(par_if(true), ra.begin(), ra.end(), rb.begin(), rb.end(), o.begin(), std::greater<>());
++		const auto r4 = std::set_intersection(ra.begin(), ra.end(), rb.begin(), rb.end(), e.begin(), std::greater<>());
++		ASSERT_EQ(r3 - o.begin(), r4 - e.begin()) << mod;
++		EXPECT_TRUE(std::equal(o.begin(), r3, e.begin())) << mod;
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(NULL));

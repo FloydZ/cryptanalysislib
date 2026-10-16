@@ -66,6 +66,27 @@ TEST(rotate, iterator_version) {
 	EXPECT_EQ(out, (std::vector<int>{2, 3, 4, 1}));
 }
 
+/// skewed splits of large ranges: (middle - first) / (last - middle) passes,
+/// 2^22 for a single element after `middle`
+TEST(rotate, iterator_version_skewed) {
+	const size_t n = 1u << 22u;
+	for (const size_t right : {size_t(1), size_t(2), size_t(3), size_t(1000)}) {
+		std::vector<uint32_t> v(n), e(n);
+		std::iota(v.begin(), v.end(), 0u);
+		e = v;
+		const auto r = cryptanalysislib::rotate(v.begin(), v.end() - right, v.end());
+		const auto re = std::rotate(e.begin(), e.end() - right, e.end());
+		ASSERT_EQ(r - v.begin(), re - e.begin()) << right;
+		ASSERT_EQ(v, e) << right;
+	}
+
+	std::list<uint32_t> l(1u << 18u);
+	std::iota(l.begin(), l.end(), 0u);
+	const auto r = cryptanalysislib::rotate(l.begin(), std::prev(l.end()), l.end());
+	EXPECT_EQ(*r, 0u);
+	EXPECT_EQ(l.front(), (1u << 18u) - 1u);
+}
+
 /// the block swaps and the stack rotation of `cryptanalysislib::internal`
 TEST(rotate, internal_helpers) {
 	std::vector<uint32_t> v(20);

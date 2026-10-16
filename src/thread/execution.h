@@ -21,7 +21,6 @@
 #include "thread/steal.h"
 #include "thread/simple.h"
 
-
 namespace cryptanalysislib {
 
 // using pool_type_ = HeartbeatScheduler<>;
@@ -168,6 +167,66 @@ struct opencl_policy : public execution_policy {
     }
 };
 #endif // USE_CL
+
+#ifdef __CUDACC__
+/// A parallel policy which runs the algorithms on a CUDA device. Algorithms
+/// without a CUDA implementation do not accept it.
+/// NOTE: only available if compiled with nvcc
+/// NOTE: the algorithms are synchronous, i.e. they wait for `stream()`. Host
+/// 	memory is copied to/from the device, device and managed memory is
+/// 	used directly.
+struct parallel_cuda_policy : public execution_policy {
+    constexpr parallel_cuda_policy() noexcept = default;
+
+    /// \param stream: stream to launch on, `nullptr` is the default stream
+    /// \param device: device to run on
+    /// \param par_ok: if false, the sequential CPU algorithm is used
+    constexpr explicit parallel_cuda_policy(cudaStream_t stream,
+                                            const int device,
+                                            const bool par_ok) noexcept :
+        on_stream(stream), on_device(device), par_ok(par_ok) {}
+
+    /// \param stream: stream to launch on
+    /// \return a copy of the policy, which runs on `stream`
+    [[nodiscard]] constexpr inline parallel_cuda_policy on(cudaStream_t stream) const noexcept {
+        return parallel_cuda_policy{stream, on_device, par_ok};
+    }
+
+    /// \param device: device to run on
+    /// \return a copy of the policy, which runs on `device`
+    [[nodiscard]] constexpr inline parallel_cuda_policy on_dev(const int device) const noexcept {
+        return parallel_cuda_policy{on_stream, device, par_ok};
+    }
+
+    /// \param call_par: if false, the sequential CPU algorithm is used
+    /// \return a copy of the policy
+    [[nodiscard]] constexpr inline parallel_cuda_policy par_if(const bool call_par) const noexcept {
+        return parallel_cuda_policy{on_stream, on_device, call_par};
+    }
+
+    /// \return the stream to launch on
+    [[nodiscard]] constexpr inline cudaStream_t stream() const noexcept {
+        return on_stream;
+    }
+
+    /// \return the device to run on
+    [[nodiscard]] constexpr inline int device() const noexcept {
+        return on_device;
+    }
+
+    /// \return if the device should be used
+    [[nodiscard]] constexpr inline bool par_allowed() const noexcept {
+        return par_ok;
+    }
+
+protected:
+    cudaStream_t on_stream = nullptr;
+    int on_device = 0;
+    bool par_ok = true;
+};
+
+constexpr parallel_cuda_policy par_cuda{};
+#endif // __CUDACC__
 
 constexpr sequenced_policy seq{};
 constexpr parallel_policy par{};

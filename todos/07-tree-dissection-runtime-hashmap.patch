@@ -1,0 +1,243 @@
+--- a/src/tree/dissection.h
++++ b/src/tree/dissection.h
+@@ -1,9 +1,18 @@
+ #ifndef CRYPTANALYSISLIB_TREE_DISSECTION_H
+ #define CRYPTANALYSISLIB_TREE_DISSECTION_H
+ 
+-	// TODO hashmap version, and non constexpr version
+ 	// SRC: https://eprint.iacr.org/2010/189.pdf
+ 	// implementation of the modular 4-way merge
++	/// enumerates the four base lists and runs `dissection4` on them:
++	///		- L1, L2: weight `k_upper1/2` on the coordinates [0, k_upper1)
++	/// 	- L3, L4: weight `k_upper1/2` on the coordinates [k_upper2/2, k_upper2/2 + k_upper1)
++	/// NOTE: the base lists are static, i.e. allocated only once.
++	/// \tparam k_lower1 must be 0
++	/// \tparam k_upper1 the intermediate targets are enumerated on [0, k_upper1)
++	/// \tparam k_upper2 the outputs are equal to the target on [0, k_upper2)
++	/// \param out output list
++	/// \param target
++	/// \param MT matrix
+ 	template<
+ 			 const uint32_t k_lower1=0,
+ 	         const uint32_t k_upper1=ValueLENGTH/4u,
+@@ -11,31 +20,57 @@
+ 	static void constexpr_dissection4(List &out,
+ 									  const LabelType &target,
+ 									  const MatrixType &MT) noexcept {
+-		// reset the output list
+-		out.set_load(0);
+-
+-		constexpr static uint32_t filter = -1u;
+-		constexpr static double factor = 1.5;
+-		// number of intermediate targets sigma_M in [0, 2**k_upper1)
+-		constexpr static size_t size = 1ull << k_upper1;
++		static_assert(k_lower1 == 0);
++		static_assert(k_upper1 < k_upper2);
+ 
+ 		constexpr size_t baselist_size = sum_bc(k_upper1, k_upper1/2);
+-		//constexpr size_t baselist_size = sum_bc(n/2, n/4);
+-		static List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size}, iL{(size_t) ((double) size * factor)};
++		static List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size};
+ 		L1.set_load(0); L2.set_load(0); L3.set_load(0); L4.set_load(0);
+ 
+ 		// enumerate the base lists
+-		// using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+-		// Enumerator e{MT};
+-		// e.run(&L1, &L2, n/2);
+-		// e.run(&L3, &L4, n/2);
+ 		using Enumerator = BinaryLexicographicEnumerator<List, k_upper1, k_upper1/2>;
+ 		Enumerator e{MT};
+ 		e.run(&L1, &L2, k_upper1);
+ 		e.run(&L3, &L4, k_upper1, k_upper2/2);
+ 
+-		L2.sort_level(k_lower1, k_upper1);
+-		L4.sort_level(k_lower1, k_upper1);
++		dissection4(out, L1, L2, L3, L4, target, k_upper1, k_upper2);
++	}
++
++	/// modular 4-way merge: finds all x1+x2+x3+x4 = target on [0, k_upper2),
++	/// with xi \in Li, by enumerating all intermediate targets
++	/// sigma_M \in [0, 2**k_upper1):
++	/// 	- iL = {x1+x2 | x1+x2 = sigma_M on [0, k_upper1)}
++	///		- x3+x4 = target-sigma_M on [0, k_upper1) is streamed and matched
++	///		against iL on [0, k_upper2)
++	/// NOTE: the labels must be numbers (e.g. `kAry_Type_T`), as `sigma_M` is
++	/// 	set as a number.
++	/// NOTE: `L2` and `L4` are sorted. Allocates the intermediate list.
++	/// \param out output list, is cleared
++	/// \param L1 const
++	/// \param L2 will be sorted on [0, k_upper1)
++	/// \param L3 const
++	/// \param L4 will be sorted on [0, k_upper1)
++	/// \param target
++	/// \param k_upper1 the intermediate targets are enumerated on [0, k_upper1)
++	/// \param k_upper2 the outputs are equal to the target on [0, k_upper2)
++	static void dissection4(List &out,
++							const List &L1, List &L2,
++							const List &L3, List &L4,
++							const LabelType &target,
++							const uint32_t k_upper1,
++							const uint32_t k_upper2) noexcept {
++		assert(k_upper1 < k_upper2);
++		// reset the output list
++		out.set_load(0);
++
++		constexpr static uint32_t filter = -1u;
++		constexpr static double factor = 1.5;
++		// number of intermediate targets sigma_M in [0, 2**k_upper1)
++		const size_t size = 1ull << k_upper1;
++		List iL{(size_t) ((double) size * factor)};
++
++		L2.sort_level(0, k_upper1);
++		L4.sort_level(0, k_upper1);
+ 
+ 		ElementType tmpe1;
+ 		LabelType sigma_M, sigma_t, tprime;
+@@ -75,4 +110,100 @@
+ 			}
+ 		}
+ 	}
++
++	/// same as `dissection4`, but `L2`, `L4` and the intermediate list are
++	/// hashmaps instead of sorted lists:
++	/// 	- `L2` and `L4` are hashed on [0, k_upper1)
++	/// 	- iL (pairs of indices into `L1`, `L2`) is hashed on the next (at
++	///		most 16) bits after `k_upper1`. The matches are checked on [0, k_upper2).
++	/// NOTE: the lists are not changed. Allocates three hashmaps.
++	/// NOTE: an element is dropped, if its bucket is full (`bucketsize`).
++	/// \tparam k_upper1 the intermediate targets are enumerated on [0, k_upper1)
++	/// \tparam k_upper2 the outputs are equal to the target on [0, k_upper2)
++	/// \tparam bucketsize number of elements per bucket of all hashmaps
++	/// \param out output list, is cleared
++	/// \param L1 const
++	/// \param L2 const
++	/// \param L3 const
++	/// \param L4 const
++	/// \param target
++	template<const uint32_t k_upper1,
++			 const uint32_t k_upper2,
++			 const uint32_t bucketsize=16>
++	static void dissection4_hashmap(List &out,
++									const List &L1, const List &L2,
++									const List &L3, const List &L4,
++									const LabelType &target) noexcept {
++		static_assert(k_upper1 < k_upper2);
++		constexpr uint32_t filter = -1u;
++		// number of hashed bits of the intermediate list
++		constexpr uint32_t hbits = (k_upper2 - k_upper1) < 16u ? (k_upper2 - k_upper1) : 16u;
++
++		using D = typename LabelType::DataType;
++		using E = std::pair<size_t, size_t>;
++		constexpr static SimpleHashMapConfig configL {
++			bucketsize, 1ull << k_upper1, 1
++		};
++		constexpr static SimpleHashMapConfig configIL {
++			bucketsize, 1ull << hbits, 1
++		};
++		using HML  = SimpleHashMap<D, size_t, configL,  Hash<D, 0, k_upper1, 2>>;
++		using HMIL = SimpleHashMap<D,      E, configIL, Hash<D, k_upper1, k_upper1 + hbits, 2>>;
++		using LoadL  = typename HML::load_type;
++		using LoadIL = typename HMIL::load_type;
++		HML *hm2 = new HML{};
++		HML *hm4 = new HML{};
++		HMIL *hmiL = new HMIL{};
++
++		out.set_load(0);
++		for (size_t i = 0; i < L2.load(); ++i) {
++			hm2->insert(L2[i].label.value(), i);
++		}
++		for (size_t i = 0; i < L4.load(); ++i) {
++			hm4->insert(L4[i].label.value(), i);
++		}
++
++		ElementType tmpe1;
++		LabelType sigma_M, sigma_t, tprime, s;
++		LoadL load = 0;
++		LoadIL loadiL = 0;
++		for (size_t sigma_M_ = 0; sigma_M_ < (1ull << k_upper1); ++sigma_M_) {
++			hmiL->clear();
++			sigma_M.set(sigma_M_, 0);
++			for (size_t i = 0; i < L1.load(); ++i) {
++				LabelType::sub(sigma_t, sigma_M, L1[i].label, 0, k_upper1);
++				const size_t sj = hm2->find(sigma_t.value(), load);
++				for (size_t j = sj; j < sj + load; ++j) {
++					const size_t b = (*hm2)[j];
++					LabelType::add(s, L1[i].label, L2[b].label);
++					hmiL->insert(s.value(), E{i, b});
++				}
++			}
++
++			LabelType::sub(sigma_t, target, sigma_M);
++			for (size_t k = 0; k < L3.load(); ++k) {
++				LabelType::sub(s, sigma_t, L3[k].label);
++				const size_t sl = hm4->find(s.value(), load);
++				for (size_t l = sl; l < sl + load; ++l) {
++					const size_t b = (*hm4)[l];
++					LabelType::sub(tprime, target, L3[k].label);
++					LabelType::sub(tprime, tprime, L4[b].label);
++					const size_t so = hmiL->find(tprime.value(), loadiL);
++					for (size_t o = so; o < so + loadiL; ++o) {
++						const E a = (*hmiL)[o];
++						LabelType::add(s, L1[a.first].label, L2[a.second].label);
++						if (!tprime.is_equal(s, 0, k_upper2)) { continue; }
++
++						ElementType::add(tmpe1, L1[a.first], L2[a.second]);
++						ElementType::add(tmpe1, tmpe1, L3[k]);
++						out.add_and_append(tmpe1, L4[b], 0, k_upper2, filter);
++					}
++				}
++			}
++		}
++
++		delete hm2;
++		delete hm4;
++		delete hmiL;
++	}
+ #endif//CRYPTANALYSISLIB_DISSECTION_H
+--- a/tests/algorithm/subsetsum/dissection.cpp
++++ b/tests/algorithm/subsetsum/dissection.cpp
+@@ -67,6 +67,44 @@
+ 	}
+ }
+ 
++TEST(SubSetSum, dissection_runtime_and_hashmap) {
++	Matrix AT; AT.random();
++
++	// NOTE: same instance as above
++	Label target; target.zero();
++	for (uint32_t qd = 0; qd < 4; ++qd) {
++		std::vector<uint32_t> idx(n/4);
++		for (uint32_t i = 0; i < n/4; ++i) { idx[i] = qd*(n/4) + i; }
++		for (uint32_t i = 0; i < n/8; ++i) {
++			const uint32_t j = i + (uint32_t)(rng() % (n/4 - i));
++			cryptanalysislib::swap(idx[i], idx[j]);
++			Label::add(target, target, AT[0][idx[i]]);
++		}
++	}
++
++	constexpr uint32_t k_upper1 = n/4, k_upper2 = n;
++	constexpr size_t baselist_size = sum_bc(k_upper1, k_upper1/2);
++	List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size};
++	using Enumerator = BinaryLexicographicEnumerator<List, k_upper1, k_upper1/2>;
++	Enumerator e{AT};
++	e.run(&L1, &L2, k_upper1);
++	e.run(&L3, &L4, k_upper1, k_upper2/2);
++
++	List out1{1<<n}, out2{1<<n};
++	Tree::dissection4(out1, L1, L2, L3, L4, target, k_upper1, k_upper2);
++	Tree::dissection4_hashmap<k_upper1, k_upper2>(out2, L1, L2, L3, L4, target);
++
++	EXPECT_GE(out1.load(), 1);
++	// both versions find the same solutions
++	EXPECT_EQ(out1.load(), out2.load());
++	for (size_t i = 0; i < out2.load(); ++i) {
++		Label tmp;
++		AT.mul(tmp, out2[i].value);
++		EXPECT_TRUE(target.is_equal(tmp));
++		EXPECT_TRUE(target.is_equal(out2[i].label, 0, k_upper2));
++	}
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	rng_seed(time(NULL));

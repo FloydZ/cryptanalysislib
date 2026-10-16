@@ -343,7 +343,7 @@ static inline void rng(uint8_t *buf,
 
 /// seed the rng instance
 /// \param seed
-constexpr static inline void rng_seed(const uint64_t seed) noexcept {
+static inline void rng_seed(const uint64_t seed) noexcept {
 	const bool t = random::internal::xorshf96_seed(seed);
 	(void)t;
 }
@@ -554,7 +554,7 @@ public:
     using result_type = uint64_t;
 
     constexpr random_device() noexcept = default;
-    constexpr random_device(const result_type seed) noexcept {
+    random_device(const result_type seed) noexcept {
         // NOTE: was `rng(seed)`, i.e. `rng() % seed`: nothing was seeded,
         // 	and `seed == 0` failed the assert in `rng`
         rng_seed(seed);
@@ -562,7 +562,7 @@ public:
    
     /// \param seed if == "/dev/urandom" it will call this device,
     ///     other wise each token within `seed` will be used as an token.
-    constexpr random_device(const std::string seed) noexcept {
+    random_device(const std::string seed) noexcept {
         if (seed == "/dev/urandom") {
             rng_seed();
         } else {

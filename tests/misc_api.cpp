@@ -60,7 +60,8 @@ TEST(misc, digraph_helpers) {
 
 	const uint32_t a[] = {1, 3, 3, 8, 10};
 	for (uint32_t v = 0; v < 12; ++v) {
-		const uint64_t r = bsearch(a, 5, v);
+		// NOTE: qualified, as `cryptanalysislib::bsearch` is ambiguous where `size_t != uint64_t` (macOS)
+		const uint64_t r = cryptanalysislib::internal::digraph::bsearch(a, 5, v);
 		const auto it = std::lower_bound(a, a + 5, v);
 		EXPECT_EQ(r, (it != a + 5 && *it == v) ? uint64_t(it - a) : 5u) << v;
 	}

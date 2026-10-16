@@ -89,10 +89,10 @@ namespace cryptanalysislib {
 				if (bytes > 32) {
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
-					out = (uint8_t *)(((uintptr_t)(out)) & -16);
+					out = (uint8_t *)(((uintptr_t)(out)) & -(uintptr_t)16);
 					_uint8x16_t::unaligned_store(out, in3);
 					out += 16;
-					out = (uint8_t *)((uintptr_t)(out) & -32);
+					out = (uint8_t *)((uintptr_t)(out) & -(uintptr_t)32);
 
 					const uint8x32_t in4 = uint8x32_t::set1(in);
 
@@ -230,12 +230,11 @@ namespace cryptanalysislib {
 		// fast version
 		if constexpr ((sizeof(T) <= 8) && std::is_integral_v<T>) {
 			cryptanalysislib::internal::memset_bytes(out, in, len);
-			return;
-		}
-
-		// backup, for anything else
-		for (size_t j = 0; j < len; ++j) {
-			out[j] = in;
+		} else {
+			// backup, for anything else
+			for (size_t j = 0; j < len; ++j) {
+				out[j] = in;
+			}
 		}
 	}
 }

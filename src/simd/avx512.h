@@ -1059,6 +1059,39 @@ struct Xint8x64_t {
 		return t;
 	}
 
+	/// NOTE: there is no 8 bit gather instruction, so this is a scalar loop
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param data offsets, in units of `scale` bytes
+	/// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		const uint8_t *ptr8 = (const uint8_t *) ptr;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			__builtin_memcpy(&ret.d[i], ptr8 + size_t(uint8_t(data.d[i])) * scale, sizeof(limb_type));
+		}
+		return ret;
+	}
+
+	/// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param offset offsets, in units of `scale` bytes
+	/// \param data
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(void *ptr,
+	                                     const S offset,
+	                                     const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			__builtin_memcpy(ptr8 + size_t(uint8_t(offset.d[i])) * scale, &data.d[i], sizeof(limb_type));
+		}
+	}
+
 
 	/// finds the first limb in lane which is equal to in2
 	/// SOURCE: http://0x80.pl/notesen/2023-02-06-avx512-find-first-byte-in-lane.html
@@ -1688,6 +1721,12 @@ struct Xint16x32_t {
 		return ret;
 	}
 
+	/// same as `lzcnt`, same name as in the AVX2 backend
+	[[nodiscard]] constexpr static inline S clz(const S in) noexcept { return lzcnt(in); }
+
+	/// same as `tzcnt`, same name as in the AVX2 backend
+	[[nodiscard]] constexpr static inline S ctz(const S in) noexcept { return tzcnt(in); }
+
 	/// checks if all 16 bit lanes are equal
 	/// NOTE: one compare of all lanes against the broadcasted first lane;
 	/// 	lane by lane in constant evaluation (intrinsics are not constexpr)
@@ -1814,6 +1853,39 @@ struct Xint16x32_t {
 	[[nodiscard]] constexpr static inline uint32_t move(const Xint16x32_t in) noexcept {
 		const __mmask32 t = _mm512_movepi16_mask(in.v512);
 		return t;
+	}
+
+	/// NOTE: there is no 16 bit gather instruction, so this is a scalar loop
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param data offsets, in units of `scale` bytes
+	/// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		const uint8_t *ptr8 = (const uint8_t *) ptr;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			__builtin_memcpy(&ret.d[i], ptr8 + size_t(uint16_t(data.d[i])) * scale, sizeof(limb_type));
+		}
+		return ret;
+	}
+
+	/// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param offset offsets, in units of `scale` bytes
+	/// \param data
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(void *ptr,
+	                                     const S offset,
+	                                     const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			__builtin_memcpy(ptr8 + size_t(uint16_t(offset.d[i])) * scale, &data.d[i], sizeof(limb_type));
+		}
 	}
 
 	/// \param a
@@ -2157,6 +2229,39 @@ struct Xint32x16_t {
 	                                                        const uint8_t in2) noexcept {
 		const Xint32x16_t rs = Xint32x16_t::set1(in2);
 		return Xint32x16_t::mullo(in1, rs);
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return lower 32 bits of the 64 bit products in1[i]*in2[i]
+	[[nodiscard]] constexpr static inline S mul(const S in1,
+	                                            const S in2) noexcept {
+		S out;
+		// lower 32 bits of each product, same as `mullo`
+		out.v512 = (__m512i) ((__v16su) in1.v512 * (__v16su) in2.v512);
+		return out;
+	}
+
+	/// \param in1
+	/// \param in2
+	/// \return upper 32 bits of the 64 bit products in1[i]*in2[i]
+	[[nodiscard]] constexpr static inline S mulhi(const S in1,
+	                                              const S in2) noexcept {
+		S out;
+		// products of the even/odd lanes; the odd lanes are moved down first
+		const __m512i a_odd = _mm512_srli_epi64(in1.v512, 32);
+		const __m512i b_odd = _mm512_srli_epi64(in2.v512, 32);
+		__m512i even, odd;
+		if constexpr (__unsigned) {
+			even = _mm512_mul_epu32(in1.v512, in2.v512);
+			odd = _mm512_mul_epu32(a_odd, b_odd);
+		} else {
+			even = _mm512_mul_epi32(in1.v512, in2.v512);
+			odd = _mm512_mul_epi32(a_odd, b_odd);
+		}
+		// upper halves: even lanes shifted down, odd lanes already in place
+		out.v512 = _mm512_mask_blend_epi32(0xAAAA, _mm512_srli_epi64(even, 32), odd);
+		return out;
 	}
 
 	/// \param in1
@@ -2554,11 +2659,58 @@ struct Xint32x16_t {
 		return ret;
 	}
 
+	/// same as the AVX2 version: permutation mask for `permute`, which packs
+	/// the lanes selected by `mask` to the front, e.g.
+	/// 0b1010 -> [1, 3, 0, ..., 0]
+	/// \param mask
+	/// \return
+	[[nodiscard]] constexpr static inline S pack(const uint32_t mask) noexcept {
+		S ret;
+		const __m512i identity = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+		ret.v512 = _mm512_maskz_compress_epi32((__mmask16) mask, identity);
+		return ret;
+	}
+
+	/// zero extends the 16 bytes of `in` to 32 bits
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline S cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
+		S ret;
+		ret.v512 = _mm512_cvtepu8_epi32(in.v128);
+		return ret;
+	}
+
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint16_t move(const Xint32x16_t in) noexcept {
 		const __mmask16 t = _mm512_movepi32_mask(in.v512);
 		return t;
+	}
+
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param data offsets, in units of `scale` bytes
+	/// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		ret.v512 = _mm512_i32gather_epi32(data.v512, ptr, scale);
+		return ret;
+	}
+
+	/// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param offset offsets, in units of `scale` bytes
+	/// \param data
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(void *ptr,
+	                                     const S offset,
+	                                     const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		_mm512_i32scatter_epi32(ptr, offset.v512, data.v512, scale);
 	}
 
 	/// \param a
@@ -2682,7 +2834,7 @@ struct Xint64x8_t {
     /// set the `i`-th bit in each limb
     /// \param pos[in]: bit position to set
     constexpr inline void set_bit(const uint32_t pos) noexcept {
-        v512 = _mm512_set1_epi64(1u << pos); 
+        v512 = _mm512_set1_epi64(1ull << pos);
     }
 
 	///
@@ -3144,6 +3296,34 @@ struct Xint64x8_t {
 		return out;
 	}
 
+	/// permutes the 4 64 bit lanes of each 256 bit half, like
+	/// `_mm512_permutex_epi64`: ret[i] = in1[(i & ~3) + ((in2 >> 2(i % 4)) & 3)]
+	/// \tparam in2 8 bit immediate, 2 bits per lane
+	/// \param in1
+	/// \return
+	template<const uint32_t in2>
+	[[nodiscard]] constexpr static inline S permute(const S in1) noexcept {
+		S ret;
+		ret.v512 = _mm512_permutex_epi64(in1.v512, in2);
+		return ret;
+	}
+
+	/// runtime version of `permute<in2>`
+	/// \param in1
+	/// \param in2 8 bit, 2 bits per lane
+	/// \return
+	[[nodiscard]] constexpr static inline S permute(const S in1,
+	                                                const uint32_t in2) noexcept {
+		// lane indices (i & ~3) + ((in2 >> 2(i % 4)) & 3)
+		const __m512i shift = _mm512_setr_epi64(0, 2, 4, 6, 0, 2, 4, 6);
+		const __m512i sel = _mm512_and_si512(_mm512_srlv_epi64(_mm512_set1_epi64(in2), shift),
+		                                     _mm512_set1_epi64(3));
+		const __m512i idx = _mm512_add_epi64(sel, _mm512_setr_epi64(0, 0, 0, 0, 4, 4, 4, 4));
+		S ret;
+		ret.v512 = _mm512_permutexvar_epi64(idx, in1.v512);
+		return ret;
+	}
+
 	/// needs `AVX512CD`
 	/// \param in1
 	/// \return
@@ -3280,6 +3460,61 @@ struct Xint64x8_t {
 	[[nodiscard]] constexpr static inline uint8_t move(const Xint64x8_t in) noexcept {
 		const __mmask8 t = _mm512_movepi64_mask(in.v512);
 		return t;
+	}
+
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param data 32 bit offsets, in units of `scale` bytes
+	/// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const uint32x8_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		ret.v512 = _mm512_i32gather_epi64(data.v256, ptr, scale);
+		return ret;
+	}
+
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param data offsets, in units of `scale` bytes
+	/// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		S ret;
+		ret.v512 = _mm512_i64gather_epi64(data.v512, ptr, scale);
+		return ret;
+	}
+
+	/// gathers one 64 bit limb per lane from byte offset data[i] * scale of
+	/// `ptr`, the offsets are the first 8 bytes of `data`
+	/// \param ptr base pointer
+	/// \param data offsets, in units of `scale` bytes
+	/// \return
+	template<const uint32_t scale = 1>
+	[[nodiscard]] constexpr static inline S gather(const void *ptr,
+	                                               const uint8x64_t data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		// zero extend the first 8 bytes to 32 bit offsets
+		const __m256i off = _mm256_cvtepu8_epi32(_mm512_castsi512_si128(data.v512));
+		S ret;
+		ret.v512 = _mm512_i32gather_epi64(off, ptr, scale);
+		return ret;
+	}
+
+	/// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
+	/// \tparam scale
+	/// \param ptr base pointer
+	/// \param offset offsets, in units of `scale` bytes
+	/// \param data
+	template<const uint32_t scale = 1>
+	constexpr static inline void scatter(void *ptr,
+	                                     const S offset,
+	                                     const S data) noexcept {
+		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		_mm512_i64scatter_epi64(ptr, offset.v512, data.v512, scale);
 	}
 
 

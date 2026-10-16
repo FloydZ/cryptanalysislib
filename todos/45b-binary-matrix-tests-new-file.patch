@@ -1,0 +1,594 @@
+diff --git a/tests/matrix/binary.cpp b/tests/matrix/binary.cpp
+new file mode 100644
+index 0000000..32405b3
+--- /dev/null
++++ b/tests/matrix/binary.cpp
+@@ -0,0 +1,588 @@
++#include <cstdint>
++#include <gtest/gtest.h>
++#include <iostream>
++#include <vector>
++
++#include "container/fq_vector.h"
++#include "matrix/matrix.h"
++#include "permutation/permutation.h"
++
++using ::testing::InitGoogleTest;
++
++/// tests of the binary matrix `FqMatrix<T, nrows, ncols, 2>` over many sizes
++/// (constexpr loops). The sizes cross the limb (64 bit) and the simd block
++/// (256 bit) boundaries of the row layout.
++using T = uint64_t;
++
++#ifdef DEBUG
++constexpr uint32_t size_step = 126;
++#else
++constexpr uint32_t size_step = 63;
++#endif
++
++/// calls `f(nrows, ncols)` (as `std::integral_constant`) for all sizes in
++/// [1, 200) x [1, 300) with step `size_step`
++template<typename F>
++constexpr void for_sizes(F &&f) noexcept {
++	constexpr_for<1u, 200u, size_step>([&f](const auto nr) {
++		constexpr_for<1u, 300u, size_step>([&f, nr](const auto nc) {
++			f(nr, nc);
++		});
++	});
++}
++
++/// sets every entry uniform random
++template<class M>
++static void fill_random(M &m) noexcept {
++	for (uint32_t i = 0; i < M::nrows; ++i) {
++		for (uint32_t j = 0; j < M::ncols; ++j) {
++			m.set(rng() & 1u, i, j);
++		}
++	}
++}
++
++/// m = U * [I | X] for a random invertible U and a random X. needs nrows <= ncols
++template<class M>
++static void random_full_rank(M &m) noexcept {
++	static_assert(M::nrows <= M::ncols);
++	m.clear();
++	for (uint32_t i = 0; i < M::nrows; ++i) {
++		m.set(1, i, i);
++		for (uint32_t j = M::nrows; j < M::ncols; ++j) {
++			m.set(rng() & 1u, i, j);
++		}
++	}
++
++	for (uint32_t k = 0; k < 4 * M::nrows; ++k) {
++		const uint32_t i = rng(M::nrows), j = rng(M::nrows);
++		if (i != j) { m.row_xor(i, j); }
++	}
++}
++
++/// the bits after `ncols` of every row must be zero, the row kernels work on
++/// full simd blocks
++template<class M>
++static bool padding_is_zero(const M &m) noexcept {
++	for (uint32_t i = 0; i < M::nrows; ++i) {
++		const T *row = m.row(i);
++		if (row[M::limbs - 1u] & ~M::high_bitmask) { return false; }
++		for (uint32_t j = M::limbs; j < M::padded_limbs; ++j) {
++			if (row[j]) { return false; }
++		}
++	}
++	return true;
++}
++
++/// checks that `R` (systemized: the first nrows columns are the identity)
++/// spans the same row space as `A`, i.e. A == A[:, :nrows] * R
++template<class M>
++static void expect_row_equivalent(const M &A, const M &R) noexcept {
++	constexpr uint32_t nr = M::nrows, nc = M::ncols;
++	using S = FqMatrix<T, nr, nr, 2>;
++	S A1;
++	M C;
++	M::sub_matrix(A1, A, 0, 0, nr, nr);
++	S::template mul<nc>(C, A1, R);
++	for (uint32_t i = 0; i < nr; ++i) {
++		for (uint32_t j = 0; j < nc; ++j) {
++			EXPECT_EQ(C.get(i, j), A.get(i, j));
++		}
++	}
++}
++
++TEST(BinaryMatrix, get_set) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M m;
++		std::vector<uint8_t> ref(nr * nc);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				ref[i * nc + j] = rng() & 1u;
++				m.set(ref[i * nc + j], i, j);
++			}
++		}
++
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(m.get(i, j), ref[i * nc + j]);
++				EXPECT_EQ(m[i][j / 64] >> (j % 64) & 1u, ref[i * nc + j]);
++			}
++		}
++		EXPECT_TRUE(padding_is_zero(m));
++
++		// read_bits: up to 64 bits, starting at any column
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				const uint32_t n = std::min(64u, (uint32_t)(nc - j));
++				const T bits = m.read_bits(i, j, n);
++				for (uint32_t k = 0; k < n; ++k) {
++					EXPECT_EQ((bits >> k) & 1u, ref[i * nc + j + k]);
++				}
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, fill_identity_popcnt) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M m;
++		m.fill(1);
++		EXPECT_TRUE(padding_is_zero(m));
++		for (uint32_t i = 0; i < nr; ++i) { EXPECT_EQ(m.row_popcnt(i), nc); }
++		for (uint32_t j = 0; j < nc; ++j) { EXPECT_EQ(m.column_popcnt(j), nr); }
++
++		m.identity();
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(m.get(i, j), i == j);
++			}
++		}
++
++		m.random();
++		EXPECT_TRUE(padding_is_zero(m));
++		m.zero();
++		for (uint32_t i = 0; i < nr; ++i) { EXPECT_EQ(m.row_popcnt(i), 0u); }
++
++		for (uint32_t i = 0; i < nr; ++i) {
++			const uint32_t w = rng(nc + 1u);
++			m.random_row_with_weight(i, w);
++			EXPECT_EQ(m.row_popcnt(i), w);
++		}
++		EXPECT_TRUE(padding_is_zero(m));
++
++		fill_random(m);
++		const M orig = m;
++		const uint32_t r = rng<uint32_t>(nr);
++		m.zero_row(r);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(m.get(i, j), (i == r) ? 0 : orig.get(i, j));
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, copy_is_equal) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M a, b;
++		fill_random(a);
++
++		M c = a;
++		EXPECT_TRUE(M::is_equal(a, c));
++		EXPECT_TRUE(c.is_equal(a));
++
++		b.copy(a);
++		EXPECT_TRUE(M::is_equal(a, b));
++
++		b.zero();
++		b = a;
++		EXPECT_TRUE(M::is_equal(a, b));
++
++		// every single bit is compared
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				b.set(!a.get(i, j), i, j);
++				EXPECT_FALSE(M::is_equal(a, b));
++				EXPECT_FALSE(b.is_equal(a));
++				b.set(a.get(i, j), i, j);
++			}
++		}
++		EXPECT_TRUE(M::is_equal(a, b));
++	});
++}
++
++TEST(BinaryMatrix, row_xor_swap) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M m, o, o2;
++		fill_random(m);
++		fill_random(o2);
++
++		for (uint32_t k = 0; k < 10; ++k) {
++			const uint32_t i = rng<uint32_t>(nr), j = rng<uint32_t>(nr);
++			const uint32_t a = rng<uint32_t>(nc);
++
++			// m[i] ^= m[j]
++			o = m;
++			m.row_xor(i, j);
++			for (uint32_t r = 0; r < nr; ++r) {
++				for (uint32_t l = 0; l < nc; ++l) {
++					const bool e = (r == i) ? (o.get(i, l) ^ o.get(j, l)) : o.get(r, l);
++					EXPECT_EQ(m.get(r, l), e);
++				}
++			}
++
++			// m[i] ^= o2[j]
++			o = m;
++			M::row_xor(m, i, o2, j);
++			for (uint32_t r = 0; r < nr; ++r) {
++				for (uint32_t l = 0; l < nc; ++l) {
++					const bool e = (r == i) ? (o.get(i, l) ^ o2.get(j, l)) : o.get(r, l);
++					EXPECT_EQ(m.get(r, l), e);
++				}
++			}
++
++			// single entries
++			o = m;
++			const uint32_t i2 = rng<uint32_t>(nr), a2 = rng<uint32_t>(nc);
++			m.swap(i, a, i2, a2);
++			for (uint32_t r = 0; r < nr; ++r) {
++				for (uint32_t c = 0; c < nc; ++c) {
++					bool e = o.get(r, c);
++					if (r == i && c == a) { e = o.get(i2, a2); }
++					if (r == i2 && c == a2) { e = o.get(i, a); }
++					EXPECT_EQ(m.get(r, c), e);
++				}
++			}
++			EXPECT_TRUE(padding_is_zero(m));
++		}
++	});
++}
++
++TEST(BinaryMatrix, swap_rows_cols) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M m, o;
++		fill_random(m);
++
++		for (uint32_t k = 0; k < 10; ++k) {
++			const uint32_t i = rng<uint32_t>(nr), j = rng<uint32_t>(nr);
++			const uint32_t a = rng<uint32_t>(nc), b = rng<uint32_t>(nc);
++			o = m;
++			m.swap_rows(i, j);
++			for (uint32_t r = 0; r < nr; ++r) {
++				const uint32_t rr = (r == i) ? j : (r == j) ? i : r;
++				for (uint32_t c = 0; c < nc; ++c) {
++					EXPECT_EQ(m.get(r, c), o.get(rr, c));
++				}
++			}
++
++			o = m;
++			m.swap_cols(a, b);
++			for (uint32_t r = 0; r < nr; ++r) {
++				for (uint32_t c = 0; c < nc; ++c) {
++					const uint32_t cc = (c == a) ? b : (c == b) ? a : c;
++					EXPECT_EQ(m.get(r, c), o.get(r, cc));
++				}
++			}
++			EXPECT_TRUE(padding_is_zero(m));
++		}
++	});
++}
++
++TEST(BinaryMatrix, add) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		M a, b, c;
++		fill_random(a);
++		fill_random(b);
++		fill_random(c);
++		M::add(c, a, b);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(c.get(i, j), a.get(i, j) ^ b.get(i, j));
++			}
++		}
++
++		fill_random(c);
++		M::sub(c, a, b);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(c.get(i, j), a.get(i, j) ^ b.get(i, j));
++			}
++		}
++		EXPECT_TRUE(padding_is_zero(c));
++	});
++}
++
++/// full transpose of an `nr` x `nc` matrix
++template<const uint32_t nr, const uint32_t nc>
++static void check_transpose() noexcept {
++	using M = FqMatrix<T, nr, nc, 2>;
++	using MT = FqMatrix<T, nc, nr, 2>;
++	M m;
++	MT mt;
++	fill_random(m);
++	fill_random(mt);
++
++	M::transpose(mt, m);
++	for (uint32_t i = 0; i < nr; ++i) {
++		for (uint32_t j = 0; j < nc; ++j) {
++			EXPECT_EQ(m.get(i, j), mt.get(j, i));
++		}
++	}
++	EXPECT_TRUE(padding_is_zero(mt));
++
++	const MT mt2 = m.transpose();
++	EXPECT_TRUE(MT::is_equal(mt, mt2));
++}
++
++TEST(BinaryMatrix, transpose) {
++	for_sizes([](const auto nr, const auto nc) {
++		check_transpose<nr, nc>();
++	});
++
++	// the recursive splits of the large transpose (blocks of 512 bits)
++	check_transpose<600, 700>();
++	check_transpose<700, 600>();
++	check_transpose<1500, 1400>();
++	check_transpose<1400, 1500>();
++	check_transpose<1030, 70>();
++	check_transpose<70, 1030>();
++}
++
++TEST(BinaryMatrix, sub_transpose_matrix) {
++	for_sizes([](const auto nr, const auto nc) {
++		if constexpr ((nr > 5) && (nc > 10)) {
++			using M = FqMatrix<T, nr, nc, 2>;
++			constexpr uint32_t srow = 5, scol = 10;
++			M m;
++			fill_random(m);
++
++			// transpose starting at (srow, scol), not re-aligned
++			{
++				using MT = FqMatrix<T, nc, nr, 2>;
++				MT mt;
++				fill_random(mt);
++				const MT orig = mt;
++				M::transpose(mt, m, srow, scol);
++				for (uint32_t j = 0; j < nc; ++j) {
++					for (uint32_t i = 0; i < nr; ++i) {
++						if (i >= srow && j >= scol) {
++							EXPECT_EQ(mt.get(j, i), m.get(i, j));
++						} else {
++							EXPECT_EQ(mt.get(j, i), orig.get(j, i));
++						}
++					}
++				}
++			}
++
++			// re-aligned to (0, 0)
++			{
++				using MT = FqMatrix<T, nc - scol, nr - srow, 2>;
++				MT mt;
++				fill_random(mt);
++				M::sub_transpose(mt, m, srow, scol);
++				for (uint32_t i = srow; i < nr; ++i) {
++					for (uint32_t j = scol; j < nc; ++j) {
++						EXPECT_EQ(mt.get(j - scol, i - srow), m.get(i, j));
++					}
++				}
++			}
++
++			{
++				constexpr uint32_t erow = nr - 1, ecol = nc - 3;
++				using MS = FqMatrix<T, erow - srow, ecol - scol, 2>;
++				MS ms;
++				fill_random(ms);
++				M::sub_matrix(ms, m, srow, scol, erow, ecol);
++				for (uint32_t i = srow; i < erow; ++i) {
++					for (uint32_t j = scol; j < ecol; ++j) {
++						EXPECT_EQ(ms.get(i - srow, j - scol), m.get(i, j));
++					}
++				}
++				EXPECT_TRUE(padding_is_zero(ms));
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, augment) {
++	for_sizes([](const auto nr, const auto nc) {
++		constexpr uint32_t nc2 = 70;
++		using L = FqMatrix<T, nr, nc, 2>;
++		using R = FqMatrix<T, nr, nc2, 2>;
++		using O = FqMatrix<T, nr + 3, nc + nc2, 2>;
++		L l; R r; O o;
++		fill_random(l);
++		fill_random(r);
++		fill_random(o);
++		O::augment(o, l, r);
++		for (uint32_t i = 0; i < nr + 3; ++i) {
++			for (uint32_t j = 0; j < nc + nc2; ++j) {
++				const bool e = (i >= nr) ? 0 : ((j < nc) ? l.get(i, j) : r.get(i, j - nc));
++				EXPECT_EQ(o.get(i, j), e);
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, mul) {
++	constexpr_for<1u, 140u, size_step>([](const auto nr) {
++		constexpr_for<1u, 140u, size_step>([nr](const auto nc) {
++			constexpr_for<1u, 140u, size_step>([nr, nc](const auto np) {
++				using A = FqMatrix<T, nr, nc, 2>;
++				using B = FqMatrix<T, nc, np, 2>;
++				using BT = FqMatrix<T, np, nc, 2>;
++				using C = FqMatrix<T, nr, np, 2>;
++				A a; B b; C c, c2;
++				fill_random(a);
++				fill_random(b);
++				fill_random(c);
++				A::template mul<np>(c, a, b);
++				for (uint32_t i = 0; i < nr; ++i) {
++					for (uint32_t j = 0; j < np; ++j) {
++						bool s = 0;
++						for (uint32_t k = 0; k < nc; ++k) {
++							s ^= a.get(i, k) & b.get(k, j);
++						}
++						EXPECT_EQ(c.get(i, j), s);
++					}
++				}
++
++				const BT bt = b.transpose();
++				A::template mul_transposed<np>(c2, a, bt);
++				EXPECT_TRUE(C::is_equal(c, c2));
++			});
++		});
++	});
++}
++
++TEST(BinaryMatrix, vector_mul) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		using VR = FqPackedVector<nr, 2, T>;
++		using VC = FqPackedVector<nc, 2, T>;
++		M m;
++		fill_random(m);
++		VR out; VC in;
++		for (uint32_t k = 0; k < 10; ++k) {
++			in.random();
++			out.random();
++			m.mul(out, in);
++			for (uint32_t i = 0; i < nr; ++i) {
++				bool s = 0;
++				for (uint32_t j = 0; j < nc; ++j) {
++					s ^= m.get(i, j) & bool(in.get(j));
++				}
++				EXPECT_EQ(bool(out.get(i)), s);
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, gaus) {
++	for_sizes([](const auto nr, const auto nc) {
++		if constexpr (nr <= nc) {
++			using M = FqMatrix<T, nr, nc, 2>;
++			for (uint32_t k = 0; k < 5; ++k) {
++				M m;
++				random_full_rank(m);
++				const M orig = m;
++				const uint32_t rank = (k & 1u) ? m.gaus() : m.m4ri();
++				EXPECT_EQ(rank, nr);
++				for (uint32_t i = 0; i < nr; ++i) {
++					for (uint32_t j = 0; j < nr; ++j) {
++						EXPECT_EQ(m.get(i, j), i == j);
++					}
++				}
++				EXPECT_TRUE(padding_is_zero(m));
++				expect_row_equivalent(orig, m);
++			}
++
++			// uniform random matrices: the first `rank` columns are systemized
++			M m;
++			fill_random(m);
++			const uint32_t rank = m.gaus();
++			for (uint32_t i = 0; i < nr; ++i) {
++				for (uint32_t j = 0; j < rank; ++j) {
++					EXPECT_EQ(m.get(i, j), i == j);
++				}
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, fix_gaus) {
++	for_sizes([](const auto nr, const auto nc) {
++		if constexpr ((nr > 3) && (nr < nc)) {
++			using M = FqMatrix<T, nr, nc, 2>;
++			M m;
++			// full rank, but column 3 is zero: gaus stops there
++			random_full_rank(m);
++			for (uint32_t i = 0; i < nr; ++i) { m.set(0, i, nc - 1u); }
++			m.swap_cols(3, nc - 1u);
++			const M orig = m;
++
++			Permutation P{nc};
++			const uint32_t rank = m.gaus();
++			EXPECT_EQ(rank, 3u);
++			const uint32_t rank2 = m.fix_gaus(P, rank, nr);
++			EXPECT_EQ(rank2, nr);
++			for (uint32_t i = 0; i < nr; ++i) {
++				for (uint32_t j = 0; j < nr; ++j) {
++					EXPECT_EQ(m.get(i, j), i == j);
++				}
++			}
++
++			// the systemized matrix spans the row space of the permuted input
++			M origP;
++			for (uint32_t i = 0; i < nr; ++i) {
++				for (uint32_t j = 0; j < nc; ++j) {
++					origP.set(orig.get(i, P.values[j]), i, j);
++				}
++			}
++			expect_row_equivalent(origP, m);
++		}
++	});
++}
++
++TEST(BinaryMatrix, markov_gaus) {
++	for_sizes([](const auto nr, const auto nc) {
++		constexpr uint32_t l = 10, c = 5;
++		if constexpr ((nr > l + c) && (nr < nc)) {
++			using M = FqMatrix<T, nr, nc, 2>;
++			M m;
++			Permutation P(nc);
++			uint32_t rank = 0;
++			while (true) {
++				random_full_rank(m);
++				rank = m.gaus(nr - l);
++				if (rank >= nr - l) { break; }
++			}
++
++			for (uint32_t k = 0; k < 10; ++k) {
++				const uint32_t rank2 = m.template markov_gaus<c, nr - l>(P);
++				EXPECT_EQ(rank, rank2);
++				for (uint32_t i = 0; i < nr; ++i) {
++					for (uint32_t j = 0; j < nr - l; ++j) {
++						EXPECT_EQ(m.get(i, j), i == j);
++					}
++				}
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, permute_cols) {
++	for_sizes([](const auto nr, const auto nc) {
++		using M = FqMatrix<T, nr, nc, 2>;
++		using MT = FqMatrix<T, nc, nr, 2>;
++		M m;
++		MT mt;
++		fill_random(m);
++		const M orig = m;
++		Permutation P(nc);
++		m.permute_cols(mt, P);
++		for (uint32_t i = 0; i < nr; ++i) {
++			for (uint32_t j = 0; j < nc; ++j) {
++				EXPECT_EQ(m.get(i, j), orig.get(i, P.values[j]));
++			}
++		}
++	});
++}
++
++TEST(BinaryMatrix, from_string) {
++	using M = FqMatrix<T, 2, 3, 2>;
++	const M m{"011100"};
++	EXPECT_EQ(m.get(0, 0), 0); EXPECT_EQ(m.get(0, 1), 1); EXPECT_EQ(m.get(0, 2), 1);
++	EXPECT_EQ(m.get(1, 0), 1); EXPECT_EQ(m.get(1, 1), 0); EXPECT_EQ(m.get(1, 2), 0);
++}
++
++int main(int argc, char **argv) {
++	InitGoogleTest(&argc, argv);
++	rng_seed(time(nullptr));
++	return RUN_ALL_TESTS();
++}

@@ -1,0 +1,339 @@
+--- a/src/container/binary_packed_vector.h
++++ b/src/container/binary_packed_vector.h
+@@ -34,23 +34,19 @@
+ 		return 0;
+ 
+ 
+-/// 
+-struct BinaryVectorConfig : public AlignmentConfig {
+-};
+-constexpr static BinaryVectorConfig binaryVectorConfig;
+-
+ /// \tparam _n number of bits
+ /// \tparam T
++/// \tparam config see `FqPackedVectorMetaConfig` (`binary_align`)
+ template<const uint32_t _n,
+-		 typename T>
+-		 // TODO const BinaryVectorConfig &config=binaryVectorConfig>
++		 typename T,
++		 const FqPackedVectorMetaConfig &config>
+ #if __cplusplus > 201709L
+     requires std::unsigned_integral<T>
+ #endif
+-class FqPackedVector<_n, 2, T> {
++class FqPackedVector<_n, 2, T, true, config> {
+ public:
+ 	// Internal Types needed for the template system.
+-	typedef FqPackedVector<_n, 2, T> ContainerType;
++	typedef FqPackedVector<_n, 2, T, true, config> ContainerType;
+ 	typedef T LimbType;
+ 	typedef T ContainerLimbType;
+ 	typedef bool DataType;
+@@ -80,12 +76,11 @@
+ 	//private:
+ 	// DO NOT CALL THIS FUNCTION. Use 'limbs()'.
+ 	constexpr static uint16_t compute_limbs() noexcept {
+-		// TODO config this via config
+-#ifdef BINARY_CONTAINER_ALIGNMENT
+-		return (alignment() + limb_bits_width() - 1) / limb_bits_width();
+-#else
+-		return (length + limb_bits_width() - 1) / limb_bits_width();
+-#endif
++		if constexpr (config.binary_align) {
++			return (alignment() + limb_bits_width() - 1) / limb_bits_width();
++		} else {
++			return (length + limb_bits_width() - 1) / limb_bits_width();
++		}
+ 	};
+ 
+ 	/// default constructor
+@@ -1322,8 +1317,8 @@
+ 		return hm + popcnt_T(__data[ulimb] & rmask);
+ 	}
+ 
+-	/// TODO add to concept and add to kAryTypes
+-	/// NOTE: need to abs
++	/// \return the hamming distance (the number of different coordinates).
++	/// NOTE: part of `ElementDataAble`, the other containers implement it too
+ 	constexpr static inline uint32_t dist(const FqPackedVector &a,
+ 	                                      const FqPackedVector &b) noexcept {
+ 		uint32_t ret = 0;
+@@ -1717,8 +1712,8 @@
+ 
+ 
+ 
+-/// TODO make this an field in the config
+-#ifdef BINARY_CONTAINER_ALIGNMENT
++	/// \return the number of bits, if `config.binary_align`: the length is
++	///		rounded up to a multiple of 16 bytes
+ 	static constexpr uint16_t alignment() {
+ 		// Aligns to a multiple of 32 Bytes
+ 		//constexpr uint16_t bytes = (length+7)/8;
+@@ -1730,7 +1725,6 @@
+ 		constexpr uint16_t limbs = (((bytes - 1) >> 4) + 1) << 4;
+ 		return limbs * 8;
+ 	}
+-#endif
+ 
+ 	// length operators
+ 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
+@@ -1741,11 +1735,11 @@
+ 		return 1;
+ 	}
+ 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
+-#ifdef BINARY_CONTAINER_ALIGNMENT
+-		return alignment() / 8;
+-#else
+-		return limbs() * sizeof(T);
+-#endif
++		if constexpr (config.binary_align) {
++			return alignment() / 8;
++		} else {
++			return limbs() * sizeof(T);
++		}
+ 	}
+ 
+ 	[[nodiscard]] __FORCEINLINE__ T *ptr() noexcept { return __data.data(); };
+@@ -1789,26 +1783,27 @@
+ template<const uint32_t n, typename T = uint64_t>
+ using BinaryVector = FqPackedVector<n, 2, T>;
+ 
+-template<const uint32_t n, typename T>
+-constexpr inline bool operator==(const FqPackedVector<n, 2, T> &a,
+-                                 const FqPackedVector<n, 2, T> &b) noexcept {
++template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
++constexpr inline bool operator==(const FqPackedVector<n, 2, T, true, config> &a,
++                                 const FqPackedVector<n, 2, T, true, config> &b) noexcept {
+ 	return a.is_equal(b);
+ }
+-template<const uint32_t n, typename T>
+-constexpr inline bool operator<(const FqPackedVector<n, 2, T> &a,
+-                                const FqPackedVector<n, 2, T> &b) noexcept {
++template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
++constexpr inline bool operator<(const FqPackedVector<n, 2, T, true, config> &a,
++                                const FqPackedVector<n, 2, T, true, config> &b) noexcept {
+ 	return a.is_lower(b);
+ }
+-template<const uint32_t n, typename T>
+-constexpr inline bool operator>(const FqPackedVector<n, 2, T> &a,
+-                                const FqPackedVector<n, 2, T> &b) noexcept {
++template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
++constexpr inline bool operator>(const FqPackedVector<n, 2, T, true, config> &a,
++                                const FqPackedVector<n, 2, T, true, config> &b) noexcept {
+ 	return a.is_greater(b);
+ }
+ 
+ template<uint64_t _n,
+-        typename T=uint64_t>
++        typename T=uint64_t,
++        const FqPackedVectorMetaConfig &config>
+ std::ostream &operator<<(std::ostream &out,
+-                         const FqPackedVector<_n, 2, T> &obj) {
++                         const FqPackedVector<_n, 2, T, true, config> &obj) {
+ 	constexpr bool print_weight = true;
+ 	for (size_t i = 0; i < obj.length; ++i) {
+ 		out << obj[i];
+--- a/src/container/fq_packed_vector.h
++++ b/src/container/fq_packed_vector.h
+@@ -17,6 +17,15 @@
+ struct FqPackedVectorMetaConfig : public AlignmentConfig {
+     // if true: simd operations will be used.
+ 	const bool activate_simd = true;
++
++	// only for binary vectors (`q = 2`): if true, the number of limbs is
++	// rounded up, such that the data is a multiple of 16 bytes.
++	// NOTE: the default can be set with `-DBINARY_CONTAINER_ALIGNMENT`
++#ifdef BINARY_CONTAINER_ALIGNMENT
++	const bool binary_align = true;
++#else
++	const bool binary_align = false;
++#endif
+ };
+ inline constexpr FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
+ 
+@@ -368,6 +377,18 @@
+ 
+ 	}
+ 
++	/// \return the hamming distance: the number of coordinates in which
++	///		`a` and `b` differ
++	[[nodiscard]] constexpr static uint32_t dist(const FqPackedVectorMeta &a,
++	                                             const FqPackedVectorMeta &b) noexcept {
++		uint32_t ret = 0;
++		for (uint32_t i = 0; i < n; i++) {
++			ret += a.get(i) != b.get(i);
++		}
++
++		return ret;
++	}
++
+ 	/// return the positions of the first p bits/numbers set
+ 	/// \param out output: const_array of the first p positions set in the container
+ 	/// \param p maximum bits!=0 to find
+@@ -1264,11 +1285,12 @@
+ template<const uint32_t n,
+          const uint64_t q,
+          typename T=uint64_t,
+-		 const bool __unsigned =  true>
++		 const bool __unsigned =  true,
++		 const FqPackedVectorMetaConfig &config=fqPackedVectorMetaConfig>
+ #if __cplusplus > 201709L
+     requires std::is_integral<T>::value
+ #endif
+-class FqPackedVector : public FqPackedVectorMeta<n, q, T, __unsigned> {
++class FqPackedVector : public FqPackedVectorMeta<n, q, T, __unsigned, config> {
+ public:
+ 	/// Nomenclature:
+ 	///     Number 	:= actual data one wants to save % modulus
+@@ -1281,7 +1303,7 @@
+ 	///  numbers which first bits are on one limb and the remaining bits are on the next limb).
+ 	///
+ 
+-	using M = FqPackedVectorMeta<n, q, T, __unsigned>;
++	using M = FqPackedVectorMeta<n, q, T, __unsigned, config>;
+ 	using M::length;
+ 	using M::modulus;
+ 
+@@ -1314,16 +1336,17 @@
+ };
+ 
+ /// partly specialized class for q=3 (unsigned)
+-template<const uint32_t n>
++template<const uint32_t n,
++         const FqPackedVectorMetaConfig &config>
+ #if __cplusplus > 201709L
+     requires std::is_integral<uint64_t>::value
+ #endif
+-class FqPackedVector<n, 3, uint64_t> : public FqPackedVectorMeta<n, 3, uint64_t, true> {
++class FqPackedVector<n, 3, uint64_t, true, config> : public FqPackedVectorMeta<n, 3, uint64_t, true, config> {
+ public:
+ 	/// this is just defined, because Im lazy
+ 	static constexpr uint32_t q = 3;
+ 	using T = uint64_t;
+-	using M = FqPackedVectorMeta<n, 3, T, true>;
++	using M = FqPackedVectorMeta<n, 3, T, true, config>;
+ 
+ 	/// needed size descriptions
+ 	using M::bits_per_limb;
+--- a/src/container/fq_vector.h
++++ b/src/container/fq_vector.h
+@@ -233,6 +233,18 @@
+ 		return r;
+ 	}
+ 
++	/// \return the hamming distance: the number of coordinates in which
++	///		`a` and `b` differ
++	[[nodiscard]] constexpr static inline uint32_t dist(const FqNonPackedVectorMeta &a,
++	                                                    const FqNonPackedVectorMeta &b) noexcept {
++		uint32_t r = 0;
++		for (uint32_t i = 0; i < length; ++i) {
++			r += a.__data[i] != b.__data[i];
++		}
++
++		return r;
++	}
++
+ 	/// swap coordinate i, j, boundary checks are done
+ 	/// \param i[in]: coordinate
+ 	/// \param j[in]: coordinate
+--- a/src/container/kAry_type.h
++++ b/src/container/kAry_type.h
+@@ -944,6 +944,15 @@
+ 		return (uint32_t)popcnt_T(T(__value & mask));
+ 	}
+ 
++	/// \return the distance of `a` and `b` mod q: min(a-b, b-a) mod q
++	[[nodiscard]] constexpr static inline T dist(const FqElement &a,
++	                                             const FqElement &b) noexcept {
++		// NOTE: without `a + q`, which can overflow `T`
++		const T d = (a.__value >= b.__value) ? T(a.__value - b.__value)
++		                                     : T(q - (b.__value - a.__value));
++		return (d < T(q - d)) ? d : T(q - d);
++	}
++
+ 	/// right rotate
+ 	constexpr inline static void rol(FqElement &out,
+ 	                                 const FqElement &in1,
+--- a/src/element.h
++++ b/src/element.h
+@@ -65,6 +65,7 @@
+ 		c.neg(i, i);
+ 		c.popcnt();
+ 		c.popcnt(i, i);
++		Container::dist(c, c);
+ 
+ 		/// printing stuff
+ 		c.print_binary(i, i);
+--- a/tests/container/test_fqpackedvector.h
++++ b/tests/container/test_fqpackedvector.h
+@@ -44,6 +44,21 @@
+ 	}
+ }
+ 
++TEST(NAME, dist) {
++	using V = K;
++	V t1, t2;
++	t1.zero(); t2.zero();
++	EXPECT_EQ(V::dist(t1, t2), 0);
++	for (uint32_t i = 0; i < V::length; i++){
++		t2.set(1, i);
++		EXPECT_EQ(V::dist(t1, t2), i + 1);
++		EXPECT_EQ(V::dist(t2, t1), i + 1);
++	}
++
++	t1.random();
++	EXPECT_EQ(V::dist(t1, t1), 0);
++}
++
+ 
+ TEST(NAME, mod_T) {
+ 	constexpr uint32_t qbits = ceil_log2(PRIME);
+--- a/tests/container/test_fqvector.h
++++ b/tests/container/test_fqvector.h
+@@ -44,6 +44,21 @@
+ 	}
+ }
+ 
++TEST(NAME, dist) {
++	using V = K;
++	V t1, t2;
++	t1.zero(); t2.zero();
++	EXPECT_EQ(V::dist(t1, t2), 0);
++	for (uint32_t i = 0; i < V::length; i++){
++		t2.set(1, i);
++		EXPECT_EQ(V::dist(t1, t2), i + 1);
++		EXPECT_EQ(V::dist(t2, t1), i + 1);
++	}
++
++	t1.random();
++	EXPECT_EQ(V::dist(t1, t1), 0);
++}
++
+ 
+ TEST(NAME, mod_T) {
+ 	for (uint64_t i = 0; i < PRIME; i++) {
+--- a/tests/test_kArytype.h
++++ b/tests/test_kArytype.h
+@@ -52,6 +52,22 @@
+ 	EXPECT_EQ(l1, t1);
+ }
+ 
++TEST(T, dist) {
++	for (uint32_t i = 0; i < TESTSIZE; ++i) {
++		const uint64_t x = rng() % PRIME, y = rng() % PRIME;
++		const S a = x, b = y;
++		const uint64_t d = (x + PRIME - y) % PRIME;
++		const uint64_t e = std::min(d, uint64_t(PRIME) - d);
++		EXPECT_EQ(S::dist(a, b), e);
++		EXPECT_EQ(S::dist(b, a), e);
++		EXPECT_EQ(S::dist(a, a), 0);
++	}
++
++	const S zero = 0, max = PRIME - 1;
++	EXPECT_EQ(S::dist(zero, max), 1);
++	EXPECT_EQ(S::dist(max, zero), 1);
++}
++
+ TEST(T, EdgeCases) {
+ 	S l1;
+ 	S::LimbType t1 = PRIME;

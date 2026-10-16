@@ -11,9 +11,9 @@
 namespace cryptanalysislib::math {
 	/// \param num
 	/// \return
-	__device__ __host__ template<typename T>
+	template<typename T>
 	    requires std::is_floating_point_v<T>
-	constexpr T floor(const T val) {
+	__device__ __host__ constexpr T floor(const T val) {
 		// casting to int truncates the value, which is floor(val) for positive values,
 		// but we have to substract 1 for negative values (unless val is already floored == recasted int val)
 		const auto val_int = (int64_t) val;

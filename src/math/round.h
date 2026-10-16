@@ -10,11 +10,11 @@
 namespace cryptanalysislib::math {
 	/// \param val
 	/// \return
-	__device__ __host__ template<typename T>
+	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_floating_point_v<T>
 #endif
-	constexpr int64_t round(const T val) {
+	__device__ __host__ constexpr int64_t round(const T val) {
 		// round half away from zero (as std::round)
 		const int64_t t = (int64_t) val;
 		const T frac = val - T(t);

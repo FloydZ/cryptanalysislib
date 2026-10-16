@@ -107,7 +107,7 @@ __global__ void bruteforce(T *L, T *R,
 						   size_t *f1, size_t *f2) {
 	dbruteforce
 		<T, nr_limbs, d>
-		(L, R, e1, e2, f1, f2, idx, blockDim.x*gridDim.x);
+		(L, R, e1, e2, f1, f2, threadIdx.x + blockIdx.x*blockDim.x, blockDim.x*gridDim.x);
 }
 
 /// filters the `e` elements of `X`: an element survives if its limbs
@@ -253,7 +253,7 @@ __device__ void dnn(T *L, T *R,
 	if constexpr (lvl == 0) {
 		dbruteforce
 			<T, nr_limbs, d>
-			(L, R, e1, e2, f1, f2, idx, blockDim.x*gridDim.x);
+			(L, R, e1, e2, f1, f2, threadIdx.x + blockIdx.x*blockDim.x, blockDim.x*gridDim.x);
 		return;
 	} else {
 		/// TODO here the selection process for the correct nn algorithm

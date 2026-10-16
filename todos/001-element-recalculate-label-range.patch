@@ -1,0 +1,63 @@
+recalculate_label(m, k_lower, k_upper): recompute only the label
+coordinates [k_lower, k_upper) instead of ignoring the range.
+
+--- a/src/element.h
++++ b/src/element.h
+@@ -190,11 +190,19 @@
+ 		m.mul(label, value);
+ 	}
+
++	/// recalculates only the label coordinates [k_lower, k_upper),
++	/// all other coordinates are left untouched.
++	/// \param m Matrix
++	/// \param k_lower lower coordinate (inclusive)
++	/// \param k_upper upper coordinate (exclusive)
+ 	constexpr inline void recalculate_label(const MatrixType &m,
+ 	                                        const uint32_t k_lower,
+ 	                                        const uint32_t k_upper) noexcept {
+-		// TODO: matrix_view?
+-		(void)k_lower;
+-		(void)k_upper;
+-		m.mul(label, value);
++		assert(k_lower < k_upper);
++		assert(k_upper <= LabelLENGTH);
++		Label tmp;
++		m.mul(tmp, value);
++		for (uint32_t i = k_lower; i < k_upper; ++i) {
++			label.set(tmp.get(i), i);
++		}
+ 	}
+
+--- a/tests/list/test_list.h
++++ b/tests/list/test_list.h
+@@ -39,6 +39,30 @@
+ 	}
+ }
+
++TEST(ListName, recalculate_label_range) {
++	Matrix m;
++	m.random();
++
++	Element e;
++	e.random(m);
++	const Label correct = e.label;
++
++	constexpr uint32_t k_lower = N/4, k_upper = N/2;
++	Element e2 = e;
++	e2.label.zero();
++	e2.recalculate_label(m, k_lower, k_upper);
++	for (uint32_t i = 0; i < N; ++i) {
++		if ((i >= k_lower) && (i < k_upper)) {
++			EXPECT_EQ(e2.label.get(i), correct.get(i));
++		} else {
++			EXPECT_EQ(e2.label.get(i), 0u);
++		}
++	}
++
++	e2.recalculate_label(m, 0, N);
++	EXPECT_TRUE(e2.label.is_equal(correct));
++}
++
+ TEST(ListName, sort_level) {
+ 	const uint32_t k_lower = 0, k_higher = N;
+ 	List L{LS, 1};

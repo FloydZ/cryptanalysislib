@@ -29,6 +29,7 @@ let
     lldb
     clang
     clang-tools
+    ispc
     llvm
     llvmPackages.libcxx
     llvmPackages.openmp

@@ -1,0 +1,240 @@
+diff --git a/src/container/signal_tree/tree.h b/src/container/signal_tree/tree.h
+index f0ba6d4..8897a60 100644
+--- a/src/container/signal_tree/tree.h
++++ b/src/container/signal_tree/tree.h
+@@ -8,8 +8,15 @@
+ #include <functional>
+ #include <utility>
+ 
+-// TODO: type rich
+-using signal_index = std::uint64_t;
++/// index of a signal (leaf) within a signal tree
++struct signal_index {
++	std::uint64_t value = 0;
++
++	constexpr signal_index() noexcept = default;
++	constexpr explicit signal_index(const std::uint64_t v) noexcept : value(v) {}
++	[[nodiscard]] constexpr explicit operator std::uint64_t() const noexcept { return value; }
++	[[nodiscard]] constexpr bool operator==(const signal_index &) const noexcept = default;
++};
+ static signal_index constexpr invalid_signal_index{~0ull};
+ 
+ ///
+@@ -65,7 +72,7 @@ struct default_selector {
+         				   std::uint64_t nextBias = 0) const noexcept -> signal_index{
+         if constexpr (total_counters == 1) {
+             select_bias_hint |= nextBias;
+-            return 0;
++            return signal_index{0};
+         } else {
+             static auto constexpr counters_per_half = (total_counters / 2);
+             static auto constexpr bits_per_half = (counters_per_half * bits_per_counter);
+@@ -79,7 +86,7 @@ struct default_selector {
+             nextBias <<= 1;
+             nextBias |= (rightCounters != 0);
+             counters >>= (chooseRight) ? 0 : bits_per_half;
+-            return ((chooseRight) ? counters_per_half : 0) + default_selector<counters_per_half, bits_per_counter, bias_bit / 2>()(biasFlags, counters & right_bit_mask, nextBias);
++            return signal_index{((chooseRight) ? counters_per_half : 0) + default_selector<counters_per_half, bits_per_counter, bias_bit / 2>()(biasFlags, counters & right_bit_mask, nextBias).value};
+         }
+     }
+ };
+@@ -210,13 +217,13 @@ public:
+ 	inline auto select( const bias_flags biasFlags) noexcept -> std::pair<signal_index, bool> {
+ 	    auto expected = value_.load();
+ 	    while (expected) {
+-	        auto counterIndex = selector<number_of_counters, bits_per_counter, bias_bit>()(biasFlags, expected);
++	        const signal_index counterIndex = selector<number_of_counters, bits_per_counter, bias_bit>()(biasFlags, expected);
+ 	        if constexpr (non_leaf_node_traits<T>) {
+-	            auto desired = expected - addend_[counterIndex];
++	            auto desired = expected - addend_[counterIndex.value];
+ 	            if (value_.compare_exchange_strong(expected, desired))
+ 	                return {counterIndex, (desired == 0)};
+ 	        }else {
+-	            auto bit = 0x8000000000000000ull >> counterIndex;
++	            auto bit = 0x8000000000000000ull >> counterIndex.value;
+ 	            if (expected = value_.fetch_and(~bit); ((expected & bit) == bit))
+ 	                return {counterIndex, (expected == bit)};
+ 	        }
+@@ -296,7 +303,7 @@ public:
+ 	        if (auto [_, success] = childLevel_.set(signalIndex); !success)
+ 	            return {false, false};
+ 	    }
+-	    return nodes_[signalIndex / node_capacity].set(signalIndex % node_capacity);
++	    return nodes_[signalIndex.value / node_capacity].set(signalIndex.value % node_capacity);
+ 	}
+ 
+ 	/// return the index of a counter which is not zero (indicates that one of the leaf nodes
+@@ -346,9 +353,8 @@ protected:
+ 	    } else {
+ 	        static auto constexpr bias_bits_consumed_to_select_child_counter = minimum_bit_count(child_level_type::counters_per_node) - 1;
+ 	        select_bias_hint <<= bias_bits_consumed_to_select_child_counter;
+-	        auto [childSelectedCounter, _] = childLevel_. template select<select_function>(biasFlags, (nodeIndex * counters_per_node) + selectedCounter);
+-	        selectedCounter *= counter_capacity;
+-	        return {selectedCounter | childSelectedCounter, nodeIsZero};
++	        auto [childSelectedCounter, _] = childLevel_. template select<select_function>(biasFlags, (nodeIndex * counters_per_node) + selectedCounter.value);
++	        return {signal_index{(selectedCounter.value * counter_capacity) | childSelectedCounter.value}, nodeIsZero};
+ 	    }
+ 	}
+ 
+diff --git a/src/thread/work_contract.h b/src/thread/work_contract.h
+index 3668f14..c619202 100644
+--- a/src/thread/work_contract.h
++++ b/src/thread/work_contract.h
+@@ -211,7 +211,7 @@ namespace cryptanalysislib::work_contract {
+ 				std::uint64_t,
+ 				std::uint64_t counters) const noexcept -> signal_index {
+ 				if constexpr (bits_per_counter == 1) {
+-					return (counters > 0) ? std::countl_zero(counters) : ~0ull;
++					return (counters > 0) ? signal_index{uint64_t(std::countl_zero(counters))} : invalid_signal_index;
+ 				} else {
+ 					// this routine is only called to select new contract ids.  but we could improve speed here
+ 					// with a expression fold as total counters is never more than 8 and often 4 or 2.
+@@ -225,7 +225,7 @@ namespace cryptanalysislib::work_contract {
+ 						}
+ 						counters >>= bits_per_counter;
+ 					}
+-					return (total_counters - selected - 1);
++					return signal_index{total_counters - selected - 1};
+ 				}
+ 			}
+ 		};
+@@ -253,7 +253,7 @@ namespace cryptanalysislib::work_contract {
+ 		    releaseToken_(subTreeCount_ * signal_tree_type::capacity) {
+ 			for (auto & subtree : available_) {
+ 				for (auto i = 0ull; i < signal_tree_type::capacity; ++i) {
+-					subtree.set(i);
++					subtree.set(signal_index{i});
+ 				}
+ 			}
+ 		}
+@@ -341,7 +341,7 @@ namespace cryptanalysislib::work_contract {
+ 					}
+ 
+ 					work_contract_id workContractId(subTreeIndex * signal_tree_capacity);
+-					workContractId |= signalIndex;
++					workContractId |= signalIndex.value;
+ 					// countr_zero(0) == 64 and `1 << 64` is UB; x86-64 and ARM64 shift by
+ 					// (64 mod 64) == 0, so keep that behaviour explicitly
+ 					const std::uint64_t biasDiff = select_bias_hint ^ biasFlags;
+@@ -354,7 +354,7 @@ namespace cryptanalysislib::work_contract {
+ 						biasFlags &= ~(b - 1);
+ 					}
+ 					process_contract(workContractId);
+-					return signalIndex;
++					return signalIndex.value;
+ 				}
+ 				biasFlags = (++subTreeIndex * signal_tree_type::capacity);
+ 			}
+@@ -545,9 +545,9 @@ namespace cryptanalysislib::work_contract {
+ 			for (auto i = 0ull; i < available_.size(); ++i) {
+ 				auto subTreeIndex (nextAvailableTreeIndex_++ & subTreeMask_);
+ 				if (!available_[subTreeIndex].empty()) {
+-					if (auto [signalIndex, _] = available_[subTreeIndex].select<largest_child_selector>(0); signalIndex != ~0ull) {
++					if (auto [signalIndex, _] = available_[subTreeIndex].select<largest_child_selector>(0); signalIndex != invalid_signal_index) {
+ 						work_contract_id workContractId(subTreeIndex * signal_tree_capacity);
+-						workContractId += signalIndex;
++						workContractId += signalIndex.value;
+ 						return workContractId;
+ 					}
+ 				}
+@@ -558,8 +558,8 @@ namespace cryptanalysislib::work_contract {
+ 
+ 		/// \param workContractId
+ 		/// \return
+-		std::tuple<std::uint64_t, std::uint64_t> get_tree_and_signal_index(work_contract_id workContractId) const {
+-			return {workContractId / signal_tree_capacity, workContractId % signal_tree_capacity};
++		std::tuple<std::uint64_t, signal_index> get_tree_and_signal_index(work_contract_id workContractId) const {
++			return {workContractId / signal_tree_capacity, signal_index{workContractId % signal_tree_capacity}};
+ 		}
+ 
+ 
+diff --git a/tests/container/signal_tree.cpp b/tests/container/signal_tree.cpp
+index 32bd13b..e93cb7c 100644
+--- a/tests/container/signal_tree.cpp
++++ b/tests/container/signal_tree.cpp
+@@ -23,6 +23,10 @@ static_assert(select_tree_size((1ull << 27) + 1) == (1ull << 28));
+ static_assert(select_tree_size(1ull << 30) == (1ull << 30));
+ static_assert(select_tree_size((1ull << 30) + 5) == (1ull << 31));
+ 
++// no implicit conversions from/to plain integers
++static_assert(!std::is_convertible_v<std::uint64_t, signal_index>);
++static_assert(!std::is_convertible_v<signal_index, std::uint64_t>);
++
+ template<std::size_t desired_signal_tree_capacity>
+ int test_multi_threaded() {
+ 	try {
+@@ -41,7 +45,7 @@ int test_multi_threaded() {
+ 		for (auto &thread: threads) {
+ 			thread = std::move(std::jthread([&, n = threadIndex]() mutable {
+ 				while (n < actual_signal_tree_capacity) {
+-					auto [_, success] = signalTree->set(n);
++					auto [_, success] = signalTree->set(signal_index{n});
+ 					if (!success)
+ 						setErrorCount++;
+ 					n += num_threads;
+@@ -61,7 +65,7 @@ int test_multi_threaded() {
+ 			thread = std::move(std::jthread([&, n = threadIndex]() mutable {
+ 				while (n < actual_signal_tree_capacity) {
+ 					auto [selectedId, _] = signalTree->select(n);
+-					if (selectedId != n)
++					if (selectedId != signal_index{n})
+ 						selectErrorCount++;
+ 					n += num_threads;
+ 				}
+@@ -79,7 +83,7 @@ int test_multi_threaded() {
+ 		if (!signalTree->empty())
+ 			throw std::runtime_error("signal tree expected to be empty after all signals selected");
+ 
+-		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != ~0ull)
++		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != invalid_signal_index)
+ 			throw std::runtime_error("empty signal tree should return invalid signal id when select is called");
+ 		std::cout << "signal tree: empty tree correctly returns invalid signal id to select call\n";
+ 
+@@ -115,7 +119,7 @@ int test_single_threaded() {
+ 		// return that the tree was NOT empty prior to that call to set.
+ 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
+ 			auto wasEmpty = signalTree->empty();
+-			auto [transitionedToNonEmpty, success] = signalTree->set(i);
++			auto [transitionedToNonEmpty, success] = signalTree->set(signal_index{i});
+ 			if (wasEmpty != transitionedToNonEmpty)
+ 				throw std::runtime_error("empty test failure");
+ 
+@@ -128,7 +132,7 @@ int test_single_threaded() {
+ 		// repeat above.  But since signals are all set, each call to set() should
+ 		// return 'not transitioned from empty' and 'failure to set'
+ 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
+-			auto [transitionedToNonEmpty, success] = signalTree->set(i);
++			auto [transitionedToNonEmpty, success] = signalTree->set(signal_index{i});
+ 			if (transitionedToNonEmpty)
+ 				throw std::runtime_error("signal tree set returned transition state error");
+ 
+@@ -147,16 +151,16 @@ int test_single_threaded() {
+ 		std::fill(selected.begin(), selected.end(), false);
+ 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
+ 			auto [signalId, transitionedToEmpty] = signalTree->select(i);
+-			if (signalId >= actual_signal_tree_capacity)
++			if (signalId.value >= actual_signal_tree_capacity)
+ 				throw std::runtime_error("selected invalid signal index");
+ 
+ 			// signal should not have been previously selected
+-			if (selected[signalId] == true)
++			if (selected[signalId.value] == true)
+ 				throw std::runtime_error("signal selected twice without being set twice");
+ 
+-			selected[signalId] = true;
++			selected[signalId.value] = true;
+ 			// signal selected should match the bias hint provided
+-			if (signalId != i)
++			if (signalId != signal_index{i})
+ 				throw std::runtime_error("select returned wrong signal id");
+ 
+ 			if (signalTree->empty()) {
+@@ -176,7 +180,7 @@ int test_single_threaded() {
+ 		if (!signalTree->empty())
+ 			throw std::runtime_error("signal tree expected to be empty after all signals selected");
+ 
+-		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != ~0ull)
++		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != invalid_signal_index)
+ 			throw std::runtime_error("empty signal tree should return invalid signal id when select is called");
+ 		std::cout << "signal tree: empty tree correctly returns invalid signal id to select call\n";
+ 

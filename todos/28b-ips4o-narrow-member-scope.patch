@@ -1,0 +1,261 @@
+diff --git a/src/sort/ips4o.h b/src/sort/ips4o.h
+index 2777f9c..5b4249e 100644
+--- a/src/sort/ips4o.h
++++ b/src/sort/ips4o.h
+@@ -427,24 +427,25 @@ namespace ips4o {
+ 				// Set parameters for this partitioning step
+ 				// Must do this AFTER sampling, because sampling will recurse to sort
+ 				// splitters.
+-				this->bucket_start_ = bucket_start;
+-				this->overflow_ = nullptr;
+ 				this->begin_ = begin;
+ 				this->end_ = end;
+ 
+-				sequentialClassification(use_equal_buckets);
++				// true if a block was written into the `overflow` buffer
++				bool overflowed = false;
++
++				sequentialClassification(use_equal_buckets, bucket_start);
+ 
+ 				// Compute which bucket can cause overflow
+-				const int overflow_bucket = computeOverflowBucket();
++				const int overflow_bucket = computeOverflowBucket(bucket_start);
+ 
+ 				// Block Permutation
+ 				if (use_equal_buckets)
+-					permuteBlocks<true>();
++					permuteBlocks<true>(overflowed);
+ 				else
+-					permuteBlocks<false>();
++					permuteBlocks<false>(overflowed);
+ 
+ 				// Write remaining elements; save excess elements at right end of stripe.
+-				writeMargins(0, num_buckets_, overflow_bucket, -1, 0);
++				writeMargins(bucket_start, overflowed, 0, num_buckets_, overflow_bucket, -1, 0);
+ 
+ 				std::fill_n(bucket_size, Cfg::kMaxBuckets, 0);
+ 
+@@ -495,11 +496,6 @@ namespace ips4o {
+ 
+ 			Sampler<Cfg> sampler_;
+ 
+-			// TODO(?): for verification, we should narrow the scope/visibility of these.
+-			// They are set and used in the recursion.
+-			ptrdiff_t *bucket_start_;
+-			Block<Cfg> *overflow_;
+-
+ 			iterator begin_;
+ 			iterator end_;
+ 			uint32_t num_buckets_;
+@@ -727,25 +723,27 @@ namespace ips4o {
+ 				return write - begin_;
+ 			}
+ 
++			/// \param bucket_start[out]: bucket boundaries, `num_buckets_ + 1` entries
+ 			__attribute__((noinline)) void sequentialClassification(
+-			        const bool use_equal_buckets) {
++			        const bool use_equal_buckets,
++			        ptrdiff_t *const bucket_start) {
+ 				const auto my_first_empty_block =
+ 				        use_equal_buckets ? classifyLocally<true>(begin_, end_)
+ 				                          : classifyLocally<false>(begin_, end_);
+ 
+ 				// Find bucket boundaries
+ 				ptrdiff_t sum = 0;
+-				bucket_start_[0] = 0;
++				bucket_start[0] = 0;
+ 				for (uint32_t i = 0; i < num_buckets_; ++i) {
+ 					sum += bucket_size[i];
+-					bucket_start_[i + 1] = sum;
++					bucket_start[i + 1] = sum;
+ 				}
+-				IPS4OML_ASSUME_NOT(bucket_start_[num_buckets_] != end_ - begin_);
++				IPS4OML_ASSUME_NOT(bucket_start[num_buckets_] != end_ - begin_);
+ 
+ 				// Set write/read pointers for all buckets
+ 				for (uint32_t bucket = 0; bucket < num_buckets_; ++bucket) {
+-					const auto start = Cfg::alignToNextBlock(bucket_start_[bucket]);
+-					const auto stop = Cfg::alignToNextBlock(bucket_start_[bucket + 1]);
++					const auto start = Cfg::alignToNextBlock(bucket_start[bucket]);
++					const auto stop = Cfg::alignToNextBlock(bucket_start[bucket + 1]);
+ 					bucket_pointers[bucket].set(
+ 					        start,
+ 					        (start >= my_first_empty_block
+@@ -760,11 +758,12 @@ namespace ips4o {
+             * All buckets must consist of full blocks followed by empty blocks.
+             */
+ 			__attribute__((noinline)) void moveEmptyBlocks(
++			        const ptrdiff_t *const bucket_start,
+ 			        const ptrdiff_t my_begin, const ptrdiff_t my_end,
+ 			        const ptrdiff_t my_first_empty_block) {
+ 				// Find range of buckets that start in this stripe
+ 				const int bucket_range_start = [&](int i) {
+-					while (Cfg::alignToNextBlock(bucket_start_[i]) < my_begin) ++i;
++					while (Cfg::alignToNextBlock(bucket_start[i]) < my_begin) ++i;
+ 					return i;
+ 				}(0);
+ 
+@@ -791,14 +790,14 @@ namespace ips4o {
+                  */
+ 
+ 				// Check if last bucket overlaps the end of the stripe
+-				const auto bucket_end = Cfg::alignToNextBlock(bucket_start_[num_buckets_]);
++				const auto bucket_end = Cfg::alignToNextBlock(bucket_start[num_buckets_]);
+ 				const bool last_bucket_is_overlapping = bucket_end > my_end;
+ 
+ 				// Case 1)
+ 				for (uint32_t b = bucket_range_start;
+ 				     b < num_buckets_ - last_bucket_is_overlapping; ++b) {
+-					const auto start = Cfg::alignToNextBlock(bucket_start_[b]);
+-					const auto stop = Cfg::alignToNextBlock(bucket_start_[b + 1]);
++					const auto start = Cfg::alignToNextBlock(bucket_start[b]);
++					const auto stop = Cfg::alignToNextBlock(bucket_start[b + 1]);
+ 					auto read = stop;
+ 					if (my_first_empty_block <= start) {
+ 						// Bucket is completely empty
+@@ -813,29 +812,29 @@ namespace ips4o {
+ 				// Cases 2) and 3)
+ 				if (last_bucket_is_overlapping) {
+ 					const int overlapping_bucket = num_buckets_ - 1;
+-					const auto bucket_start =
+-					        Cfg::alignToNextBlock(bucket_start_[overlapping_bucket]);
++					const auto overlapping_start =
++					        Cfg::alignToNextBlock(bucket_start[overlapping_bucket]);
+ 
+ 					// If it is a very large bucket, other threads will also move blocks
+ 					// around in it (case 3) Count how many filled blocks are in this bucket
+ 					ptrdiff_t flushed_elements_in_bucket = 0;
+-					if (bucket_start < my_begin) {
++					if (overlapping_start < my_begin) {
+ 						abort();
+ 					}
+ 
+ 					// Threads to our left will move this many blocks (0 if we are the
+ 					// left-most)
+ 					// ptrdiff_t elements_reserved = 0;
+-					if (my_begin > bucket_start) {
++					if (my_begin > overlapping_start) {
+ 						// Threads to the left of us get priority
+-						// elements_reserved =  my_begin - bucket_start - flushed_elements_in_bucket;
++						// elements_reserved =  my_begin - overlapping_start - flushed_elements_in_bucket;
+ 
+ 						// Count how many elements we flushed into this bucket
+ 						flushed_elements_in_bucket += my_first_empty_block - my_begin;
+-					} else if (my_first_empty_block > bucket_start) {
++					} else if (my_first_empty_block > overlapping_start) {
+ 						// We are the left-most thread
+ 						// Count how many elements we flushed into this bucket
+-						flushed_elements_in_bucket += my_first_empty_block - bucket_start;
++						flushed_elements_in_bucket += my_first_empty_block - overlapping_start;
+ 					}
+ 
+ 					// Find stripe which contains last block of this bucket (off by one)
+@@ -843,16 +842,16 @@ namespace ips4o {
+ 
+ 					// After moving blocks, this will be the first empty block in this bucket
+ 					const auto first_empty_block_in_bucket =
+-					        bucket_start + flushed_elements_in_bucket;
++					        overlapping_start + flushed_elements_in_bucket;
+ 
+ 					// This is the range of blocks we want to fill
+-					// auto write_ptr = begin_ + std::max(my_first_empty_block, bucket_start);
++					// auto write_ptr = begin_ + std::max(my_first_empty_block, overlapping_start);
+ 					// const auto write_ptr_end = begin_ + std::min(first_empty_block_in_bucket, my_end);
+ 
+ 					// Set bucket pointers if the bucket starts in this stripe
+-					if (my_begin <= bucket_start) {
++					if (my_begin <= overlapping_start) {
+ 						bucket_pointers[overlapping_bucket].set(
+-						        bucket_start, first_empty_block_in_bucket - Cfg::kBlockSize);
++						        overlapping_start, first_empty_block_in_bucket - Cfg::kBlockSize);
+ 					}
+ 				}
+ 			}
+@@ -861,9 +860,9 @@ namespace ips4o {
+    * Computes which bucket can cause an overflow,
+    * i.e., the last bucket that has more than one full block.
+    */
+-			int computeOverflowBucket() {
++			int computeOverflowBucket(const ptrdiff_t *const bucket_start) {
+ 				int bucket = num_buckets_ - 1;
+-				while (bucket >= 0 && (bucket_start_[bucket + 1] - bucket_start_[bucket]) <=
++				while (bucket >= 0 && (bucket_start[bucket + 1] - bucket_start[bucket]) <=
+ 				                              Cfg::kBlockSize)
+ 					--bucket;
+ 				return bucket;
+@@ -896,7 +895,7 @@ namespace ips4o {
+    */
+ 			template<bool kEqualBuckets>
+ 			int swapBlock(const ptrdiff_t max_off, const int dest_bucket,
+-			              const bool current_swap) {
++			              const bool current_swap, bool &overflowed) {
+ 				ptrdiff_t write, read;
+ 				int new_dest_bucket;
+ 				BucketPointers<Cfg> &bp = bucket_pointers[dest_bucket];
+@@ -907,7 +906,7 @@ namespace ips4o {
+ 						if (write >= max_off) {
+ 							// Out-of-bounds; write to overflow buffer instead
+ 							swap[current_swap].writeToBlock(overflow);
+-							overflow_ = &overflow;
++							overflowed = true;
+ 							return -1;
+ 						}
+ 
+@@ -931,7 +930,8 @@ namespace ips4o {
+    * Block permutation phase.
+    */
+ 			template<bool kEqualBuckets>
+-			__attribute__((noinline)) void permuteBlocks() {
++			/// \param overflowed[out]: set to true if a block was written into `overflow`
++			__attribute__((noinline)) void permuteBlocks(bool &overflowed) {
+ 				const auto num_buckets = num_buckets_;
+ 				// Distribute starting points of threads
+ 				int read_bucket = 0;
+@@ -948,7 +948,7 @@ namespace ips4o {
+ 						bool current_swap = 0;
+ 						// ... then write it to the correct bucket
+ 						while ((dest_bucket = swapBlock<kEqualBuckets>(max_off, dest_bucket,
+-						                                               current_swap)) != -1) {
++						                                               current_swap, overflowed)) != -1) {
+ 							// Read another block, keep going
+ 							current_swap = !current_swap;
+ 						}
+@@ -958,7 +958,11 @@ namespace ips4o {
+ 			}
+ 
+             /// Fills margins from buffers.
+-			__attribute__((noinline)) void writeMargins(const int first_bucket,
++			/// \param bucket_start[in]: bucket boundaries
++			/// \param overflowed[in]: true if the `overflow` buffer holds a block
++			__attribute__((noinline)) void writeMargins(const ptrdiff_t *const bucket_start,
++			                                            const bool overflowed,
++			                                            const int first_bucket,
+ 			                                            const int last_bucket,
+ 			                                            const int overflow_bucket,
+ 			                                            const int swap_bucket,
+@@ -967,21 +971,21 @@ namespace ips4o {
+ 
+ 				for (int i = first_bucket; i < last_bucket; ++i) {
+ 					// Get bucket information
+-					const auto bstart = bucket_start_[i];
+-					const auto bend = bucket_start_[i + 1];
++					const auto bstart = bucket_start[i];
++					const auto bend = bucket_start[i + 1];
+ 					const auto bwrite = bucket_pointers[i].getWrite();
+ 					// Destination where elements can be written
+ 					auto dst = begin_ + bstart;
+ 					auto remaining = Cfg::alignToNextBlock(bstart) - bstart;
+ 
+-					if (i == overflow_bucket && overflow_) {
++					if (i == overflow_bucket && overflowed) {
+ 						// Is there overflow?
+ 
+ 						// Overflow buffer has been written => write pointer must be at end of
+ 						// bucket
+ 						IPS4OML_ASSUME_NOT(Cfg::alignToNextBlock(bend) != bwrite);
+ 
+-						auto src = overflow_->data();
++						auto src = overflow.data();
+ 						// There must be space for at least BlockSize elements
+ 						IPS4OML_ASSUME_NOT((bend - (bwrite - Cfg::kBlockSize)) + remaining <
+ 						                   Cfg::kBlockSize);

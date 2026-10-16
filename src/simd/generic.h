@@ -8,6 +8,8 @@
 #include <type_traits>
 
 #include "algorithm/bits/popcount.h"
+#include "algorithm/countl.h"
+#include "algorithm/countr.h"
 #include "helper.h"
 #include "random.h"
 #include "simd/simd.h"
@@ -830,6 +832,505 @@ public:
 		}
 
 		return ret;
+	}
+
+	/// set the `pos`-th bit in each limb
+	/// \param pos[in]: bit position to set
+	constexpr inline void set_bit(const uint32_t pos) noexcept {
+		*this = set1(T(U(1) << pos));
+	}
+
+	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
+	/// Masked out lanes are not accessed.
+	/// \param ptr
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t maskz_unaligned_load(const T *ptr,
+	                                                                 const mask_type m) noexcept {
+		using T512 = typename simd512_type::limb_type;
+		using T256 = typename simd256_type::limb_type;
+		constexpr uint64_t lm512 = nr_limbs_in_simd512 >= 64u ? ~0ull : ((1ull << nr_limbs_in_simd512) - 1ull);
+		constexpr uint64_t lm256 = nr_limbs_in_simd256 >= 64u ? ~0ull : ((1ull << nr_limbs_in_simd256) - 1ull);
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const T512 *p, const Mask<nr_limbs_in_simd512> &k) {
+				              simd512_type::maskz_unaligned_load(p, k); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					const Mask<nr_limbs_in_simd512> k(MaskType<nr_limbs_in_simd512>(uint64_t(m >> i) & lm512));
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::maskz_unaligned_load((const T512 *)(ptr + i), k);
+				}
+			}
+			if constexpr (simd256_enable && requires(const T256 *p, const Mask<nr_limbs_in_simd256> &k) {
+				              simd256_type::maskz_unaligned_load(p, k); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					const Mask<nr_limbs_in_simd256> k(MaskType<nr_limbs_in_simd256>(uint64_t(m >> i) & lm256));
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::maskz_unaligned_load((const T256 *)(ptr + i), k);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = ((m >> i) & 1u) ? ptr[i] : T(0);
+		}
+		return ret;
+	}
+
+	/// same as `maskz_unaligned_load` (no alignment needed)
+	[[nodiscard]] constexpr static inline TxN_t maskz_aligned_load(const T *ptr,
+	                                                               const mask_type m) noexcept {
+		return maskz_unaligned_load(ptr, m);
+	}
+
+	/// \param in1
+	/// \param in2 divisor, must not be zero
+	/// \return in1 / in2, lane-wise
+	[[nodiscard]] constexpr static inline TxN_t div(const TxN_t &in1,
+	                                                const T in2) noexcept {
+		assert(in2 != 0);
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type a, const T b) { simd512_type::div(a, b); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::div(in1.v512[i / nr_limbs_in_simd512], in2);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type a, const T b) { simd256_type::div(a, b); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::div(in1.v256[i / nr_limbs_in_simd256], in2);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = T(in1.d[i] / in2);
+		}
+		return ret;
+	}
+
+	/// \param in1
+	/// \return the number of leading zeros of each limb (`limb_bits` for 0)
+	[[nodiscard]] constexpr static inline TxN_t lzcnt(const TxN_t &in1) noexcept {
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type a) { simd512_type::lzcnt(a); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::lzcnt(in1.v512[i / nr_limbs_in_simd512]);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type a) { simd256_type::lzcnt(a); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::lzcnt(in1.v256[i / nr_limbs_in_simd256]);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = T(cryptanalysislib::countl_zero(U(in1.d[i])));
+		}
+		return ret;
+	}
+
+	/// \param in1
+	/// \return the number of trailing zeros of each limb (`limb_bits` for 0)
+	[[nodiscard]] constexpr static inline TxN_t tzcnt(const TxN_t &in1) noexcept {
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type a) { simd512_type::tzcnt(a); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::tzcnt(in1.v512[i / nr_limbs_in_simd512]);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type a) { simd256_type::tzcnt(a); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::tzcnt(in1.v256[i / nr_limbs_in_simd256]);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = T(cryptanalysislib::countr_zero(U(in1.d[i])));
+		}
+		return ret;
+	}
+
+	/// same as `lzcnt`
+	[[nodiscard]] constexpr static inline TxN_t clz(const TxN_t &in1) noexcept { return lzcnt(in1); }
+
+	/// same as `tzcnt`
+	[[nodiscard]] constexpr static inline TxN_t ctz(const TxN_t &in1) noexcept { return tzcnt(in1); }
+
+	/// same semantics as `vpconflict` (AVX512CD):
+	/// lane i is the bitmask of all lanes j < i with in1[j] == in1[i].
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t conflict(const TxN_t &in1) noexcept {
+		static_assert(N <= limb_bits, "the lane mask must fit into a limb");
+		// compare all lanes with the broadcasted lane j, keep the lanes > j
+		TxN_t idx;
+		for (uint32_t i = 0; i < N; ++i) {
+			idx.d[i] = T(i);
+		}
+		TxN_t ret = set1(T(0));
+		for (uint32_t j = 0; j + 1u < N; ++j) {
+			const TxN_t t = and_(eq_(in1, set1(in1.d[j])), gt_(idx, set1(T(j))));
+			ret = or_(ret, and_(t, set1(T(U(1) << j))));
+		}
+		return ret;
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are zero, as `_mm512_maskz_compress_epi*`
+	/// \param in1
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t compress(const TxN_t &in1,
+	                                                     const mask_type m) noexcept {
+		return compress(in1, set1(0), m);
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are taken from `in2`, as `_mm512_mask_compress_epi*`
+	/// \param in1
+	/// \param in2
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t compress(const TxN_t &in1,
+	                                                     const TxN_t &in2,
+	                                                     const mask_type m) noexcept {
+		TxN_t ret = in2;
+		// the selected lanes are compress-stored over the front of `in2`
+		compress(ret.d, in1, m);
+		return ret;
+	}
+
+	/// writes the lanes of `in1` selected by `m` contiguously to `ptr`,
+	/// as `_mm512_mask_compressstoreu_epi*`
+	/// \param ptr
+	/// \param in1
+	/// \param m lane mask
+	constexpr static inline void compress(T *ptr,
+	                                      const TxN_t &in1,
+	                                      const mask_type m) noexcept {
+		constexpr uint64_t lm512 = nr_limbs_in_simd512 >= 64u ? ~0ull : ((1ull << nr_limbs_in_simd512) - 1ull);
+		constexpr uint64_t lm256 = nr_limbs_in_simd256 >= 64u ? ~0ull : ((1ull << nr_limbs_in_simd256) - 1ull);
+		uint32_t i = 0, j = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(T *p, const simd512_type a, const Mask<nr_limbs_in_simd512> &k) {
+				              simd512_type::compress(p, a, k); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					const uint64_t k = uint64_t(m >> i) & lm512;
+					simd512_type::compress(ptr + j, in1.v512[i / nr_limbs_in_simd512],
+					                       Mask<nr_limbs_in_simd512>(MaskType<nr_limbs_in_simd512>(k)));
+					j += __builtin_popcountll(k);
+				}
+			}
+			if constexpr (simd256_enable && requires(T *p, const simd256_type a, const Mask<nr_limbs_in_simd256> &k) {
+				              simd256_type::compress(p, a, k); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					const uint64_t k = uint64_t(m >> i) & lm256;
+					simd256_type::compress(ptr + j, in1.v256[i / nr_limbs_in_simd256],
+					                       Mask<nr_limbs_in_simd256>(MaskType<nr_limbs_in_simd256>(k)));
+					j += __builtin_popcountll(k);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			if ((m >> i) & 1u) { ptr[j++] = in1.d[i]; }
+		}
+	}
+
+	/// \param in1 register to test
+	/// \param bit_pos bit position to test
+	/// \return bit i is set, if bit `bit_pos` of `in1[i]` is set
+	[[nodiscard]] constexpr static inline mask_type test(const TxN_t &in1,
+	                                                     const uint32_t bit_pos) noexcept {
+		// move bit `bit_pos` into the msb
+		return move(slli(in1, uint32_t(limb_bits - 1u - bit_pos)));
+	}
+
+	/// \param in1
+	/// \return the minimum of all lanes
+	[[nodiscard]] constexpr static inline T reduce_min(const TxN_t &in1) noexcept {
+		T ret = in1.d[0];
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			// lane-wise minimum of all chunks, then one reduction
+			if constexpr (simd512_enable && requires(const simd512_type a) {
+				              simd512_type::min(a, a); simd512_type::reduce_min(a); }) {
+				simd512_type acc = in1.v512[0];
+				for (i = nr_limbs_in_simd512; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					acc = simd512_type::min(acc, in1.v512[i / nr_limbs_in_simd512]);
+				}
+				ret = simd512_type::reduce_min(acc);
+			} else if constexpr (simd256_enable && requires(const simd256_type a) {
+				                     simd256_type::min(a, a); simd256_type::reduce_min(a); }) {
+				simd256_type acc = in1.v256[0];
+				for (i = nr_limbs_in_simd256; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					acc = simd256_type::min(acc, in1.v256[i / nr_limbs_in_simd256]);
+				}
+				ret = simd256_type::reduce_min(acc);
+			}
+		}
+		for (; i < N; ++i) {
+			ret = in1.d[i] < ret ? in1.d[i] : ret;
+		}
+		return ret;
+	}
+
+	/// \param in1
+	/// \return the maximum of all lanes
+	[[nodiscard]] constexpr static inline T reduce_max(const TxN_t &in1) noexcept {
+		T ret = in1.d[0];
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			// lane-wise maximum of all chunks, then one reduction
+			if constexpr (simd512_enable && requires(const simd512_type a) {
+				              simd512_type::max(a, a); simd512_type::reduce_max(a); }) {
+				simd512_type acc = in1.v512[0];
+				for (i = nr_limbs_in_simd512; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					acc = simd512_type::max(acc, in1.v512[i / nr_limbs_in_simd512]);
+				}
+				ret = simd512_type::reduce_max(acc);
+			} else if constexpr (simd256_enable && requires(const simd256_type a) {
+				                     simd256_type::max(a, a); simd256_type::reduce_max(a); }) {
+				simd256_type acc = in1.v256[0];
+				for (i = nr_limbs_in_simd256; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					acc = simd256_type::max(acc, in1.v256[i / nr_limbs_in_simd256]);
+				}
+				ret = simd256_type::reduce_max(acc);
+			}
+		}
+		for (; i < N; ++i) {
+			ret = in1.d[i] > ret ? in1.d[i] : ret;
+		}
+		return ret;
+	}
+
+	/// \param a
+	/// \param b
+	/// \return lane-wise minimum
+	[[nodiscard]] constexpr static inline TxN_t min(const TxN_t &a,
+	                                                const TxN_t &b) noexcept {
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type x) { simd512_type::min(x, x); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::min(a.v512[i / nr_limbs_in_simd512], b.v512[i / nr_limbs_in_simd512]);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type x) { simd256_type::min(x, x); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::min(a.v256[i / nr_limbs_in_simd256], b.v256[i / nr_limbs_in_simd256]);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = a.d[i] < b.d[i] ? a.d[i] : b.d[i];
+		}
+		return ret;
+	}
+
+	/// \param a
+	/// \param b
+	/// \return lane-wise maximum
+	[[nodiscard]] constexpr static inline TxN_t max(const TxN_t &a,
+	                                                const TxN_t &b) noexcept {
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type x) { simd512_type::max(x, x); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::max(a.v512[i / nr_limbs_in_simd512], b.v512[i / nr_limbs_in_simd512]);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type x) { simd256_type::max(x, x); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::max(a.v256[i / nr_limbs_in_simd256], b.v256[i / nr_limbs_in_simd256]);
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = a.d[i] > b.d[i] ? a.d[i] : b.d[i];
+		}
+		return ret;
+	}
+
+	/// horizontal add of the unsigned bytes of each limb
+	/// \param in1
+	/// \return sum of the bytes, per limb
+	[[nodiscard]] constexpr static inline TxN_t hadd_epu8(const TxN_t &in1) noexcept {
+		static_assert(sizeof(T) >= 2);
+		// sums of neighbouring 8, 16, 32 bit fields
+		constexpr U m8 = U(U(~U(0)) / U(0xFFFFu) * U(0xFFu));
+		TxN_t x = add(and_(in1, set1(T(m8))), and_(srli(in1, 8), set1(T(m8))));
+		if constexpr (sizeof(T) >= 4) {
+			constexpr U m16 = U(U(~U(0)) / U(0xFFFFFFFFu) * U(0xFFFFu));
+			x = add(and_(x, set1(T(m16))), and_(srli(x, 16), set1(T(m16))));
+		}
+		if constexpr (sizeof(T) == 8) {
+			x = add(and_(x, set1(T(0xFFFFFFFFull))), srli(x, 32));
+		}
+		return x;
+	}
+
+	/// horizontal add of the unsigned 16 bit values of each limb
+	/// \param in1
+	/// \return sum, per limb
+	[[nodiscard]] constexpr static inline TxN_t hadd_epu16(const TxN_t &in1) noexcept {
+		static_assert(sizeof(T) >= 4);
+		// sums of neighbouring 16, 32 bit fields
+		constexpr U m16 = U(U(~U(0)) / U(0xFFFFFFFFu) * U(0xFFFFu));
+		TxN_t x = add(and_(in1, set1(T(m16))), and_(srli(in1, 16), set1(T(m16))));
+		if constexpr (sizeof(T) == 8) {
+			x = add(and_(x, set1(T(0xFFFFFFFFull))), srli(x, 32));
+		}
+		return x;
+	}
+
+	/// horizontal add of the 2 unsigned 32 bit values of each 64 bit limb
+	/// \param in1
+	/// \return sum, per limb
+	[[nodiscard]] constexpr static inline TxN_t hadd_epu32(const TxN_t &in1) noexcept {
+		static_assert(sizeof(T) == 8);
+		return add(and_(in1, set1(T(0xFFFFFFFFull))), srli(in1, 32));
+	}
+
+	/// number of 4 bit values (nibbles) equal to `in2` in each limb
+	/// \param in1
+	/// \param in2 nibble to count, < 16
+	/// \return per limb: #{i : nibble i of the limb == in2}
+	[[nodiscard]] constexpr static inline TxN_t histogram_epi4(const TxN_t &in1,
+	                                                           const uint8_t in2) noexcept {
+		assert(in2 < 16);
+		// bit 0 of a nibble is set, iff the nibble != in2
+		constexpr U ones = U(U(~U(0)) / U(0xFu));
+		const TxN_t z = xor_(in1, set1(T(U(ones * in2))));
+		const TxN_t nz = and_(or_(or_(z, srli(z, 1)), or_(srli(z, 2), srli(z, 3))), set1(T(ones)));
+		return sub(set1(T(limb_bits / 4u)), popcnt(nz));
+	}
+
+	/// the indices of the lanes selected by `mask` in front, the other lanes
+	/// are zero, e.g. 0b1010 -> [1, 3, 0, ..., 0] (as the AVX2 32 bit version)
+	/// \param mask
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t pack(const mask_type mask) noexcept {
+		TxN_t idx;
+		for (uint32_t i = 0; i < N; ++i) {
+			idx.d[i] = T(i);
+		}
+		return compress(idx, mask);
+	}
+
+	/// zero extends the first `N` bytes of `in`
+	/// \param in
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
+		static_assert(N <= 16u);
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd256_enable && requires(const cryptanalysislib::_uint8x16_t b) { simd256_type::cvtepu8(b); }) {
+				// each chunk zero extends the first bytes of its own 16 byte window
+				alignas(16) uint8_t buf[32] = {0};
+				__builtin_memcpy(buf, in.d, 16);
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::cvtepu8(cryptanalysislib::_uint8x16_t::unaligned_load(buf + i));
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = T(uint8_t(in.d[i]));
+		}
+		return ret;
+	}
+
+	/// transposes the 8x8 bit matrix in each group of 8 byte limbs, as the
+	/// AVX-512 version: bit i of output byte j is bit j of input byte (7 - i)
+	/// \param input
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t transpose(const TxN_t &input) noexcept {
+		static_assert((sizeof(T) == 1) && ((N % 8u) == 0));
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			if constexpr (simd512_enable && requires(const simd512_type a) { simd512_type::transpose(a); }) {
+				for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					ret.v512[i / nr_limbs_in_simd512] = simd512_type::transpose(input.v512[i / nr_limbs_in_simd512]);
+				}
+			}
+			if constexpr (simd256_enable && requires(const simd256_type a) { simd256_type::transpose(a); }) {
+				for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					ret.v256[i / nr_limbs_in_simd256] = simd256_type::transpose(input.v256[i / nr_limbs_in_simd256]);
+				}
+			}
+		}
+		// reverse the bytes of each 64 bit word, then transpose with the
+		// delta swaps of Hacker's Delight `transpose8`
+		for (; i < N; i += 8) {
+			uint64_t x = 0;
+			for (uint32_t j = 0; j < 8; ++j) {
+				x |= uint64_t(uint8_t(input.d[i + j])) << (8u * (7u - j));
+			}
+			uint64_t t;
+			t = (x ^ (x >> 7u)) & 0x00AA00AA00AA00AAull;
+			x ^= t ^ (t << 7u);
+			t = (x ^ (x >> 14u)) & 0x0000CCCC0000CCCCull;
+			x ^= t ^ (t << 14u);
+			t = (x ^ (x >> 28u)) & 0x00000000F0F0F0F0ull;
+			x ^= t ^ (t << 28u);
+			for (uint32_t j = 0; j < 8; ++j) {
+				ret.d[i + j] = T(uint8_t(x >> (8u * j)));
+			}
+		}
+		return ret;
+	}
+
+	/// as `_mm256_sign_epi8`
+	/// \return per lane: 0 if b == 0, -a if b < 0, a if b > 0
+	[[nodiscard]] constexpr static inline TxN_t comp_sign(const TxN_t &a,
+	                                                      const TxN_t &b) noexcept {
+		// neg = -1 iff b < 0, then (a ^ neg) - neg is -a or a
+		const TxN_t neg = sub(set1(T(0)), srli(b, uint32_t(limb_bits - 1u)));
+		const TxN_t r = sub(xor_(a, neg), neg);
+		return and_(r, cmp_(b, set1(T(0))));
+	}
+
+	/// permutes the 4 limbs of each group of 4, like `_mm256_permute4x64_epi64`:
+	/// ret[i] = in1[(i & ~3) + ((in2 >> 2(i % 4)) & 3)]
+	/// \param in1
+	/// \param in2 8 bit, 2 bits per lane
+	/// \return
+	[[nodiscard]] constexpr static inline TxN_t permute(const TxN_t &in1,
+	                                                    const uint32_t in2) noexcept {
+		static_assert((N % 4u) == 0);
+		TxN_t ret;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			// NOTE: the backends have this runtime permutation only for 64 bit lanes
+			if constexpr (sizeof(T) == 8u) {
+				if constexpr (simd512_enable && requires(const simd512_type a, const uint32_t k) { simd512_type::permute(a, k); }) {
+					for (; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+						ret.v512[i / nr_limbs_in_simd512] = simd512_type::permute(in1.v512[i / nr_limbs_in_simd512], in2);
+					}
+				}
+				if constexpr (simd256_enable && requires(const simd256_type a, const uint32_t k) { simd256_type::permute(a, k); }) {
+					for (; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+						ret.v256[i / nr_limbs_in_simd256] = simd256_type::permute(in1.v256[i / nr_limbs_in_simd256], in2);
+					}
+				}
+			}
+		}
+		for (; i < N; ++i) {
+			ret.d[i] = in1.d[(i & ~3u) + ((in2 >> (2u * (i % 4u))) & 3u)];
+		}
+		return ret;
+	}
+
+	/// compile time version of `permute(in1, in2)`
+	template<const uint32_t in2>
+	[[nodiscard]] constexpr static inline TxN_t permute(const TxN_t &in1) noexcept {
+		return permute(in1, in2);
 	}
 
 	/// \returns number of limbs

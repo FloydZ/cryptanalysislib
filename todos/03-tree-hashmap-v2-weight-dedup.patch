@@ -1,0 +1,161 @@
+--- a/src/tree.h
++++ b/src/tree.h
+@@ -1456,131 +1456,6 @@
+ 										return false;
+ 	                                  }) noexcept;
+ 
+-	///                        out
+-	///                       ┌───┐ 					level 2
+-	///                       └───┘
+-	/// 				k_lower2|k_upper2
+-	///           ┌─────────────┴────────────┐
+-	///       ┌───┴───┐ hmIL=T-L1-L2         │   		level 1
+-	///       └┐const┌┘ hmIL                 │
+-	///        └┐   ┌┘  const                │ L2=iT-L1
+-	///         └───┘                k_lower1│k_upper1
+-	/// 					            ┌────┴────┐
+-	/// 					        ┌───┴───┐ ┌───┴───┐ level 0
+-	/// 					         const  │ └┐const┌  NOTE: both lists/hms
+-	/// 					        │          └    ┌┘  are NOT prepared.
+-	/// 					        └───────┘   └───┘  Hash
+-	/// 								L1		 HM2 <------- L2
+-	/// NOTE: v2 means that the `label` of the output elements in `out`
+-	///		are the target. So this function actually returns targets and not
+-	/// 	zeros.
+-	/// NOTE: the matrix A must be passed as an additional to compute
+-	/// 	sums of elements.
+-	/// \tparam k_lower1 lower coordinate to match on, on the first level
+-	/// \tparam k_upper1 upper coordinate to match on, on the first level
+-	/// \tparam k_lower2 NOTE: ignored, assumed == k_upper1
+-	/// \tparam k_upper2 upper coordinate to match on, on the last level
+-	/// \tparam HashMap1 type of the intermediate hashmap
+-	/// \tparam HashMap2 type of the baselist hashmap
+-	/// \param out output list
+-	/// \param hmiL intermediate hashmap,
+-	/// \param L1 const, only needed to compute the collisions
+-	/// \param L2 const, only needed to compute the collisions
+-	/// \param hmL2  base list hashmap. Make sure its filled with L2
+-	/// \param target final target
+-	/// \param iT intermediate target, make dure its related to target
+-//  TODO: this function is implemented twice (ahh except for the weight. but that should be in the f function)
+-	template<const uint32_t k_lower1, const uint32_t k_upper1,
+-			const uint32_t k_lower2, const uint32_t k_upper2,
+-			const uint32_t weight, // TODO doc probalby remove and do it via the lambda function
+-			typename HashMap1,
+-			typename HashMap2>
+-#if __cplusplus > 201709L
+-	requires HashMapAble<HashMap1> &&
+-			 HashMapAble<HashMap2>
+-#endif
+-	size_t twolevel_streamjoin_on_iT_hashmap_v2(List &out,
+-											  const HashMap1 &hmiL,
+-											  const List &L1,
+-											  const List &L2,
+-											  const HashMap2 &hmL2,
+-											  const LabelType &target,
+-											  const LabelType &iT) noexcept {
+-		static_assert(k_lower1 < k_upper1);
+-		static_assert(k_lower2 < k_upper2);
+-		static_assert(k_lower1 < k_upper1);
+-		(void)k_lower2;
+-		using LoadType1 = typename HashMap1::load_type;
+-		using LoadType2 = typename HashMap2::load_type;
+-		constexpr uint32_t filter = -1u;
+-		constexpr bool sub = false;
+-
+-		ElementType te1, te2;
+-		LabelType t1, t2;
+-		LoadType1 load1 = 0;
+-		LoadType2 load2 = 0;
+-
+-		size_t ret = 0;
+-		for (size_t k = 0; k < L1.load(); ++k) {
+-			LabelType::sub(t1, iT, L1[k].label);
+-
+-			const size_t s2 = hmL2.find(t1.value(), load2);
+-			for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
+-				const size_t b1 = hmL2[l2];
+-				assert(L2[b1].label.is_equal(t1, k_lower1, k_upper1));
+-				assert(L2[b1].is_correct(matrix));
+-				assert(b1 < L2.load());
+-
+-				LabelType::sub(t2, target, L1[k].label);
+-				LabelType::sub(t2, t2, L2[b1].label);
+-
+-				ElementType::add(te1, L1[k], L2[b1]);
+-				assert(te1.label.is_equal(iT, k_lower1, k_upper1));
+-				assert(te1.is_correct(matrix));
+-
+-				// NOTE: its shifted
+-				const size_t s1 = hmiL.find(t2.value(), load1);
+-				for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
+-					const size_t a1 = hmiL[l1].first;
+-					const size_t a2 = hmiL[l1].second;
+-					assert(a1 < L1.load());
+-					assert(a2 < L2.load());
+-					ElementType::add(te2, L1[a1], L2[a2]);
+-
+-					assert(te1.is_correct(matrix));
+-					assert(te2.is_correct(matrix));
+-
+-					ret += 1;
+-
+-					if constexpr (weight) {
+-						const size_t b2 = out.load();
+-						// NOTE: stop, if the output list is full
+-						if (b2 >= out.size()) { goto finish; }
+-						ValueType::add(out[b2].value, te1.value, te2.value);
+-						if (out[b2].value.popcnt() == weight) {
+-							LabelType::template add
+-									<k_lower1, k_upper2>
+-									(out[b2].label, te1.label, te2.label);
+-
+-							assert(out[b2].is_correct(matrix));
+-							out.set_load(b2+1);
+-							// TODO only find a single solution
+-							goto finish;
+-						}
+-
+-					} else {
+-						out.template add_and_append
+-								<k_lower1, k_upper2, filter, sub>
+-								(te1, te2);
+-					}
+-				}
+-			}
+-		}
+-
+-		finish:
+-		return ret;
+-	};
+-
+ 	///						out if wanted
+ 	///							|
+ 	///             f(out,e1,e2,a1,a2,a3,a4) 			level 2
+--- a/src/algorithm/subsetsum.h
++++ b/src/algorithm/subsetsum.h
+@@ -351,10 +351,21 @@
+ 					<k_lower1, k_upper1>
+ 					(*hmiL, L1, L2, *hmL2, tree_iT, false);
+ 
+-				// join to output list
++				// join to output list: only a single solution of weight
++				// `4*bp` is needed for the walk
+ 				t.template twolevel_streamjoin_on_iT_hashmap_v2
+-					<k_lower1, k_upper1, k_lower2, k_upper2, 4*instance.bp>
+-					(out, *hmiL, L1, L2, *hmL2, tree_target, tmp_iT);
++					<k_lower1, k_upper1, k_lower2, k_upper2>
++					(out, *hmiL, L1, L2, *hmL2, tree_target, tmp_iT,
++					 [](List &out, const Element &e1, const Element &e2,
++					    const size_t, const size_t, const size_t, const size_t) __attribute__((always_inline)) {
++						 const size_t b2 = out.load();
++						 if (b2 >= out.size()) { return true; }
++						 Value::add(out[b2].value, e1.value, e2.value);
++						 if (out[b2].value.popcnt() != 4*instance.bp) { return false; }
++						 Label::template add<k_lower1, k_upper2>(out[b2].label, e1.label, e2.label);
++						 out.set_load(b2 + 1);
++						 return true;
++					 });
+ 
+ 				tree_iters += 1;
+ 			}

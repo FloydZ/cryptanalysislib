@@ -1,0 +1,495 @@
+diff --git a/src/atomic/semaphore.h b/src/atomic/semaphore.h
+index ab26619..9471c99 100644
+--- a/src/atomic/semaphore.h
++++ b/src/atomic/semaphore.h
+@@ -83,178 +83,175 @@ public:
+ };
+ } // end namespace cryptanalysislib
+ 
+-// NOTE: the following coroutine semaphore is an unfinished port of
+-// 	libcoro's `coro::semaphore` (missing `acquire_result`, members, includes,
+-// 	member functions defined in the wrong scope, non-inline globals in a
+-// 	header): it does not compile, so it is disabled until it is finished.
+-#if 0
++#include <atomic>
++#include <coroutine>
++#include <cstddef>
++#include <mutex>
+ 
++namespace cryptanalysislib::atomic {
++/// counting semaphore for coroutines, taken from libcoro (`coro::semaphore`).
++/// `co_await s.acquire()` suspends the coroutine until a resource is free.
++/// `release()` hands its resource directly to a waiting coroutine, which is
++/// resumed inside `release()` (i.e. in the releasing thread), or increments
++/// the counter if nobody waits.
++/// NOTE: the waiters are resumed in LIFO order, the semaphore is not fair.
++/// \tparam Atomic atomic type of the counter and the stop flag
++template<template<class> class Atomic = std::atomic>
++class semaphore {
++public:
++	enum class acquire_result {
++		acquired,         ///< the resource was acquired
++		semaphore_stopped ///< `notify_waiters` was called, nothing was acquired
++	};
+ 
+-// #include "coro/semaphore.hpp"
+-#include <coroutine>
+-#include <atomic>
++	[[nodiscard]] constexpr static const char *to_string(const acquire_result ar) noexcept {
++		switch (ar) {
++			case acquire_result::acquired: return "acquired";
++			case acquire_result::semaphore_stopped: return "semaphore_stopped";
++		}
++		return "unknown";
++	}
++
++	/// awaitable returned by `acquire()`
++	class acquire_operation {
++	public:
++		explicit acquire_operation(semaphore &s) noexcept : m_semaphore(s) {}
++
++		[[nodiscard]] bool await_ready() const noexcept {
++			if (m_semaphore.m_notify_all_set.load(std::memory_order_relaxed)) {
++				return true;
++			}
++			return m_semaphore.try_acquire();
++		}
++
++		bool await_suspend(std::coroutine_handle<> awaiting_coroutine) noexcept {
++			std::unique_lock lk{m_semaphore.m_waiter_mutex};
++			if (m_semaphore.m_notify_all_set.load(std::memory_order_relaxed)) {
++				return false;
++			}
++
++			if (m_semaphore.try_acquire()) {
++				return false;
++			}
++
++			// LIFO: this becomes the new head of the waiter list
++			m_next = m_semaphore.m_acquire_waiters;
++			m_semaphore.m_acquire_waiters = this;
++			m_awaiting_coroutine = awaiting_coroutine;
++			return true;
++		}
++
++		[[nodiscard]] acquire_result await_resume() const noexcept {
++			if (m_semaphore.m_notify_all_set.load(std::memory_order_relaxed)) {
++				return acquire_result::semaphore_stopped;
++			}
++			return acquire_result::acquired;
++		}
++
++	private:
++		friend semaphore;
++
++		semaphore &m_semaphore;
++		std::coroutine_handle<> m_awaiting_coroutine;
++		acquire_operation *m_next{nullptr};
++	};
++
++	/// \param least_max_value_and_starting_value[in]: maximal and initial number of resources
++	explicit semaphore(const std::ptrdiff_t least_max_value_and_starting_value) noexcept
++	    : semaphore(least_max_value_and_starting_value, least_max_value_and_starting_value) {}
++
++	/// \param least_max_value[in]: maximal number of resources
++	/// \param starting_value[in]: initial number of resources (at most `least_max_value`)
++	semaphore(const std::ptrdiff_t least_max_value,
++	          const std::ptrdiff_t starting_value) noexcept
++	    : m_least_max_value(least_max_value),
++	      m_counter(starting_value <= least_max_value ? starting_value : least_max_value) {}
++
++	/// resumes all waiters with `semaphore_stopped`
++	~semaphore() noexcept {
++		notify_waiters();
++	}
++
++	semaphore(const semaphore &) = delete;
++	semaphore(semaphore &&) = delete;
++	semaphore &operator=(const semaphore &) = delete;
++	semaphore &operator=(semaphore &&) = delete;
+ 
+-namespace cryptographic::atomic
+-{
+-    using namespace std::string_literals;
+-    
+-    std::string acquire_result_acquired          = "acquired"s;
+-    std::string acquire_result_semaphore_stopped = "semaphore_stopped"s;
+-    std::string acquire_result_unknown           = "unknown"s;
+-   
+-    // NOTE: taken from libcoro
+-    class semaphore {
+-        semaphore(const semaphore&) = delete;
+-        semaphore(semaphore&&)      = delete;
+-    
+-        auto operator=(const semaphore&) noexcept -> semaphore& = delete;
+-        auto operator=(semaphore&&) noexcept -> semaphore&      = delete;
+-    
+-        class acquire_operation
+-        {
+-        public:
+-            explicit acquire_operation(semaphore& s);
+-    
+-            auto await_ready() const noexcept -> bool;
+-            auto await_suspend(std::coroutine_handle<> awaiting_coroutine) noexcept -> bool;
+-            auto await_resume() const -> acquire_result;
+-    
+-        private:
+-            friend semaphore;
+-    
+-            semaphore&              m_semaphore;
+-            std::coroutine_handle<> m_awaiting_coroutine;
+-            acquire_operation*      m_next{nullptr};
+-        };
+-    semaphore(std::ptrdiff_t least_max_value_and_starting_value)
+-        : semaphore(least_max_value_and_starting_value, least_max_value_and_starting_value)
+-    {
+-    }
+-    
+-    semaphore(std::ptrdiff_t least_max_value, std::ptrdiff_t starting_value)
+-        : m_least_max_value(least_max_value),
+-          m_counter(starting_value <= least_max_value ? starting_value : least_max_value)
+-    {
+-    }
+-    
+-    ~semaphore()
+-    {
+-        notify_waiters();
+-    }
+-    
+-    acquire_operation::acquire_operation(semaphore& s) : m_semaphore(s)
+-    {
+-    }
+-    
+-    auto acquire_operation::await_ready() const noexcept -> bool
+-    {
+-        if (m_semaphore.m_notify_all_set.load(std::memory_order::relaxed))
+-        {
+-            return true;
+-        }
+-        return m_semaphore.try_acquire();
+-    }
+-    
+-    auto acquire_operation::await_suspend(std::coroutine_handle<> awaiting_coroutine) noexcept -> bool
+-    {
+-        std::unique_lock lk{m_semaphore.m_waiter_mutex};
+-        if (m_semaphore.m_notify_all_set.load(std::memory_order::relaxed))
+-        {
+-            return false;
+-        }
+-    
+-        if (m_semaphore.try_acquire())
+-        {
+-            return false;
+-        }
+-    
+-        if (m_semaphore.m_acquire_waiters == nullptr)
+-        {
+-            m_semaphore.m_acquire_waiters = this;
+-        }
+-        else
+-        {
+-            // This is LIFO, but semaphores are not meant to be fair.
+-    
+-            // Set our next to the current head.
+-            m_next = m_semaphore.m_acquire_waiters;
+-            // Set the semaphore head to this.
+-            m_semaphore.m_acquire_waiters = this;
+-        }
+-    
+-        m_awaiting_coroutine = awaiting_coroutine;
+-        return true;
+-    }
+-    
+-    auto acquire_operation::await_resume() const -> acquire_result
+-    {
+-        if (m_semaphore.m_notify_all_set.load(std::memory_order::relaxed))
+-        {
+-            return acquire_result::semaphore_stopped;
+-        }
+-        return acquire_result::acquired;
+-    }
+-    
+-    auto release() -> void {
+-        // It seems like the atomic counter could be incremented, but then resuming a waiter could have
+-        // a race between a new acquirer grabbing the just incremented resource value from us.  So its
+-        // best to check if there are any waiters first, and transfer owernship of the resource thats
+-        // being released directly to the waiter to avoid this problem.
+-    
+-        std::unique_lock lk{m_waiter_mutex};
+-        if (m_acquire_waiters != nullptr) {
+-            acquire_operation* to_resume = m_acquire_waiters;
+-            m_acquire_waiters            = m_acquire_waiters->m_next;
+-            lk.unlock();
+-    
+-            // This will transfer ownership of the resource to the resumed waiter.
+-            to_resume->m_awaiting_coroutine.resume();
+-        } else {
+-            // Normally would be release but within a lock use releaxed.
+-            m_counter.fetch_add(1, std::memory_order::relaxed);
+-        }
+-    }
+-    
+-    auto try_acquire() -> bool {
+-        // Optimistically grab the resource.
+-        auto previous = m_counter.fetch_sub(1, std::memory_order::acq_rel);
+-        if (previous <= 0) {
+-            // If it wasn't available undo the acquisition.
+-            m_counter.fetch_add(1, std::memory_order::release);
+-            return false;
+-        }
+-        return true;
+-    }
+-    
+-    auto notify_waiters() noexcept -> void {
+-        m_notify_all_set.exchange(true, std::memory_order::release);
+-        while (true) {
+-            std::unique_lock lk{m_waiter_mutex};
+-            if (m_acquire_waiters != nullptr) {
+-                acquire_operation* to_resume = m_acquire_waiters;
+-                m_acquire_waiters            = m_acquire_waiters->m_next;
+-                lk.unlock();
+-    
+-                to_resume->m_awaiting_coroutine.resume();
+-            } else {
+-                break;
+-            }
+-        }
+-    	private:
+-        friend class release_operation;
+-        friend class acquire_operation;
+-    
+-        const std::ptrdiff_t        m_least_max_value;
+-    	// TODO std::atomic a template
+-        std::atomic<std::ptrdiff_t> m_counter;
+-    
+-        std::mutex         m_waiter_mutex{};
+-        acquire_operation* m_acquire_waiters{nullptr};
+-    
+-        std::atomic<bool> m_notify_all_set{false};
+-    }
+-    } // end class
+-} // end namespace
+-#endif // the unfinished coroutine semaphore
++	/// \return awaitable: `co_await s.acquire()` returns an `acquire_result`
++	[[nodiscard]] acquire_operation acquire() noexcept {
++		return acquire_operation{*this};
++	}
++
++	/// releases a resource: either directly to a waiter, which is resumed
++	/// in this call, or back into the counter
++	void release() noexcept {
++		// NOTE: the waiters are checked first, incrementing the counter and
++		// 	resuming a waiter afterwards would race with new acquirers.
++		std::unique_lock lk{m_waiter_mutex};
++		if (m_acquire_waiters != nullptr) {
++			acquire_operation *to_resume = m_acquire_waiters;
++			m_acquire_waiters = m_acquire_waiters->m_next;
++			lk.unlock();
++
++			// transfers the ownership of the resource to the resumed waiter
++			to_resume->m_awaiting_coroutine.resume();
++		} else {
++			// relaxed is enough within the lock
++			m_counter.fetch_add(1, std::memory_order_relaxed);
++		}
++	}
++
++	/// \return true if a resource was acquired, never suspends
++	[[nodiscard]] bool try_acquire() noexcept {
++		// optimistically grab the resource
++		const auto previous = m_counter.fetch_sub(1, std::memory_order_acq_rel);
++		if (previous <= 0) {
++			// not available: undo the acquisition
++			m_counter.fetch_add(1, std::memory_order_release);
++			return false;
++		}
++		return true;
++	}
++
++	/// \return the maximal number of resources
++	[[nodiscard]] constexpr std::ptrdiff_t max() const noexcept {
++		return m_least_max_value;
++	}
++
++	/// \return the number of free resources
++	[[nodiscard]] std::ptrdiff_t value() const noexcept {
++		return m_counter.load(std::memory_order_relaxed);
++	}
++
++	/// stops the semaphore: all current and future `acquire` return
++	/// `semaphore_stopped`, the current waiters are resumed in this call
++	void notify_waiters() noexcept {
++		m_notify_all_set.exchange(true, std::memory_order_release);
++		while (true) {
++			std::unique_lock lk{m_waiter_mutex};
++			if (m_acquire_waiters != nullptr) {
++				acquire_operation *to_resume = m_acquire_waiters;
++				m_acquire_waiters = m_acquire_waiters->m_next;
++				lk.unlock();
++
++				to_resume->m_awaiting_coroutine.resume();
++			} else {
++				break;
++			}
++		}
++	}
++
++private:
++	friend class acquire_operation;
++
++	const std::ptrdiff_t m_least_max_value;
++	Atomic<std::ptrdiff_t> m_counter;
++
++	std::mutex m_waiter_mutex{};
++	acquire_operation *m_acquire_waiters{nullptr};
++
++	Atomic<bool> m_notify_all_set{false};
++};
++} // end namespace cryptanalysislib::atomic
+ 
+ #endif
+diff --git a/tests/atomic/semaphore.cpp b/tests/atomic/semaphore.cpp
+index 992a327..e39f16a 100644
+--- a/tests/atomic/semaphore.cpp
++++ b/tests/atomic/semaphore.cpp
+@@ -35,6 +35,140 @@ TEST(semaphore, signal_first) {
+ 	SUCCEED();
+ }
+ 
++/// eagerly started coroutine, which destroys itself at the end
++struct detached {
++	struct promise_type {
++		detached get_return_object() noexcept { return {}; }
++		std::suspend_never initial_suspend() noexcept { return {}; }
++		std::suspend_never final_suspend() noexcept { return {}; }
++		void return_void() noexcept {}
++		void unhandled_exception() noexcept { std::terminate(); }
++	};
++};
++
++/// atomic which counts its read-modify-write operations
++static std::atomic<uint32_t> nr_rmw{0};
++template<class T>
++struct counting_atomic : public std::atomic<T> {
++	using std::atomic<T>::atomic;
++
++	T fetch_add(const T v, const std::memory_order o) noexcept {
++		nr_rmw.fetch_add(1);
++		return std::atomic<T>::fetch_add(v, o);
++	}
++
++	T fetch_sub(const T v, const std::memory_order o) noexcept {
++		nr_rmw.fetch_add(1);
++		return std::atomic<T>::fetch_sub(v, o);
++	}
++};
++
++template<class S>
++static detached acquire_and_hold(S &s, typename S::acquire_result &res, bool &done) {
++	res = co_await s.acquire();
++	done = true;
++}
++
++TEST(coro_semaphore, acquire_release) {
++	using S = atomic::semaphore<>;
++	using R = S::acquire_result;
++	S s{2};
++	EXPECT_EQ(s.max(), 2);
++	EXPECT_EQ(s.value(), 2);
++
++	R r1{}, r2{}, r3{};
++	bool d1 = false, d2 = false, d3 = false;
++	acquire_and_hold(s, r1, d1);
++	acquire_and_hold(s, r2, d2);
++	EXPECT_TRUE(d1 && d2);
++	EXPECT_EQ(r1, R::acquired);
++	EXPECT_EQ(r2, R::acquired);
++	EXPECT_EQ(s.value(), 0);
++	EXPECT_FALSE(s.try_acquire());
++
++	// no resource left: suspended until `release`, which resumes it
++	acquire_and_hold(s, r3, d3);
++	EXPECT_FALSE(d3);
++	s.release();
++	EXPECT_TRUE(d3);
++	EXPECT_EQ(r3, R::acquired);
++	EXPECT_EQ(s.value(), 0);
++
++	s.release();
++	EXPECT_EQ(s.value(), 1);
++	EXPECT_TRUE(s.try_acquire());
++	EXPECT_EQ(s.value(), 0);
++	s.release();
++	s.release();
++	EXPECT_EQ(s.value(), 2);
++}
++
++TEST(coro_semaphore, notify_waiters) {
++	using S = atomic::semaphore<>;
++	using R = S::acquire_result;
++	S s{1, 0};
++	EXPECT_EQ(s.value(), 0);
++
++	constexpr uint32_t n = 4;
++	R res[n];
++	bool done[n] = {false};
++	for (uint32_t i = 0; i < n; ++i) {
++		acquire_and_hold(s, res[i], done[i]);
++		EXPECT_FALSE(done[i]);
++	}
++
++	s.notify_waiters();
++	for (uint32_t i = 0; i < n; ++i) {
++		EXPECT_TRUE(done[i]);
++		EXPECT_EQ(res[i], R::semaphore_stopped);
++	}
++
++	// stopped: does not suspend anymore
++	R r{};
++	bool d = false;
++	acquire_and_hold(s, r, d);
++	EXPECT_TRUE(d);
++	EXPECT_EQ(r, R::semaphore_stopped);
++	EXPECT_STREQ(S::to_string(r), "semaphore_stopped");
++}
++
++/// the waiters are resumed by the `release` of other threads, at most
++/// `max` coroutines hold a resource at the same time
++TEST(coro_semaphore, threads) {
++	using S = atomic::semaphore<counting_atomic>;
++	constexpr std::ptrdiff_t max = 3;
++	constexpr uint32_t nr_threads = 8, nr_coros = 1000;
++	S s{max};
++	std::atomic<int64_t> in_use{0}, max_in_use{0};
++	std::atomic<uint32_t> finished{0};
++
++	auto worker = [&](S &sem) -> detached {
++		const auto r = co_await sem.acquire();
++		EXPECT_EQ(r, S::acquire_result::acquired);
++		const int64_t u = in_use.fetch_add(1) + 1;
++		int64_t m = max_in_use.load();
++		while (u > m && !max_in_use.compare_exchange_weak(m, u)) {}
++		in_use.fetch_sub(1);
++		sem.release();
++		finished.fetch_add(1);
++	};
++
++	nr_rmw = 0;
++	std::vector<std::thread> threads;
++	for (uint32_t t = 0; t < nr_threads; ++t) {
++		threads.emplace_back([&]() {
++			for (uint32_t i = 0; i < nr_coros; ++i) { worker(s); }
++		});
++	}
++	for (auto &t : threads) { t.join(); }
++
++	EXPECT_EQ(finished.load(), nr_threads * nr_coros);
++	EXPECT_LE(max_in_use.load(), max);
++	EXPECT_GE(max_in_use.load(), 1);
++	EXPECT_EQ(s.value(), max);
++	EXPECT_GT(nr_rmw.load(), 0u);
++}
++
+ int main(int argc, char **argv) {
+ 	InitGoogleTest(&argc, argv);
+ 	return RUN_ALL_TESTS();

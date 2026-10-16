@@ -13,11 +13,11 @@
 
 namespace cryptanalysislib::math {
 	// square root by Newton-Raphson method
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	constexpr T sqrt(const T x, T guess) noexcept {
 		// NOTE: iterative with a cap, so it terminates even if the iteration
 		// oscillates; sqrt(0) = 0 (the iteration divides by the guess)
@@ -35,11 +35,11 @@ namespace cryptanalysislib::math {
 	}
 
 	// square root by Newton-Raphson method
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	constexpr T sqrt(T x) {
 		if constexpr (std::is_integral_v<T>) {
 			return sqrt<double>(x, x);
@@ -52,11 +52,11 @@ namespace cryptanalysislib::math {
 	}
 
 	// cube root by Newton-Raphson method
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	constexpr T cbrt(T x, T guess) noexcept {
 		// NOTE: iterative with a cap (see `sqrt`); cbrt(0) = 0
 		if (x == T{0}) {
@@ -73,11 +73,11 @@ namespace cryptanalysislib::math {
 	}
 
 	// cube root by Newton-Raphson method
-	__device__ __host__
 	template<typename T>
 #if __cplusplus > 201709L
 	    requires std::is_arithmetic_v<T>
 #endif
+	__device__ __host__
 	constexpr T cbrt(T x) noexcept {
 		if constexpr (std::is_integral_v<T>) {
 			return cbrt<double>(x, x);
