@@ -5,32 +5,109 @@ algorithms are implemented (* means that this algorithm is not in the stl or a s
 indicates that an optimized version for `T=(unsigned} integer` exists. [thread] indicates that a multithreaded
 implementation exists. [config] indicates that the algorithm/class is configurable):
     - accumulate() [simd, thread, config]
-    - all_of() [thread, config]
-    - any_of() [thread, config]
-    - none_of() [thread, config]
-    - apply() [thread, config]
-    - argmin()/argmax() [simd, thread, config]
+    - adjacent_difference() [thread, config] (numeric/)
+    - adjacent_find() [thread, config]
+    - all_of()/any_of()/none_of() [thread, config]
+    - clamp() []
+    - construct_at()/destroy_at() []
     - copy() [simd, thread, config]
+    - copy_backward() [simd]
+    - copy_if() [thread, config]
+    - copy_n() [simd, thread, config]
     - count() [simd, thread, config]
-    - eea()
+    - count_if() [thread, config]
+    - countl_zero()/countr_zero() []
     - equal() [simd, thread, config]
-    - exclusive_scan() [thread, config]
-    - fill() [thread, config]
+    - exchange()/swap()/iter_swap()/swap_ranges() []
+    - exclusive_scan() [simd, thread, config]
+    - fill()/fill_n() [thread, config]
     - find() [simd, thread, config]
+    - find_if()/find_if_not() [thread, config]
+    - find_end() []
+    - find_first_of() [thread, config]
     - for_each() [thread, config]
-    - gcd() []
-    - is_heap()/is_heap_until()/make_heap()/push_heap()/pop_heap()/sort_heap() [simd]
-    - histogram() [simd, config]
+    - for_each_n() [thread, config]
+    - generate()/generate_n() []
+    - includes() [simd, thread, config]
     - inclusive_scan() [thread, config, simd]
-    - int2scan() []
-    - pcs() []
-    - prefixsum() [simd, thread, config]
-    - random_index() []
+    - inner_product() [thread, config] (numeric/)
+    - inplace_merge() [thread, config]
+    - iota() [thread, config] (numeric/)
+    - is_heap()/is_heap_until()/make_heap()/push_heap()/pop_heap()/sort_heap() [simd]
+    - is_partitioned() [thread, config]
+    - is_permutation()/next_permutation()/prev_permutation() []
+    - is_sorted()/is_sorted_until() []
+    - lcm() [] (numeric/)
+    - lexicographical_compare() [simd, thread, config]
+    - lexicographical_compare_three_way() [simd]
+    - max()/max_element() [simd, thread, config]
+    - merge() [simd, thread, config]
+    - midpoint() [] (numeric/)
+    - min()/min_element() [simd, thread, config]
+    - minmax() []
+    - minmax_element() [simd, thread, config]
+    - mismatch() [simd, thread, config]
+    - move() [simd, thread, config]
+    - move_backward() [simd]
+    - nth_element() [thread, config]
+    - partial_sort() []
+    - partial_sort_copy() [thread, config]
+    - partial_sum() [simd, thread, config] (numeric/)
+    - partition()/partition_point() []
+    - partition_copy() [thread, config]
     - reduce() [thread, config]
-    - regex() []
-    - rotate() []
-    - subsetsum() []
-    - transform() [thread, config]
+    - remove()/remove_if() [simd, thread, config]
+    - remove_copy()/remove_copy_if() []
+    - replace() [simd]
+    - replace_if()/replace_copy()/replace_copy_if() []
+    - reverse() [thread, config]
+    - reverse_copy() []
+    - rotate()/rotate_copy() []
+    - sample() [thread]
+    - search() []
+    - search_n() [simd, thread, config]
+    - set_difference() [simd, thread, config]
+    - set_intersection() [simd, thread, config]
+    - set_symmetric_difference()/set_union() [thread, config]
+    - shift_left()/shift_right() [thread, config]
+    - shuffle() []
+    - sort() [] (ska_sort, also with a key extractor)
+    - stable_partition() [thread, config]
+    - stable_sort() [thread, config]
+    - transform() []
+    - transform_reduce() [thread, config]
+    - transform_inclusive_scan()/transform_exclusive_scan() [thread, config] (numeric/)
+    - uninitialized_copy()/uninitialized_move()/uninitialized_fill()/uninitialized_default_construct()/
+      uninitialized_value_construct() and their _n versions, destroy()/destroy_n() [thread, config]
+    - unique()/unique_copy() [thread, config]
+    - upper_bound()/equal_range() []
+
+and the following algorithms, which are not in the stl (*):
+    - argmin()/argmax() [simd, thread, config]
+    - berlekamp_massey()/linear_recurrence() [] (recurrence.h)
+    - floor_sum() [] (equations/linear.h)
+    - for_each_chunk() [thread, config]
+    - generate_random_indices()/generate_random_mitm_indices() [] (random_index.h)
+    - generate_subsetsum_instance(), sss_d2/HGJ/BCJ [] (subsetsum.h)
+    - histogram() [simd, thread, config]
+    - int2weights()/int2weight_bits() [] (int2weight.h)
+    - parallel_apply() [thread, config] (apply.h)
+    - pcs (parallel collision search) [thread] (pcs.h), rsa_pollard_rho [] (rsa.h)
+    - phi() [] (totient.h, Euler's totient function)
+    - prefixsum() [simd, thread, config]
+    - re_compile()/re_match()/re_search() [] (regex.h)
+    - rotl()/rotr() [simd], *_rotation() (trinity, grail, helix, ...) [] (rotate.h)
+    - sat_bruteforce(), CDCL solver [] (sat/)
+    - shift() [] (shift.h)
+    - substr_search() [simd]
+    - transpose_b8x8()/transpose_u32_32x32() [simd] (transpose.h)
+    - zip() [simd]
+    - feslite enumeration (MQ, fast exhaustive search) [simd] (mq/)
+    - bit tricks: get_bit()/set_bit(), popcount(), ffs(), clz(), bsr(), pdep/pext, bit_gather()/bit_scatter(),
+      bit_zip()/bit_unzip(), butterfly_*(), bin2naf()/naf2bin(), inv2adic()/sqrt2adic(), bin_to_sl_gray(),
+      bit_block_count(), bit_copy_periodic(), base2 encode/decode [simd] (bits.h, bits/)
+
+`gcd()` and `eea()` are in `src/math/`.
 
 NOTE: The api changes are mostly done, because we needed more flexibility.
 

@@ -56,6 +56,31 @@ TEST(partial_sum, operator_order) {
 	EXPECT_EQ(w, (std::vector<uint32_t>{200, 44}));
 }
 
+/// parallel `partial_sum` against `std::partial_sum`: accumulator type,
+/// custom `op` and the sequential fallback
+TEST(partial_sum, multithreaded) {
+	for (const size_t n : {size_t(0), size_t(1), size_t(100), size_t(1u << 20u), size_t((1u << 20u) + 31u)}) {
+		std::vector<uint32_t> a(n), out(n + 1, 7u), e(n + 1, 7u);
+		for (auto &x : a) { x = uint32_t(rng()); }
+		const auto r = cryptanalysislib::partial_sum(par_if(true), a.begin(), a.end(), out.begin());
+		std::partial_sum(a.begin(), a.end(), e.begin());
+		EXPECT_EQ(r, out.begin() + n);
+		EXPECT_EQ(out, e) << n; // incl. the untouched last element
+
+		cryptanalysislib::partial_sum(par_if(true), a.begin(), a.end(), out.begin(), std::bit_xor<>());
+		std::partial_sum(a.begin(), a.end(), e.begin(), std::bit_xor<>());
+		EXPECT_EQ(out, e) << n;
+
+		// accumulator is uint8_t: wraps around although the output is wider
+		std::vector<uint8_t> b(n);
+		std::vector<uint64_t> w(n), f(n);
+		for (auto &x : b) { x = uint8_t(rng()); }
+		cryptanalysislib::partial_sum(par_if(true), b.begin(), b.end(), w.begin());
+		std::partial_sum(b.begin(), b.end(), f.begin());
+		EXPECT_EQ(w, f) << n;
+	}
+}
+
 /// usable in constant expressions (also the `uint32_t` overload)
 TEST(partial_sum, constexpr_partial_sum) {
 	constexpr auto r = []() {

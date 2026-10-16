@@ -30,6 +30,29 @@ TEST(iota, simple) {
 	EXPECT_EQ(s, 789);
 }
 
+/// parallel `iota` against `std::iota`: wrap around of unsigned types across
+/// chunk borders, iterators as values and the sequential fallback
+TEST(iota, multithreaded) {
+	for (const size_t n : {size_t(0), size_t(1), size_t(100), size_t(1u << 20u), size_t((1u << 20u) + 31u)}) {
+		std::vector<uint32_t> v(n), e(n);
+		cryptanalysislib::iota(cryptanalysislib::par_if(true), v.begin(), v.end(), uint32_t(0xFFFFFF00u));
+		std::iota(e.begin(), e.end(), uint32_t(0xFFFFFF00u));
+		EXPECT_EQ(v, e) << n;
+
+		std::vector<uint8_t> b(n), f(n);
+		cryptanalysislib::iota(cryptanalysislib::par_if(true), b.begin(), b.end(), uint8_t(250));
+		std::iota(f.begin(), f.end(), uint8_t(250));
+		EXPECT_EQ(b, f) << n;
+	}
+
+	std::vector<uint32_t> x(1u << 20u);
+	std::vector<std::vector<uint32_t>::iterator> its(x.size());
+	cryptanalysislib::iota(cryptanalysislib::par_if(true), its.begin(), its.end(), x.begin());
+	bool ok = true;
+	for (size_t i = 0; i < its.size(); ++i) { ok &= (its[i] == x.begin() + i); }
+	EXPECT_TRUE(ok);
+}
+
 /// unqualified calls are not ambiguous with `std::iota`
 TEST(iota, unqualified) {
 	using namespace cryptanalysislib;

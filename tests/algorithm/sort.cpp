@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "random.h"
@@ -40,6 +41,28 @@ TEST(sort, partial_sort) {
 			EXPECT_EQ(v, e) << "not a permutation " << n << " " << k;
 		}
 	}
+}
+
+/// `partial_sort` with move-only elements and in constant expressions
+TEST(sort, partial_sort_move_only_constexpr) {
+	std::vector<std::unique_ptr<uint32_t>> v;
+	for (uint32_t i = 0; i < 300; ++i) { v.push_back(std::make_unique<uint32_t>((i * 2654435761u) % 1000u)); }
+	cryptanalysislib::partial_sort(v.begin(), v.begin() + 50, v.end(),
+	                               [](const auto &a, const auto &b) { return *a < *b; });
+	std::vector<uint32_t> w, e;
+	for (const auto &p : v) { w.push_back(*p); }
+	e = w;
+	std::sort(e.begin(), e.end());
+	EXPECT_TRUE(std::equal(w.begin(), w.begin() + 50, e.begin()));
+
+	constexpr auto r = []() {
+		int a[20] = {};
+		for (int i = 0; i < 20; ++i) { a[i] = (i * 7) % 20; }
+		cryptanalysislib::partial_sort(a, a + 3, a + 20);
+		return a[0] * 100 + a[1] * 10 + a[2];
+	}();
+	static_assert(r == 12);
+	EXPECT_EQ(r, 12);
 }
 
 /// sort by an extracted key (ska_sort) and partial_sort with a comparator

@@ -105,7 +105,6 @@ constexpr void partial_sort(RandomIt first, RandomIt middle, RandomIt last, Comp
 /// Rearranges [first, last) such that [first, middle) contains the
 /// `middle - first` smallest elements in ascending order (like
 /// `std::partial_sort`); the order of the rest is unspecified.
-/// NOTE: before, this forwarded to `std::partial_sort`
 template<typename RandomIt>
 constexpr //< since C++20
 void partial_sort(RandomIt first, RandomIt middle, RandomIt last)
@@ -115,40 +114,22 @@ void partial_sort(RandomIt first, RandomIt middle, RandomIt last)
 }
 namespace impl
 {
+    /// makes [first, middle) a max-heap of the `middle - first` smallest
+    /// elements of [first, last), the others are moved to [middle, last)
     template<typename RandomIt, typename Compare>
     constexpr //< since C++20
-    void sift_down(RandomIt first, RandomIt last, const Compare& comp)
+    void heap_select(RandomIt first, RandomIt middle, RandomIt last, Compare& comp)
     {
-        // sift down element at “first”
-        const auto length = static_cast<std::size_t>(last - first);
-        std::size_t current = 0;
-        std::size_t next = 2;
-        while (next < length)
-        {
-            if (comp(*(first + next), *(first + (next - 1))))
-                --next;
-            if (!comp(*(first + current), *(first + next)))
-                return;
-            cryptanalysislib::iter_swap(first + current, first + next);
-            current = next;
-            next = 2 * current + 2;
-        }
-        --next;
-        if (next < length && comp(*(first + current), *(first + next)))
-            cryptanalysislib::iter_swap(first + current, first + next);
-    }
- 
-    template<typename RandomIt, typename Compare>
-    constexpr //< since C++20
-    void heap_select(RandomIt first, RandomIt middle, RandomIt last, const Compare& comp)
-    {
-        std::make_heap(first, middle, comp);
+        cryptanalysislib::make_heap(first, middle, comp);
+        const auto len = middle - first;
         for (auto i = middle; i != last; ++i)
         {
+            // smaller than the top: swap it with the top and sift it down
             if (comp(*i, *first))
             {
-                cryptanalysislib::iter_swap(first, i);
-                impl::sift_down(first, middle, comp);
+                std::iter_value_t<RandomIt> v = std::move(*i);
+                *i = std::move(*first);
+                internal::heap_sift_down(first, len, 0, std::move(v), comp);
             }
         }
     }
@@ -162,7 +143,7 @@ constexpr //< since C++20
 void partial_sort(RandomIt first, RandomIt middle, RandomIt last, Compare comp)
 {
     impl::heap_select(first, middle, last, comp);
-    std::sort_heap(first, middle, comp);
+    cryptanalysislib::sort_heap(first, middle, comp);
 }
 
 /// Sorts [first, last) w.r.t. `comp` and keeps the order of equivalent

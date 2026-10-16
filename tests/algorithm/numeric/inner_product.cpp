@@ -35,6 +35,27 @@ TEST(inner_product, simple) {
 	          ">axbycz");
 }
 
+/// parallel `inner_product` against `std::inner_product`: the result type
+/// is the type of `init`, `op1` is not commutative, sequential fallback
+TEST(inner_product, multithreaded) {
+	for (const size_t n : {size_t(0), size_t(1), size_t(100), size_t(1u << 20u), size_t((1u << 20u) + 31u)}) {
+		std::vector<uint32_t> a(n), b(n);
+		for (size_t i = 0; i < n; ++i) { a[i] = uint32_t(rng()); b[i] = uint32_t(rng()); }
+		EXPECT_EQ(cryptanalysislib::inner_product(par_if(true), a.begin(), a.end(), b.begin(), uint64_t(5)),
+		          std::inner_product(a.begin(), a.end(), b.begin(), uint64_t(5))) << n;
+		EXPECT_EQ(cryptanalysislib::inner_product(par_if(true), a.begin(), a.end(), b.begin(), uint32_t(0)),
+		          std::inner_product(a.begin(), a.end(), b.begin(), uint32_t(0))) << n;
+	}
+
+	// string concatenation: the results of the chunks are combined in order
+	const size_t m = 1u << 18u;
+	std::vector<char> s(m), t(m);
+	for (size_t i = 0; i < m; ++i) { s[i] = char('a' + rng() % 26u); t[i] = char('A' + rng() % 26u); }
+	const auto pair = [](const char x, const char y) { return std::string{x, y}; };
+	EXPECT_EQ(cryptanalysislib::inner_product(par_if(true), s.begin(), s.end(), t.begin(), std::string(">"), std::plus<>(), pair),
+	          std::inner_product(s.begin(), s.end(), t.begin(), std::string(">"), std::plus<>(), pair));
+}
+
 /// usable in constant expressions
 TEST(inner_product, constexpr_inner_product) {
 	constexpr auto r = []() {
