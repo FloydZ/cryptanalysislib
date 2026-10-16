@@ -123,6 +123,8 @@
 
 /// largest value considered by `enum_name` (can be overridden, e.g.
 /// `-DREFLECT_ENUM_MAX=32`, or per enum via an `enum_max(E)` overload)
+/// NOTE: clang needs `-fbracket-depth` >= `REFLECT_ENUM_MAX - REFLECT_ENUM_MIN + 1`
+/// 	(default 256), as `detail::enum_cases` is a fold over all these values
 #ifndef REFLECT_ENUM_MAX
 #define REFLECT_ENUM_MAX 1024
 #endif

@@ -55,6 +55,7 @@ include("deps/cmake_optimize_for_architecture/Optimizations.cmake")
 check_cxx_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 check_cxx_compiler_flag(-fno-inline COMPILER_SUPPORTS_NO_INLINE)
 check_cxx_compiler_flag(-fconstexpr-steps=91 COMPILER_SUPPORTS_CONSTEXPR_COST)
+check_cxx_compiler_flag(-fbracket-depth=256 COMPILER_SUPPORTS_BRACKET_DEPTH)
 check_cxx_compiler_flag(-fno-exceptions COMPILER_SUPPORTS_NO_EXCEPTION)
 check_cxx_compiler_flag(-fconcepts-diagnostics-depth=10 COMPILER_SUPPORTS_CONCEPTS_DIAGNOSTICS_DEPTH)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
@@ -169,6 +170,13 @@ if (COMPILER_SUPPORTS_CONSTEXPR_COST)
     else()
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fconstexpr-steps=99999999")
     endif()
+endif()
+
+# clang limits the number of arguments of a fold expression to the bracket
+# depth (default 256). `reflect::enum_name` (src/reflection/reflection.h) folds
+# over [REFLECT_ENUM_MIN, REFLECT_ENUM_MAX] = 1026 values by default.
+if (COMPILER_SUPPORTS_BRACKET_DEPTH)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fbracket-depth=2048")
 endif()
 
 if(${USE_LTO} AND lto_supported)
