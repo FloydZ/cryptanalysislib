@@ -127,7 +127,7 @@ public:
 	/// no temporary storage is needed (as `cub::BlockHistogramAtomic`)
 	struct TempStorage {};
 
-	__device__ __forceinline__ BlockHistogram() noexcept = default;
+	BlockHistogram() noexcept = default;
 	__device__ __forceinline__ explicit BlockHistogram(TempStorage &) noexcept {}
 
 	/// zeros the shared memory histogram

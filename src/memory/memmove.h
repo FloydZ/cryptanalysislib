@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #include "simd/simd.h"
 
@@ -122,7 +123,7 @@ namespace cryptanalysislib {
 	constexpr inline void memmove(T *out,
 	                              const T *in,
 	                              const size_t len) noexcept {
-		if consteval {
+		if (std::is_constant_evaluated()) {
 			// NOTE: the pointer comparison is only valid within the same
 			// 	array, which is always the case for overlapping buffers
 			if (out < in) {

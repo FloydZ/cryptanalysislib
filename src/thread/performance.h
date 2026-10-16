@@ -469,7 +469,7 @@ namespace cryptanalysislib {
 
 		/// gather performance metrics for thread `tid`
 		/// \param tid thread id
-		constexpr inline void gather(const uint32_t tid) noexcept {
+		inline void gather(const uint32_t tid) noexcept {
 			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			schedulerPerformance.schedulerThreadLoad[tid].gather();
 		}
@@ -478,7 +478,7 @@ namespace cryptanalysislib {
 		/// this funcitons should only be called by thread 0
 		/// \param number_active_threads
 		/// \param number_enqueud_tasks
-		constexpr inline void gather(const uint32_t number_active_threads,
+		inline void gather(const uint32_t number_active_threads,
 		                             const uint32_t number_enqueud_tasks) noexcept {
 			schedulerPerformance.schedulerThreadLoad[0].gather();
 			schedulerPerformance.number_active_threads = number_active_threads;
