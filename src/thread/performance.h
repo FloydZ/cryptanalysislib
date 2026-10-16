@@ -33,8 +33,6 @@
 
 #include <version>
 
-#include "reflection/reflection.h"
-
 namespace cryptanalysislib {
 	namespace details {
 
@@ -69,9 +67,7 @@ inline constexpr SchedulerConfig schedulerConfig;
 
 namespace cryptanalysislib {
 	// NOTE: this is linux only
-	// NOTE: this is needed, as the real internal `rusage`
-	// uses strange unions, which are not supported by
-	// `reflect`
+	// NOTE: plain copy of the internal `rusage`, which uses unions.
 	struct rusage__ {
 		struct timeval ru_utime;
 		struct timeval ru_stime;
@@ -207,6 +203,9 @@ namespace cryptanalysislib {
 	};
 
 
+	// NOTE: the per thread data is send as raw bytes over the socket
+	static_assert(std::is_trivially_copyable_v<SchedulerThreadLoad>);
+
 	/// NOTE: just the data container. To access it use the Manager
 	/// class. This is needed for the (de)serialization via `reflect`
 	struct SchedulerPerformance {
@@ -286,6 +285,14 @@ namespace cryptanalysislib {
 	private:
 		SchedulerPerformance schedulerPerformance;
 
+		/// wire format of a message: this header, followed by
+		/// `nr_threads` raw `SchedulerThreadLoad` entries.
+		struct MessageHeader {
+			uint64_t nr_threads;
+			int number_active_threads;
+			int number_enqueud_tasks;
+		};
+
 		const bool server;
 
 		// socket communication
@@ -356,9 +363,8 @@ namespace cryptanalysislib {
 					// 	`accept` loop with a stop condition (or `fork`).
 					// NOTE: a stream socket has no message boundaries: several
 					// 	messages can arrive in one `read`, or one message in
-					// 	several. Each message ends with '\n' (see `send`). Before,
-					// 	every `read` was parsed as one document, and two merged
-					// 	messages aborted via `.value()`.
+					// 	several. Hence a message is only parsed, once all
+					// 	bytes announced by its header are received (see `send`).
 					std::string pending;
 					while (true) {
 						const ssize_t n = read(newsockfd, buf, buffer_size);

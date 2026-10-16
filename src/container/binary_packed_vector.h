@@ -103,7 +103,7 @@ public:
 	/// \return
 	constexpr FqPackedVector &operator=(FqPackedVector const &obj) noexcept {
 		if (this != &obj) {// self-assignment check expected
-			std::copy(&obj.__data[0], &obj.__data[0] + obj.__data.size(), &this->__data[0]);
+			__data = obj.__data;
 		}
 
 		return *this;

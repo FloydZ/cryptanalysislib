@@ -663,25 +663,28 @@ public:
 		uint32_t b = rang;
 		for (; b < fix_col; ++b) {
 			bool found = false;
+			DataType inv = 0;
 
-			// find a column in which a one is found
-			// -1 because of the syndrome
-			for (uint32_t col = b; col < ncols - 1; ++col) {
-				for (uint32_t row = b; row < b + 1; row++) {
-					if (get(row, col) == 1u) {
+			// find a unit in the remaining rows and columns (-1: syndrome)
+			for (uint32_t col = b; (col < ncols - 1) && !found; ++col) {
+				for (uint32_t row = b; row < nrows; row++) {
+					inv = mod_inverse(get(row, col));
+					if (inv != 0) {
 						found = true;
 
 						std::swap(P.values[col], P.values[b]);
 						swap_cols(col, b);
-						if (row != b)
-							swap_rows(b, row);
-
+						swap_rows(b, row);
 						break;
 					}
 				}
 			}
 
 			if (found) {
+				if (inv != 1) {
+					RowType::scalar(__data[b], __data[b], inv);
+				}
+
 				// fix the column
 				for (uint32_t i = 0; i < ROWS; ++i) {
 					if (i == b) {

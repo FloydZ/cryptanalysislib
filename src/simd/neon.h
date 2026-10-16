@@ -4359,6 +4359,21 @@ struct Xint32x8_t {
 		return ret;
 	}
 
+	/// same as the AVX2 version: permutation mask for `permute`, which packs
+	/// the lanes selected by `mask` to the front, e.g. 0b10101010 -> [1, 3, 5, 7, 0, 0, 0, 0]
+	/// \param mask
+	/// \return
+	[[nodiscard]] constexpr static inline S pack(const uint32_t mask) noexcept {
+		S ret{};
+		uint32_t k = 0;
+		for (uint32_t i = 0; i < 8; i++) {
+			if ((mask >> i) & 1u) {
+				ret.v32[k++] = i;
+			}
+		}
+		return ret;
+	}
+
 	constexpr static inline S popcnt(const S in) {
 		S out;
 		const cryptanalysislib::_uint16x8_t mask = cryptanalysislib::_uint16x8_t::set1(0xff);

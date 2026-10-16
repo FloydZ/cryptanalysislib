@@ -458,13 +458,16 @@ sinfl_decompress(unsigned char *out, int cap, const unsigned char *in, int size)
 						switch (sym) {default: lens[n++] = (unsigned char)sym; break;
 							case 16: i = 3 + sinfl_get(&s,2);
 								if (n == 0 || n + i > nlit + ndist) return (int)(out-o);
-								for (;i;i--,n++) lens[n]=lens[n-1]; break;
+								for (;i;i--,n++) lens[n]=lens[n-1];
+								break;
 							case 17: i = 3 + sinfl_get(&s,3);
 								if (n + i > nlit + ndist) return (int)(out-o);
-								for (;i;i--,n++) lens[n]=0; break;
+								for (;i;i--,n++) lens[n]=0;
+								break;
 							case 18: i = 11 + sinfl_get(&s,7);
 								if (n + i > nlit + ndist) return (int)(out-o);
-								for (;i;i--,n++) lens[n]=0; break;}
+								for (;i;i--,n++) lens[n]=0;
+								break;}
 					}
 					/* build lit/dist tables */
 					sinfl_build(s.lits, lens, 10, 15, nlit);
