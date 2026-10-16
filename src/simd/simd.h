@@ -1048,6 +1048,10 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
 
         /// \return [a, a, ..., a]
 		[[nodiscard]] constexpr static inline _Xint16x8_t set1(const limb_type a) noexcept {
@@ -1637,6 +1641,11 @@ namespace cryptanalysislib {
 			return ret;
 		}
 
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
+
         /// \return [a, a, ..., a]
 		[[nodiscard]] constexpr static inline _Xint32x4_t set1(const limb_type a) noexcept {
 			S ret;
@@ -2216,6 +2225,11 @@ namespace cryptanalysislib {
 
 			return ret;
 		}
+
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
 
         /// \return [a, a, ..., a]
 		[[nodiscard]] constexpr static inline _Xint64x2_t set1(const limb_type a) noexcept {
@@ -4478,9 +4492,10 @@ struct Xint32x8_t {
 	}
 
 
+	/// zero extends the lower 8 bytes of `in` to 32 bits
 	[[nodiscard]] static inline S cvtepu8(const _uint8x16_t in) noexcept {
 		S ret;
-		for (uint32_t i = 0; i < 16; i++) {
+		for (uint32_t i = 0; i < LIMBS; i++) {
 			ret.d[i] = in.d[i];
 		}
 
@@ -5616,6 +5631,226 @@ constexpr inline void Xint64x4_t<__unsigned>::print(bool binary,
 	}
 	printf("\n");
 }
+
+#ifdef USE_AVX512F
+template<const bool __unsigned>
+constexpr inline void Xint8x64_t<__unsigned>::print(bool binary, bool hex) const {
+	/// make sure that only one is defined
+	assert(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 64; i++) {
+			print_binary(this->v8[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 64; i++) {
+			printf("%hhx ", this->v8[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 64; i++) {
+		printf("%u ", this->v8[i]);
+	}
+	printf("\n");
+}
+
+template<const bool __unsigned>
+constexpr inline void Xint16x32_t<__unsigned>::print(bool binary, bool hex) const {
+	/// make sure that only one is defined
+	assert(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 32; i++) {
+			print_binary(this->v16[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 32; i++) {
+			printf("%hx ", this->v16[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 32; i++) {
+		printf("%u ", this->v16[i]);
+	}
+	printf("\n");
+}
+
+template<const bool __unsigned>
+constexpr inline void Xint32x16_t<__unsigned>::print(bool binary, bool hex) const {
+	/// make sure that only one is defined
+	assert(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 16; i++) {
+			print_binary(this->v32[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 16; i++) {
+			printf("%x ", this->v32[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 16; i++) {
+		printf("%u ", this->v32[i]);
+	}
+	printf("\n");
+}
+
+template<const bool __unsigned>
+constexpr inline void Xint64x8_t<__unsigned>::print(bool binary, bool hex) const {
+	/// make sure that only one is defined
+	assert(binary + hex < 2);
+
+	if (binary) {
+		for (uint32_t i = 0; i < 8; i++) {
+			print_binary(this->v64[i]);
+		}
+
+		return;
+	}
+
+	if (hex) {
+		for (uint32_t i = 0; i < 8; i++) {
+			printf("%" PRIx64 " ", (uint64_t)this->v64[i]);
+		}
+
+		return;
+	}
+
+	for (uint32_t i = 0; i < 8; i++) {
+		printf("%" PRIu64 " ", (uint64_t)this->v64[i]);
+	}
+	printf("\n");
+}
+#endif
+
+namespace cryptanalysislib {
+	template<const bool U>
+	constexpr inline void _Xint8x16_t<U>::print(bool binary, bool hex) const {
+		/// make sure that only one is defined
+		assert(binary + hex < 2);
+
+		if (binary) {
+			for (uint32_t i = 0; i < 16; i++) {
+				print_binary(this->v8[i]);
+			}
+
+			return;
+		}
+
+		if (hex) {
+			for (uint32_t i = 0; i < 16; i++) {
+				printf("%hhx ", this->v8[i]);
+			}
+
+			return;
+		}
+
+		for (uint32_t i = 0; i < 16; i++) {
+			printf("%u ", this->v8[i]);
+		}
+		printf("\n");
+	}
+
+	template<const bool U>
+	constexpr inline void _Xint16x8_t<U>::print(bool binary, bool hex) const {
+		/// make sure that only one is defined
+		assert(binary + hex < 2);
+
+		if (binary) {
+			for (uint32_t i = 0; i < 8; i++) {
+				print_binary(this->v16[i]);
+			}
+
+			return;
+		}
+
+		if (hex) {
+			for (uint32_t i = 0; i < 8; i++) {
+				printf("%hx ", this->v16[i]);
+			}
+
+			return;
+		}
+
+		for (uint32_t i = 0; i < 8; i++) {
+			printf("%u ", this->v16[i]);
+		}
+		printf("\n");
+	}
+
+	template<const bool U>
+	constexpr inline void _Xint32x4_t<U>::print(bool binary, bool hex) const {
+		/// make sure that only one is defined
+		assert(binary + hex < 2);
+
+		if (binary) {
+			for (uint32_t i = 0; i < 4; i++) {
+				print_binary(this->v32[i]);
+			}
+
+			return;
+		}
+
+		if (hex) {
+			for (uint32_t i = 0; i < 4; i++) {
+				printf("%x ", this->v32[i]);
+			}
+
+			return;
+		}
+
+		for (uint32_t i = 0; i < 4; i++) {
+			printf("%u ", this->v32[i]);
+		}
+		printf("\n");
+	}
+
+	template<const bool U>
+	constexpr inline void _Xint64x2_t<U>::print(bool binary, bool hex) const {
+		/// make sure that only one is defined
+		assert(binary + hex < 2);
+
+		if (binary) {
+			for (uint32_t i = 0; i < 2; i++) {
+				print_binary(this->v64[i]);
+			}
+
+			return;
+		}
+
+		if (hex) {
+			for (uint32_t i = 0; i < 2; i++) {
+				printf("%" PRIx64 " ", (uint64_t)this->v64[i]);
+			}
+
+			return;
+		}
+
+		for (uint32_t i = 0; i < 2; i++) {
+			printf("%" PRIu64 " ", (uint64_t)this->v64[i]);
+		}
+		printf("\n");
+	}
+}// namespace cryptanalysislib
 
 ////////////////////////////////////////////////////////////////////////
 
