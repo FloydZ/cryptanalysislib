@@ -612,35 +612,48 @@ constexpr void drill_rotation(T *array,
 /// NOTE: for contiguous arrays see the faster `*_rotation` algorithms above,
 /// 	compared in `bench/algorithm/rotate.cpp` (1M uint32_t, split at n/3:
 /// 	`helix_rotation`/`drill_rotation` 59 µs, `std::rotate` 74 µs).
+/// NOTE: the remaining sequence is rotated in a loop: the number of passes
+/// 	is up to (middle - first) / (last - middle), e.g. n for a single
+/// 	element after `middle`, too deep for a recursion.
 /// \param first[in]: Iterator to the beginning of the range
 /// \param middle[in]: element which becomes the new first element
 /// \param last[in]: Iterator to the end of the range
 /// \return iterator to the new position of the former first element
 template<class ForwardIt>
-constexpr 
+constexpr
 ForwardIt rotate(ForwardIt first,
                  ForwardIt middle,
                  ForwardIt last) {
     if (first == middle) {
         return last;
     }
- 
+
     if (middle == last) {
         return first;
     }
- 
-    ForwardIt write = first;
-    ForwardIt next_read = first; // read position for when “read” hits “last”
- 
-    for (ForwardIt read = middle; read != last; ++write, ++read) {
-        if (write == next_read)
-            next_read = read; // track where “first” went
-        std::iter_swap(write, read);
+
+    ForwardIt ret = first;
+    bool first_pass = true;
+    while ((first != middle) && (middle != last)) {
+        ForwardIt write = first;
+        ForwardIt next_read = first; // read position for when “read” hits “last”
+
+        for (ForwardIt read = middle; read != last; ++write, ++read) {
+            if (write == next_read)
+                next_read = read; // track where “first” went
+            std::iter_swap(write, read);
+        }
+
+        if (first_pass) {
+            ret = write;
+            first_pass = false;
+        }
+
+        // rotate the remaining sequence into place
+        first = write;
+        middle = next_read;
     }
- 
-    // rotate the remaining sequence into place
-    cryptanalysislib::rotate(write, next_read, last);
-    return write;
+    return ret;
 }
 
 /// Copies [first, last) rotated such that `middle` comes first to `d_first`

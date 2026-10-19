@@ -2129,7 +2129,6 @@ public:
 		// early exit
 		if (iLs == 0) { return 0; }
 
-		size_t Ls = 0;
 		auto f = [&](List &out,
 		            const ElementType &e1,
 		            const ElementType &e2,
@@ -2146,15 +2145,11 @@ public:
 			}
 
 		    out.append(v);
-			Ls += 1;
 			// std::cout << target << std::endl;
 		    // std::cout << v << std::endl;
 			// if (v.label.is_equal(target)) { out.append(v); }
 			return false;
 		};
-
-		// NOTE: removed `if (Ls == 0) { return 0; }`: `Ls` is only counted by
-		// 	`f` in the join below, so this always returned 0
 
 		LabelType::sub(t1, target, iT);
 
@@ -2391,12 +2386,12 @@ public:
 		auto& task_pool = *policy.pool();
 
 		//using D = typename LabelType::DataType;
-		constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
-			bucketsize, 1ull<<(k_upper1-k_lower1), nthreads
-		};
-		constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
-			bucketsize, 1ull<<(k_upper2-k_lower2), nthreads
-		};
+		// constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+		// 	bucketsize, 1ull<<(k_upper1-k_lower1), nthreads
+		// };
+		// constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+		// 	bucketsize, 1ull<<(k_upper2-k_lower2), nthreads
+		// };
 
 		// using HML0 = SimpleHashMap<D, size_t,					  simpleHashMapConfigL0, Hash<D, k_lower1, k_upper1, 2>>;
 		// using HML1 = SimpleHashMap<D, std::tuple<size_t, size_t>, simpleHashMapConfigL0, Hash<D, k_lower2, k_upper2, 2>>;

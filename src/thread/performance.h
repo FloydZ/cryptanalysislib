@@ -1,12 +1,14 @@
 #pragma once 
 
 #include <cerrno>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -205,7 +207,7 @@ namespace cryptanalysislib {
 	static_assert(std::is_trivially_copyable_v<SchedulerThreadLoad>);
 
 	/// NOTE: just the data container. To access it use the Manager
-	/// class.
+	/// class. This is needed for the (de)serialization via `reflect`
 	struct SchedulerPerformance {
 		// per thread information
 		std::vector<SchedulerThreadLoad> schedulerThreadLoad;
@@ -216,6 +218,67 @@ namespace cryptanalysislib {
 
 		// NOTE: the thread ids are in `SchedulerThreadLoad::tid`
 	};
+
+	// NOTE: `reflect` is not available in CUDA translation units, there the
+	// 	performance data is neither sent nor received
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+	namespace internal {
+		/// appends all arithmetic members of `t` (recursively, via `reflect`)
+		/// as space separated decimal numbers to `out`. A container is written
+		/// as its size followed by its elements.
+		/// \param out[in/out]: the serialized data is appended
+		/// \param t[in]: arithmetic value, container or aggregate
+		template<typename T>
+		void serialize(std::string &out, const T &t) noexcept {
+			if constexpr (std::is_arithmetic_v<T>) {
+				out += std::to_string(t);
+				out += ' ';
+			} else if constexpr (requires { t.size(); t.begin(); t.end(); }) {
+				serialize(out, t.size());
+				for (const auto &e : t) {
+					serialize(out, e);
+				}
+			} else {
+				reflect::for_each([&](auto I) { serialize(out, reflect::get<I>(t)); }, t);
+			}
+		}
+
+		/// inverse of `serialize`: parses `t` from the beginning of `in`
+		/// \param in[in/out]: the parsed part is removed
+		/// \param t[out]: arithmetic value, container or aggregate
+		/// \return false if `in` is malformed
+		template<typename T>
+		bool deserialize(std::string_view &in, T &t) noexcept {
+			if constexpr (std::is_arithmetic_v<T>) {
+				while (!in.empty() && in.front() == ' ') {
+					in.remove_prefix(1);
+				}
+				const auto [ptr, ec] = std::from_chars(in.data(), in.data() + in.size(), t);
+				if (ec != std::errc{}) {
+					return false;
+				}
+				in.remove_prefix(ptr - in.data());
+				return true;
+			} else if constexpr (requires { t.resize(size_t{}); t.begin(); t.end(); }) {
+				size_t n;
+				if (!deserialize(in, n)) {
+					return false;
+				}
+				t.resize(n);
+				for (auto &e : t) {
+					if (!deserialize(in, e)) {
+						return false;
+					}
+				}
+				return true;
+			} else {
+				bool ok = true;
+				reflect::for_each([&](auto I) { ok = ok && deserialize(in, reflect::get<I>(t)); }, t);
+				return ok;
+			}
+		}
+	} // namespace internal
+#endif
 
 	/// Manager class
 	struct SchedulerPerformanceManager {
@@ -308,19 +371,22 @@ namespace cryptanalysislib {
 						if (n <= 0) { break; }
 						pending.append(buf, n);
 
-						while (pending.size() >= sizeof(MessageHeader)) {
-							MessageHeader h;
-							std::memcpy(&h, pending.data(), sizeof(MessageHeader));
-							const size_t data_size = h.nr_threads * sizeof(SchedulerThreadLoad);
-							if (pending.size() < sizeof(MessageHeader) + data_size) { break; }
+						size_t pos;
+						while ((pos = pending.find('\n')) != std::string::npos) {
+							const std::string msg = pending.substr(0, pos);
+							pending.erase(0, pos + 1);
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+							std::string_view in = msg;
+							SchedulerPerformance res;
+							if (!internal::deserialize(in, res)) {
+								std::cout << "ERROR: parsing" << std::endl;
+								std::cout << msg << std::endl;
+								continue;
+							}
 
-							auto &loads = schedulerPerformance.schedulerThreadLoad;
-							loads.resize(h.nr_threads);
-							std::memcpy((void *)loads.data(), pending.data() + sizeof(MessageHeader), data_size);
-							schedulerPerformance.number_active_threads = h.number_active_threads;
-							schedulerPerformance.number_enqueud_tasks = h.number_enqueud_tasks;
-							pending.erase(0, sizeof(MessageHeader) + data_size);
+							schedulerPerformance = res;
 							print();
+#endif
 						}
 					}
 
@@ -381,16 +447,14 @@ namespace cryptanalysislib {
 
 		/// write the gathered benchmark information.
 		void send() noexcept {
-			const auto &loads = schedulerPerformance.schedulerThreadLoad;
-			const MessageHeader h{loads.size(),
-			                      schedulerPerformance.number_active_threads,
-			                      schedulerPerformance.number_enqueud_tasks};
-			const size_t data_size = loads.size() * sizeof(SchedulerThreadLoad);
+#ifdef CRYPTANALYSISLIB_REFLECTIONS_AVAILABLE
+			std::string data;
+			internal::serialize(data, schedulerPerformance);
+			std::cout << "sending data:" << std::endl;
+			std::cout << data << std::endl;
 
-			std::string msg(sizeof(MessageHeader) + data_size, '\0');
-			std::memcpy(msg.data(), &h, sizeof(MessageHeader));
-			std::memcpy(msg.data() + sizeof(MessageHeader), (const void *)loads.data(), data_size);
-
+			// NOTE: '\n' terminates a message, the serialized data contains none
+			const std::string msg = data + '\n';
 			size_t written = 0;
 			while (written < msg.size()) {
 				const ssize_t k = write(sockfd, msg.data() + written, msg.size() - written);
@@ -400,11 +464,12 @@ namespace cryptanalysislib {
 				}
 				written += k;
 			}
+#endif
 		}
 
 		/// gather performance metrics for thread `tid`
 		/// \param tid thread id
-		constexpr inline void gather(const uint32_t tid) noexcept {
+		inline void gather(const uint32_t tid) noexcept {
 			assert(tid < schedulerPerformance.schedulerThreadLoad.size());
 			schedulerPerformance.schedulerThreadLoad[tid].gather();
 		}
@@ -413,7 +478,7 @@ namespace cryptanalysislib {
 		/// this funcitons should only be called by thread 0
 		/// \param number_active_threads
 		/// \param number_enqueud_tasks
-		constexpr inline void gather(const uint32_t number_active_threads,
+		inline void gather(const uint32_t number_active_threads,
 		                             const uint32_t number_enqueud_tasks) noexcept {
 			schedulerPerformance.schedulerThreadLoad[0].gather();
 			schedulerPerformance.number_active_threads = number_active_threads;

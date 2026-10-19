@@ -163,6 +163,43 @@ TEST(avx512_hist256_2, DISABLED_single) {
 }
 #endif
 
+#ifdef USE_ISPC
+TEST(histogram_u8_ispc, random) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(65), size_t(1u << 20) + 13u}) {
+		std::vector<uint8_t> d(s);
+		for (size_t i = 0; i < s; ++i) { d[i] = rng<uint8_t>(); }
+		std::vector<uint32_t> e(256), c(256, 7);
+		histogram_u8_1x(e.data(), d.data(), s);
+		cryptanalysislib::internal::ispc::histogram_u8(c.data(), d.data(), s);
+		EXPECT_EQ(c, e);
+	}
+}
+
+/// only the lower 8 bits are counted
+TEST(histogram_u16_u32_u64_ispc, random) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(65), size_t(1u << 20) + 13u}) {
+		std::vector<uint16_t> d16(s);
+		std::vector<uint32_t> d32(s);
+		std::vector<uint64_t> d64(s);
+		std::vector<uint32_t> e16(256, 0), e32(256, 0), e64(256, 0);
+		for (size_t i = 0; i < s; ++i) {
+			d16[i] = rng<uint16_t>(); d32[i] = rng<uint32_t>(); d64[i] = rng<uint64_t>();
+			e16[d16[i] & 0xFFu] += 1; e32[d32[i] & 0xFFu] += 1; e64[d64[i] & 0xFFu] += 1;
+		}
+
+		std::vector<uint32_t> c(256, 7);
+		cryptanalysislib::internal::ispc::histogram_u16(c.data(), d16.data(), s);
+		EXPECT_EQ(c, e16);
+		std::fill(c.begin(), c.end(), 7u);
+		cryptanalysislib::internal::ispc::histogram_u32(c.data(), d32.data(), s);
+		EXPECT_EQ(c, e32);
+		std::fill(c.begin(), c.end(), 7u);
+		cryptanalysislib::internal::ispc::histogram_u64(c.data(), d64.data(), s);
+		EXPECT_EQ(c, e64);
+	}
+}
+#endif
+
 /// the generic and parallel histograms and the 8-way u8 kernel
 TEST(histogram, generic_parallel_8x) {
 	const size_t s = (1u << 22) + 13u;

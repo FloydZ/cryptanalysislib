@@ -12,9 +12,9 @@ namespace cryptanalysislib::math {
 	/// \param x input
 	/// \return H[x] := -x*Log2[x] - (1 - x)*Log2[1 - x];
 
-	__device__ __host__
 	template<typename T = double>
 		requires std::is_floating_point_v<T>
+	__device__ __host__
 	constexpr T HH(const T x) noexcept {
 		if (x <= 0)
 			return 0.;

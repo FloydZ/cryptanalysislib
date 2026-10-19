@@ -1,8 +1,4 @@
 
-#ifndef idx
-#define idx (threadIdx.x + blockIdx.x * blockDim.x)
-#endif
-
 #ifndef __device__
 #define __device__
 #endif

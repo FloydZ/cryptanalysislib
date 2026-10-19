@@ -302,6 +302,24 @@ namespace cryptanalysislib {
             return S::set(i,i,i,i,i,i,i,i,i,i,i,i,i,i,i,i);
 		}
 
+        /// sets the four 32 bit words, `a` is the highest one
+        /// \return `_mm_set_epi32(a, b, c, d)`
+		[[nodiscard]] constexpr static inline S set(const uint32_t a, const uint32_t b,
+		                                            const uint32_t c, const uint32_t d) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v4su){d, c, b, a};
+			return ret;
+		}
+
+        /// sets the four 32 bit words, `a` is the lowest one
+        /// \return `_mm_setr_epi32(a, b, c, d)`
+		[[nodiscard]] constexpr static inline S setr(const uint32_t a, const uint32_t b,
+		                                             const uint32_t c, const uint32_t d) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v4su){a, b, c, d};
+			return ret;
+		}
+
         /// set the `i`-th bit in each limb
         /// \param pos[in]: bit position to set
         constexpr inline void set_bit(const uint32_t pos) noexcept {
@@ -596,6 +614,44 @@ namespace cryptanalysislib {
 			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
 		}
 
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 >= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 >= (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S le_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 <= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+		                                                  const S in2) noexcept {
+			const __m128i tmp = (__m128i) ((V) in1.v128 <= (V) in2.v128);
+			return __builtin_ia32_pmovmskb128((__v16qi) tmp);
+		}
+
 		/// \param in1[in]: vector element
 		/// \param in2[in]: vector element
 		/// \return in1 > in2 uncompressed
@@ -691,7 +747,7 @@ namespace cryptanalysislib {
 	    									 const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < 8; i++) {
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
 	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
 	    	}
 	    }
@@ -780,6 +836,14 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
+        [[nodiscard]] constexpr inline static size_t size() noexcept {
+            return LIMBS;
+        }
+
+	    [[nodiscard]] constexpr inline static bool is_unsigned() noexcept {
+            return __unsigned;
+        }
+
         /// \param i[in]: position of the limb to return
         /// \return __m128i[i]
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
@@ -854,6 +918,24 @@ namespace cryptanalysislib {
 			ret.v16[7] = a;
 			return ret;
         }
+
+        /// sets the four 32 bit words, `a` is the highest one
+        /// \return `_mm_set_epi32(a, b, c, d)`
+		[[nodiscard]] constexpr static inline S set(const uint32_t a, const uint32_t b,
+		                                            const uint32_t c, const uint32_t d) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v4su){d, c, b, a};
+			return ret;
+		}
+
+        /// sets the four 32 bit words, `a` is the lowest one
+        /// \return `_mm_setr_epi32(a, b, c, d)`
+		[[nodiscard]] constexpr static inline S setr(const uint32_t a, const uint32_t b,
+		                                             const uint32_t c, const uint32_t d) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v4su){a, b, c, d};
+			return ret;
+		}
 
         /// set the `i`-th bit in each limb
         /// \param pos[in]: bit position to set
@@ -1059,6 +1141,42 @@ namespace cryptanalysislib {
 	    }
 
 	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 >>> in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ror(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 16u;
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_shrdv_epi16(in1.v128, in1.v128, _mm_set1_epi16(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::srli(in1, s), S::slli(in1, 16u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 <<< in2 uncompressed
+	    [[nodiscard]] constexpr static inline S rol(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 16u;
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_shldv_epi16(in1.v128, in1.v128, _mm_set1_epi16(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::slli(in1, s), S::srli(in1, 16u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
 	    [[nodiscard]] constexpr static inline S gt_(const S in1,
@@ -1096,6 +1214,42 @@ namespace cryptanalysislib {
 			S tmp;
 			tmp.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return S::move(tmp);
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 >= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::ge_(in1, in2));
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S le_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 <= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::le_(in1, in2));
 		}
         
         /// \param in1[in]: vector element
@@ -1179,9 +1333,10 @@ namespace cryptanalysislib {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	S ret;
 
-	    	const uint8_t *ptr8 = (uint8_t *) ptr;
+	    	const uint8_t *ptr8 = (const uint8_t *) ptr;
 	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
-	    		ret.d[i] = ptr8[data.d[i] * scale];
+	    		// byte offsets, so the address may not be aligned
+	    		__builtin_memcpy(&ret.d[i], ptr8 + data.d[i] * scale, sizeof(limb_type));
 	    	}
 	    	return ret;
 	    }
@@ -1197,8 +1352,8 @@ namespace cryptanalysislib {
 	    									 const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < 8; i++) {
-	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		__builtin_memcpy(ptr8 + offset.d[i] * scale, &data.d[i], sizeof(limb_type));
 	    	}
 	    }
 
@@ -1278,6 +1433,24 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
+        [[nodiscard]] constexpr inline static size_t size() noexcept {
+            return LIMBS;
+        }
+
+	    [[nodiscard]] constexpr inline static bool is_unsigned() noexcept {
+            return __unsigned;
+        }
+
+		/// \return random element
+		static inline S random() noexcept {
+			S ret;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = rng();
+			}
+
+			return ret;
+		}
+
         /// \param i[in]: position of the limb to return
         /// \return __m128i[i]
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
@@ -1291,6 +1464,11 @@ namespace cryptanalysislib {
 			assert(i < LIMBS);
 			return d[i];
 		}
+
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
 
 		[[nodiscard]] constexpr static inline S set(const limb_type a,
                                                     const limb_type b,
@@ -1324,7 +1502,25 @@ namespace cryptanalysislib {
 			ret.v32[3] = a;
 			return ret;
 		}
-        
+
+        /// sets the two 64 bit words, `a` is the highest one
+        /// \return `_mm_set_epi64x(a, b)`
+		[[nodiscard]] constexpr static inline S set(const uint64_t a,
+		                                            const uint64_t b) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v2du){b, a};
+			return ret;
+		}
+
+        /// sets the two 64 bit words, `a` is the lowest one
+        /// \return `_mm_set_epi64x(b, a)`
+		[[nodiscard]] constexpr static inline S setr(const uint64_t a,
+		                                             const uint64_t b) noexcept {
+			S ret;
+			ret.v128 = (__m128i)(__v2du){a, b};
+			return ret;
+		}
+
         /// set the `i`-th bit in each limb
         /// \param pos[in]: bit position to set
         constexpr inline void set_bit(const uint32_t pos) noexcept {
@@ -1529,6 +1725,42 @@ namespace cryptanalysislib {
 	    }
 
 	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 >>> in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ror(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 32u;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_rorv_epi32(in1.v128, _mm_set1_epi32(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::srli(in1, s), S::slli(in1, 32u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 <<< in2 uncompressed
+	    [[nodiscard]] constexpr static inline S rol(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 32u;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_rolv_epi32(in1.v128, _mm_set1_epi32(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::slli(in1, s), S::srli(in1, 32u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
 	    [[nodiscard]] constexpr static inline S gt_(const S in1,
@@ -1566,6 +1798,42 @@ namespace cryptanalysislib {
 			S tmp;
 			tmp.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return S::move(tmp);
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 >= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::ge_(in1, in2));
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S le_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 <= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::le_(in1, in2));
 		}
         
         /// \param in1[in]: vector element
@@ -1647,11 +1915,7 @@ namespace cryptanalysislib {
 	    											   const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	S ret;
-
-	    	const uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
-	    		ret.d[i] = ptr8[data.d[i] * scale];
-	    	}
+	    	ret.v128 = _mm_i32gather_epi32((const int *) ptr, data.v128, scale);
 	    	return ret;
 	    }
 
@@ -1665,10 +1929,15 @@ namespace cryptanalysislib {
 	    									 const S offset,
 	    									 const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	_mm_i32scatter_epi32((void *) ptr, offset.v128, data.v128, scale);
+#else
+	    	// NOTE: AVX2 has no scatter instruction
 	    	uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < 8; i++) {
-	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		__builtin_memcpy(ptr8 + offset.d[i] * scale, &data.d[i], sizeof(limb_type));
 	    	}
+#endif
 	    }
 
 	    /// \param a[in]:
@@ -1746,6 +2015,24 @@ namespace cryptanalysislib {
 			__m128i v128;
 		};
 
+        [[nodiscard]] constexpr inline static size_t size() noexcept {
+            return LIMBS;
+        }
+
+	    [[nodiscard]] constexpr inline static bool is_unsigned() noexcept {
+            return __unsigned;
+        }
+
+		/// \return random element
+		static inline S random() noexcept {
+			S ret;
+			for (uint32_t i = 0; i < 2; i++) {
+				ret.v64[i] = rng();
+			}
+
+			return ret;
+		}
+
         /// \param i[in]: position of the limb to return
         /// \return __m128i[i]
 		[[nodiscard]] constexpr inline limb_type operator[](const uint32_t i) const noexcept {
@@ -1759,6 +2046,11 @@ namespace cryptanalysislib {
 			assert(i < LIMBS);
 			return d[i];
 		}
+
+	    /// \param binary[in]:
+	    /// \param hex[in]:
+	    constexpr inline void print(bool binary = false,
+	                                bool hex = false) const;
 
 		[[nodiscard]] constexpr static inline _Xint64x2_t set1(const limb_type a) {
 			_Xint64x2_t ret;
@@ -1785,7 +2077,7 @@ namespace cryptanalysislib {
         /// set the `i`-th bit in each limb
         /// \param pos[in]: bit position to set
         constexpr inline void set_bit(const uint32_t pos) noexcept {
-            v128 = _mm_set1_epi64x(1u << pos); 
+            v128 = _mm_set1_epi64x(1ull << pos);
         }
 
 		/// \tparam aligned
@@ -1979,6 +2271,42 @@ namespace cryptanalysislib {
 	    }
 
 	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 >>> in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ror(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 64u;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_rorv_epi64(in1.v128, _mm_set1_epi64x(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::srli(in1, s), S::slli(in1, 64u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]:
+	    /// \return in1 <<< in2 uncompressed
+	    [[nodiscard]] constexpr static inline S rol(const S in1,
+	                                                const uint8_t in2) noexcept {
+	    	const uint8_t s = in2 % 64u;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	S ret;
+	    	ret.v128 = _mm_rolv_epi64(in1.v128, _mm_set1_epi64x(s));
+	    	return ret;
+#else
+	    	if (s == 0) {
+	    		return in1;
+	    	}
+	    	return S::or_(S::slli(in1, s), S::srli(in1, 64u - s));
+#endif
+	    }
+
+	    /// \param in1[in]: vector element
 	    /// \param in2[in]: vector element
 	    /// \return in1 > in2 uncompressed
 	    [[nodiscard]] constexpr static inline S gt_(const S in1,
@@ -2016,6 +2344,42 @@ namespace cryptanalysislib {
 			S tmp;
 			tmp.v128 = (__m128i) ((V) in1.v128 < (V) in2.v128);
 			return S::move(tmp);
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 >= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S ge_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 >= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 >= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t ge(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::ge_(in1, in2));
+		}
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+	    /// \return in1 <= in2 uncompressed
+	    [[nodiscard]] constexpr static inline S le_(const S in1,
+	                                                const S in2) noexcept {
+	    	S ret;
+	    	ret.v128 = (__m128i) ((V) in1.v128 <= (V) in2.v128);
+	    	return ret;
+	    }
+
+	    /// \param in1[in]: vector element
+	    /// \param in2[in]: vector element
+		/// \return in1 <= in2 compressed
+		[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+		                                                  const S in2) noexcept {
+			return S::move(S::le_(in1, in2));
 		}
         
         /// \param in1[in]: vector element
@@ -2094,11 +2458,7 @@ namespace cryptanalysislib {
 	    											   const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 	    	S ret;
-
-	    	const uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
-	    		ret.d[i] = ptr8[data.d[i] * scale];
-	    	}
+	    	ret.v128 = _mm_i64gather_epi64((const long long *) ptr, data.v128, scale);
 	    	return ret;
 	    }
 
@@ -2112,10 +2472,15 @@ namespace cryptanalysislib {
 	    									 const S offset,
 	    									 const S data) noexcept {
 	    	static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+	    	_mm_i64scatter_epi64((void *) ptr, offset.v128, data.v128, scale);
+#else
+	    	// NOTE: AVX2 has no scatter instruction
 	    	uint8_t *ptr8 = (uint8_t *) ptr;
-	    	for (uint32_t i = 0; i < 8; i++) {
-	    		*(ptr8 + offset.d[i] * scale) = data.d[i];
+	    	for (uint32_t i = 0; i < S::LIMBS; i++) {
+	    		__builtin_memcpy(ptr8 + offset.d[i] * scale, &data.d[i], sizeof(limb_type));
 	    	}
+#endif
 	    }
 
 	    /// \param a[in]:
@@ -2322,6 +2687,37 @@ struct Xint8x32_t {
 			out.v256 = cryptanalysislib::internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
+	}
+
+	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
+	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
+	/// \param ptr
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
+	                                                   const Mask<LIMBS> &m) noexcept {
+		S out;
+#if defined(USE_AVX512BW) && defined(USE_AVX512VL)
+		if constexpr (sizeof(limb_type) == 1) {
+			out.v256 = _mm256_maskz_loadu_epi8(MaskType<LIMBS>(m), ptr);
+		} else {
+			out.v256 = _mm256_maskz_loadu_epi16(MaskType<LIMBS>(m), ptr);
+		}
+#else
+		// NOTE: AVX2 has no 8/16 bit masked load (`vpmaskmov` is 32/64 bit) and
+		// 	a full load could fault on the masked out lanes
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m));
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ((k >> i) & 1u) ? ptr[i] : limb_type(0);
+		}
+#endif
+		return out;
+	}
+
+	/// same as `maskz_unaligned_load` (no alignment needed)
+	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return maskz_unaligned_load(ptr, m);
 	}
 
 	/// NOTE: the store can never be constexpr ans its needs to access
@@ -2670,6 +3066,25 @@ struct Xint8x32_t {
 		return ret;
 	}
 
+	/// all bits below the highest set bit are set, then the zeros are counted
+	/// \param in[in]:
+	/// \return the number of leading zeros of each 8 bit lane (8 for 0)
+	[[nodiscard]] constexpr static inline S lzcnt(const S in) noexcept {
+		S t = in;
+		t = S::or_(t, S::srli(t, 1));
+		t = S::or_(t, S::srli(t, 2));
+		t = S::or_(t, S::srli(t, 4));
+		return S::popcnt(S::not_(t));
+	}
+
+	/// tzcnt(x) = popcnt((x - 1) & ~x)
+	/// \param in[in]:
+	/// \return the number of trailing zeros of each 8 bit lane (8 for 0)
+	[[nodiscard]] constexpr static inline S tzcnt(const S in) noexcept {
+		const S t = S::and_(S::sub(in, S::set1(1)), S::not_(in));
+		return S::popcnt(t);
+	}
+
 	/// checks if all bytes are equal
 	/// source: https://github.com/WojciechMula/toys/tree/master/simd-all-bytes-equal
 	/// \param in
@@ -2722,6 +3137,42 @@ struct Xint8x32_t {
 		ret2.v256 = ret;
 		return ret2;
 	}
+
+	/// transposes the 8x8 bit matrix in each 64 bit word, as the AVX-512
+	/// version: bit i of output byte j is bit j of input byte (7 - i)
+	/// \param input
+	/// \return
+	[[nodiscard]] constexpr static inline S transpose(const S input) noexcept {
+		S ret;
+#ifdef USE_GFNI
+		const __m256i select = _mm256_set1_epi64x(0x8040201008040201ll);
+		ret.v256 = _mm256_gf2p8affine_epi64_epi8(select, input.v256, 0);
+#else
+		// reverse the bytes of each 64 bit word, then transpose with the
+		// delta swaps of Hacker's Delight `transpose8`
+		const __m256i rev = _mm256_setr_epi8(7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8,
+		                                     7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8);
+		__m256i x = _mm256_shuffle_epi8(input.v256, rev);
+		__m256i t;
+		t = _mm256_and_si256(_mm256_xor_si256(x, _mm256_srli_epi64(x, 7)), _mm256_set1_epi64x(0x00AA00AA00AA00AAll));
+		x = _mm256_xor_si256(x, _mm256_xor_si256(t, _mm256_slli_epi64(t, 7)));
+		t = _mm256_and_si256(_mm256_xor_si256(x, _mm256_srli_epi64(x, 14)), _mm256_set1_epi64x(0x0000CCCC0000CCCCll));
+		x = _mm256_xor_si256(x, _mm256_xor_si256(t, _mm256_slli_epi64(t, 14)));
+		t = _mm256_and_si256(_mm256_xor_si256(x, _mm256_srli_epi64(x, 28)), _mm256_set1_epi64x(0x00000000F0F0F0F0ll));
+		ret.v256 = _mm256_xor_si256(x, _mm256_xor_si256(t, _mm256_slli_epi64(t, 28)));
+#endif
+		return ret;
+	}
+
+	/// as `_mm256_sign_epi8`
+	/// \return per lane: 0 if b == 0, -a if b < 0, a if b > 0
+	[[nodiscard]] constexpr static inline S comp_sign(const S a,
+	                                                  const S b) noexcept {
+		S ret;
+		ret.v256 = _mm256_sign_epi8(a.v256, b.v256);
+		return ret;
+	}
+
 	/// \param in
 	/// \param perm
 	/// \return
@@ -2765,9 +3216,33 @@ struct Xint8x32_t {
 										 const S data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		limb_type *ptr8 = (limb_type *) ptr;
-		for (uint32_t i = 0; i < 8; i++) {
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
 			*(ptr8 + offset.d[i] * scale) = data.d[i];
 		}
+	}
+
+	/// \param in1[in]:
+	/// \return the minimum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) noexcept {
+		// the xor maps the order onto the unsigned order of `vphminposuw`
+		constexpr uint8_t flip = __unsigned ? 0u : 0x80u;
+		const __m128i f = _mm_set1_epi8(char(flip));
+		__m128i t = _mm_min_epu8(_mm_xor_si128(_mm256_castsi256_si128(in1.v256), f),
+		                         _mm_xor_si128(_mm256_extracti128_si256(in1.v256, 1), f));
+		t = _mm_min_epu8(t, _mm_srli_epi16(t, 8));
+		return limb_type(uint8_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
+	}
+
+	/// \param in1[in]:
+	/// \return the maximum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) noexcept {
+		// the xor maps the reversed order onto the unsigned order of `vphminposuw`
+		constexpr uint8_t flip = __unsigned ? 0xFFu : 0x7Fu;
+		const __m128i f = _mm_set1_epi8(char(flip));
+		__m128i t = _mm_min_epu8(_mm_xor_si128(_mm256_castsi256_si128(in1.v256), f),
+		                         _mm_xor_si128(_mm256_extracti128_si256(in1.v256, 1), f));
+		t = _mm_min_epu8(t, _mm_srli_epi16(t, 8));
+		return limb_type(uint8_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
 	}
 
 	/// \param a[in]:
@@ -2792,6 +3267,22 @@ struct Xint8x32_t {
         return c;
     }
 
+	/// as `_mm512_test_epi8_mask`
+	/// \param in1[in]: register to test
+	/// \param bit_pos[in]: bit position to test
+	/// \return bit i is set, if bit `bit_pos` of `in1[i]` is set
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+	                                                       const uint32_t bit_pos) noexcept {
+#if defined(USE_AVX512BW) && defined(USE_AVX512VL)
+		return Mask<LIMBS>(MaskType<LIMBS>(_mm256_test_epi8_mask(in1.v256, _mm256_set1_epi8(char(1u << bit_pos)))));
+#else
+		// shifting the 16 bit lanes by 7 - bit_pos moves bit `bit_pos` of
+		// each byte into its msb
+		const __m256i t = _mm256_sll_epi16(in1.v256, _mm_cvtsi32_si128(int(7u - bit_pos)));
+		return Mask<LIMBS>(MaskType<LIMBS>(uint32_t(_mm256_movemask_epi8(t))));
+#endif
+	}
+
 	/// \param a[in]:
 	/// \param b[in]:
 	/// \return
@@ -2813,6 +3304,73 @@ struct Xint8x32_t {
 		}
         return c;
     }
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are zero, as `_mm512_maskz_compress_epi8`
+	/// \param in1[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return compress(in1, S::set1(0), m);
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are taken from `in2`, as `_mm512_mask_compress_epi8`
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const S in2,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m));
+		S ret;
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_mask_compress_epi8(in2.v256, k, in1.v256);
+#elif defined(USE_BMI2)
+		// `pext` packs each group of 8 lanes, then `in2` is blended into
+		// the lanes >= popcount(k)
+		alignas(32) uint8_t buf[LIMBS + 8];
+		uint32_t j = 0;
+		for (uint32_t g = 0; g < 4; g++) {
+			const uint32_t kg = (k >> (8u * g)) & 0xFFu;
+			const uint64_t bm = _pdep_u64(kg, 0x0101010101010101ull) * 0xFFu;
+			const uint64_t t = _pext_u64(uint64_t(in1.v64[g]), bm);
+			__builtin_memcpy(buf + j, &t, 8);
+			j += __builtin_popcount(kg);
+		}
+		const __m256i idx = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		                                     16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+		const __m256i lt = _mm256_cmpgt_epi8(_mm256_set1_epi8(char(j)), idx);
+		ret.v256 = _mm256_blendv_epi8(in2.v256, _mm256_load_si256((const __m256i *) buf), lt);
+#else
+		// NOTE: AVX2 has no compress instruction, needs BMI2 for `pext`
+		ret = in2;
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			if ((k >> i) & 1u) { ret.d[j++] = in1.d[i]; }
+		}
+#endif
+		return ret;
+	}
+
+	/// writes the lanes of `in1` selected by `m` contiguously to `ptr`,
+	/// as `_mm512_mask_compressstoreu_epi8`
+	/// \param ptr[out]:
+	/// \param in1[in]:
+	/// \param m[in]:
+	constexpr static inline void compress(limb_type *ptr,
+	                                      const S in1,
+	                                      const Mask<LIMBS> &m) noexcept {
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+		_mm256_mask_compressstoreu_epi8(ptr, uint32_t(MaskType<LIMBS>(m)), in1.v256);
+#else
+		// AVX2 has no 8 bit masked store: only the selected lanes are written
+		const S t = compress(in1, m);
+		__builtin_memcpy(ptr, t.d, __builtin_popcount(uint32_t(MaskType<LIMBS>(m))));
+#endif
+	}
 };
 
 /// 
@@ -2957,6 +3515,37 @@ struct Xint16x16_t {
 			out.v256 = cryptanalysislib::internal::unaligned_load_wrapper((__m256i_u *) ptr);
 			return out;
 		}
+	}
+
+	/// masked load: lane i is loaded if bit i of `m` is set, otherwise 0.
+	/// Masked out lanes are not accessed (no fault), as in the AVX-512 version.
+	/// \param ptr
+	/// \param m lane mask
+	/// \return
+	[[nodiscard]] static inline S maskz_unaligned_load(const limb_type *ptr,
+	                                                   const Mask<LIMBS> &m) noexcept {
+		S out;
+#if defined(USE_AVX512BW) && defined(USE_AVX512VL)
+		if constexpr (sizeof(limb_type) == 1) {
+			out.v256 = _mm256_maskz_loadu_epi8(MaskType<LIMBS>(m), ptr);
+		} else {
+			out.v256 = _mm256_maskz_loadu_epi16(MaskType<LIMBS>(m), ptr);
+		}
+#else
+		// NOTE: AVX2 has no 8/16 bit masked load (`vpmaskmov` is 32/64 bit) and
+		// 	a full load could fault on the masked out lanes
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m));
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			out.d[i] = ((k >> i) & 1u) ? ptr[i] : limb_type(0);
+		}
+#endif
+		return out;
+	}
+
+	/// same as `maskz_unaligned_load` (no alignment needed)
+	[[nodiscard]] static inline S maskz_aligned_load(const limb_type *ptr,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return maskz_unaligned_load(ptr, m);
 	}
 
 	/// NOTE: can never be constexpr
@@ -3389,35 +3978,58 @@ struct Xint16x16_t {
 
     /// \tparam scale[in]:
     /// \param ptr[in]:
-    /// \param data[in]:
-    /// \return
+    /// \param data[in]: offsets, in units of `scale` bytes
+    /// \return ret[i] = limb at byte offset data[i] * scale of `ptr`
 	template<const uint32_t scale = 1>
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 												   const S data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
 		S ret;
 
-		const limb_type *ptr8 = (limb_type *) ptr;
+		const uint8_t *ptr8 = (const uint8_t *) ptr;
 		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = ptr8[data.d[i] * scale];
+			// byte offsets, so the address may not be aligned
+			__builtin_memcpy(&ret.d[i], ptr8 + data.d[i] * scale, sizeof(limb_type));
 		}
 		return ret;
 	}
 
+    /// writes data[i] to the byte offset `offset[i] * scale` of `ptr`
     /// \tparam scale[in]:
     /// \param ptr[in]:
-    /// \param offset[in]:
+    /// \param offset[in]: offsets, in units of `scale` bytes
     /// \param data[in]:
-    /// \return
 	template<const uint32_t scale = 1>
 	constexpr static inline void scatter(const void *ptr,
 										 const S offset,
 										 const S data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
-		limb_type *ptr8 = (limb_type *) ptr;
-		for (uint32_t i = 0; i < 8; i++) {
-			*(ptr8 + offset.d[i] * scale) = data.d[i];
+		uint8_t *ptr8 = (uint8_t *) ptr;
+		for (uint32_t i = 0; i < S::LIMBS; i++) {
+			__builtin_memcpy(ptr8 + offset.d[i] * scale, &data.d[i], sizeof(limb_type));
 		}
+	}
+
+	/// \param in1[in]:
+	/// \return the minimum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) noexcept {
+		// the xor maps the order onto the unsigned order of `vphminposuw`
+		constexpr uint16_t flip = __unsigned ? 0u : 0x8000u;
+		const __m128i f = _mm_set1_epi16(short(flip));
+		const __m128i t = _mm_min_epu16(_mm_xor_si128(_mm256_castsi256_si128(in1.v256), f),
+		                                _mm_xor_si128(_mm256_extracti128_si256(in1.v256, 1), f));
+		return limb_type(uint16_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
+	}
+
+	/// \param in1[in]:
+	/// \return the maximum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) noexcept {
+		// the xor maps the reversed order onto the unsigned order of `vphminposuw`
+		constexpr uint16_t flip = __unsigned ? 0xFFFFu : 0x7FFFu;
+		const __m128i f = _mm_set1_epi16(short(flip));
+		const __m128i t = _mm_min_epu16(_mm_xor_si128(_mm256_castsi256_si128(in1.v256), f),
+		                                _mm_xor_si128(_mm256_extracti128_si256(in1.v256, 1), f));
+		return limb_type(uint16_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
 	}
 
 	/// \param a
@@ -3438,6 +4050,23 @@ struct Xint16x16_t {
         return c;
     }
 
+	/// as `_mm512_test_epi16_mask`
+	/// \param in1[in]: register to test
+	/// \param bit_pos[in]: bit position to test
+	/// \return bit i is set, if bit `bit_pos` of `in1[i]` is set
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+	                                                       const uint32_t bit_pos) noexcept {
+#if defined(USE_AVX512BW) && defined(USE_AVX512VL)
+		return Mask<LIMBS>(MaskType<LIMBS>(_mm256_test_epi16_mask(in1.v256, _mm256_set1_epi16(short(1u << bit_pos)))));
+#else
+		// move bit `bit_pos` into the msb, saturate to bytes:
+		// bytes 0-7 and 16-23 hold the lanes 0-7 and 8-15
+		const __m256i t = _mm256_sll_epi16(in1.v256, _mm_cvtsi32_si128(int(15u - bit_pos)));
+		const uint32_t m = uint32_t(_mm256_movemask_epi8(_mm256_packs_epi16(t, _mm256_setzero_si256())));
+		return Mask<LIMBS>(MaskType<LIMBS>((m & 0xFFu) | ((m >> 8u) & 0xFF00u)));
+#endif
+	}
+
 	/// \param a
 	/// \param b
 	/// \return
@@ -3455,6 +4084,73 @@ struct Xint16x16_t {
 #endif
         return c;
     }
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are zero, as `_mm512_maskz_compress_epi16`
+	/// \param in1[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return compress(in1, S::set1(0), m);
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are taken from `in2`, as `_mm512_mask_compress_epi16`
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const S in2,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m)) & 0xFFFFu;
+		S ret;
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_mask_compress_epi16(in2.v256, k, in1.v256);
+#elif defined(USE_BMI2)
+		// `pext` packs each group of 4 lanes, then `in2` is blended into
+		// the lanes >= popcount(k)
+		alignas(32) uint16_t buf[LIMBS + 4];
+		uint32_t j = 0;
+		for (uint32_t g = 0; g < 4; g++) {
+			const uint32_t kg = (k >> (4u * g)) & 0xFu;
+			const uint64_t bm = _pdep_u64(kg, 0x0001000100010001ull) * 0xFFFFu;
+			const uint64_t t = _pext_u64(uint64_t(in1.v64[g]), bm);
+			__builtin_memcpy(buf + j, &t, 8);
+			j += __builtin_popcount(kg);
+		}
+		const __m256i idx = _mm256_setr_epi16(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+		const __m256i lt = _mm256_cmpgt_epi16(_mm256_set1_epi16(short(j)), idx);
+		ret.v256 = _mm256_blendv_epi8(in2.v256, _mm256_load_si256((const __m256i *) buf), lt);
+#else
+		// NOTE: AVX2 has no compress instruction, needs BMI2 for `pext`
+		ret = in2;
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			if ((k >> i) & 1u) { ret.d[j++] = in1.d[i]; }
+		}
+#endif
+		return ret;
+	}
+
+	/// writes the lanes of `in1` selected by `m` contiguously to `ptr`,
+	/// as `_mm512_mask_compressstoreu_epi16`
+	/// \param ptr[out]:
+	/// \param in1[in]:
+	/// \param m[in]:
+	constexpr static inline void compress(limb_type *ptr,
+	                                      const S in1,
+	                                      const Mask<LIMBS> &m) noexcept {
+#if defined(USE_AVX512VBMI2) && defined(USE_AVX512VL)
+		_mm256_mask_compressstoreu_epi16(ptr, uint32_t(MaskType<LIMBS>(m)), in1.v256);
+#else
+		// AVX2 has no 16 bit masked store: only the selected lanes are written
+		const S t = compress(in1, m);
+		const uint32_t c = __builtin_popcount(uint32_t(MaskType<LIMBS>(m)) & 0xFFFFu);
+		__builtin_memcpy(ptr, t.d, c * sizeof(limb_type));
+#endif
+	}
 };
 
 
@@ -3820,6 +4516,43 @@ struct Xint32x8_t {
         return out;
     }
 
+	/// horizontal add of the 4 unsigned bytes of each 32 bit lane
+	/// \param in1
+	/// \return sum of the bytes, per 32 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu8(const S in1) noexcept {
+		// byte pairs -> 16 bit sums (<= 510, no saturation) -> 32 bit sums
+		const __m256i t = _mm256_maddubs_epi16(in1.v256, _mm256_set1_epi8(1));
+		S ret;
+		ret.v256 = _mm256_madd_epi16(t, _mm256_set1_epi16(1));
+		return ret;
+	}
+
+	/// horizontal add of the 2 unsigned 16 bit values of each 32 bit lane
+	/// \param in1
+	/// \return sum, per 32 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu16(const S in1) noexcept {
+		const __v8su x = (__v8su) in1.v256;
+		S ret;
+		ret.v256 = (__m256i) ((x & 0xFFFFu) + (x >> 16u));
+		return ret;
+	}
+
+	/// number of 4 bit values (nibbles) equal to `in2` in each 32 bit lane
+	/// \param in1
+	/// \param in2 nibble to count, < 16
+	/// \return per 32 bit lane: #{i : nibble i of the lane == in2}, in [0, 8]
+	[[nodiscard]] constexpr static inline S histogram_epi4(const S in1,
+	                                                       const uint8_t in2) noexcept {
+		assert(in2 < 16);
+		const __v8su z = (__v8su) in1.v256 ^ (0x11111111u * in2);
+		const __v8su nz = (z | (z >> 1u) | (z >> 2u) | (z >> 3u)) & 0x11111111u;
+		S t;
+		t.v256 = (__m256i) nz;
+		t = S::popcnt(t);
+		t.v256 = (__m256i) (8u - (__v8su) t.v256);
+		return t;
+	}
+
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -4016,6 +4749,14 @@ struct Xint32x8_t {
 		return ret;
 	}
 
+	/// ctz(x) = popcnt((x - 1) & ~x)
+	/// \param in
+	/// \return the number of trailing zeros of each 32 bit lane (32 for 0)
+	[[nodiscard]] constexpr static inline S ctz(const S in) noexcept {
+		const S t = S::and_(S::sub(in, S::set1(1)), S::not_(in));
+		return S::popcnt(t);
+	}
+
 	/// checks if all bytes are equal
 	/// \param in
 	/// \return
@@ -4050,6 +4791,30 @@ struct Xint32x8_t {
 #else 
 
 		ret.v256 = (__m256i) __builtin_ia32_permvarsi256((__v8si) in.v256, (__v8si) perm.v256);
+#endif
+		return ret;
+	}
+
+	/// same semantics as `vpconflictd` (AVX512CD):
+	/// lane i is the bitmask of all lanes j < i with in1[j] == in1[i].
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {
+		S ret;
+#if defined(USE_AVX512CD) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_conflict_epi32(in1.v256);
+#else
+		// compare all lanes with the broadcasted lane j, keep the lanes > j
+		const __m256i idx = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+		__m256i r = _mm256_setzero_si256();
+		for (uint32_t j = 0; j < LIMBS - 1u; ++j) {
+			const __m256i jj = _mm256_set1_epi32(int(j));
+			const __m256i b = _mm256_permutevar8x32_epi32(in1.v256, jj);
+			const __m256i t = _mm256_and_si256(_mm256_cmpeq_epi32(in1.v256, b),
+			                                   _mm256_cmpgt_epi32(idx, jj));
+			r = _mm256_or_si256(r, _mm256_and_si256(t, _mm256_set1_epi32(int(1u << j))));
+		}
+		ret.v256 = r;
 #endif
 		return ret;
 	}
@@ -4105,33 +4870,71 @@ struct Xint32x8_t {
 	///  	[x1, x3, x5, x7, 0, 0, 0, 0]
 	[[nodiscard]] constexpr static inline S pack(const uint32_t mask) noexcept {
 		S ret{};
-#ifdef USE_BMI2
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_maskz_compress_epi32((__mmask8) mask, _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7));
+#elif defined(USE_BMI2)
 		uint64_t expanded_mask = __builtin_ia32_pdep_di(mask, 0x0101010101010101);
 		expanded_mask *= 0xFFU;
 		const uint64_t identity_indices = 0x0706050403020100;
 		uint64_t wanted_indices = __builtin_ia32_pext_di(identity_indices, expanded_mask);
-		const __m128i bytevec = __extension__(__m128i)(__v2di){0, (long long int) wanted_indices};
-#ifdef __clang__
-		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) bytevec, V);
+		// the 8 indices are the lower 8 bytes, zero extended to 32 bits
+		const __m128i bytevec = __extension__(__m128i)(__v2di){(long long int) wanted_indices, 0};
+		ret.v256 = _mm256_cvtepu8_epi32(bytevec);
 #else
-		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) bytevec);
-#endif
-#else
-		assert(false);
+		// NOTE: needs BMI2 for `pext`
+		uint32_t k = 0;
+		for (uint32_t i = 0; i < 8; i++) {
+			if ((mask >> i) & 1u) {
+				ret.v32[k++] = i;
+			}
+		}
 #endif
 		return ret;
 	}
 
+	/// zero extends the lower 8 bytes of `in` to 32 bits
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline S cvtepu8(const cryptanalysislib::_uint8x16_t in) noexcept {
 		S ret{};
-#ifdef __clang__
-		ret.v256 = (__m256i) __builtin_convertvector((__v8hi) in.v128, V);
-#else
-		ret.v256 = (__m256i) __builtin_ia32_pmovzxbd256((__v16qi) in.v128);
-#endif
+		ret.v256 = _mm256_cvtepu8_epi32(in.v128);
 		return ret;
+	}
+
+	/// \param in1[in]:
+	/// \return the minimum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) noexcept {
+		const __m128i lo = _mm256_castsi256_si128(in1.v256);
+		const __m128i hi = _mm256_extracti128_si256(in1.v256, 1);
+		__m128i t;
+		if constexpr (__unsigned) {
+			t = _mm_min_epu32(lo, hi);
+			t = _mm_min_epu32(t, _mm_shuffle_epi32(t, 0b01001110));
+			t = _mm_min_epu32(t, _mm_shuffle_epi32(t, 0b10110001));
+		} else {
+			t = _mm_min_epi32(lo, hi);
+			t = _mm_min_epi32(t, _mm_shuffle_epi32(t, 0b01001110));
+			t = _mm_min_epi32(t, _mm_shuffle_epi32(t, 0b10110001));
+		}
+		return limb_type(_mm_cvtsi128_si32(t));
+	}
+
+	/// \param in1[in]:
+	/// \return the maximum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) noexcept {
+		const __m128i lo = _mm256_castsi256_si128(in1.v256);
+		const __m128i hi = _mm256_extracti128_si256(in1.v256, 1);
+		__m128i t;
+		if constexpr (__unsigned) {
+			t = _mm_max_epu32(lo, hi);
+			t = _mm_max_epu32(t, _mm_shuffle_epi32(t, 0b01001110));
+			t = _mm_max_epu32(t, _mm_shuffle_epi32(t, 0b10110001));
+		} else {
+			t = _mm_max_epi32(lo, hi);
+			t = _mm_max_epi32(t, _mm_shuffle_epi32(t, 0b01001110));
+			t = _mm_max_epi32(t, _mm_shuffle_epi32(t, 0b10110001));
+		}
+		return limb_type(_mm_cvtsi128_si32(t));
 	}
 
 	/// \param a
@@ -4148,6 +4951,21 @@ struct Xint32x8_t {
         return c;
     }
 
+	/// as `_mm512_test_epi32_mask`
+	/// \param in1[in]: register to test
+	/// \param bit_pos[in]: bit position to test
+	/// \return bit i is set, if bit `bit_pos` of `in1[i]` is set
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+	                                                       const uint32_t bit_pos) noexcept {
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		return Mask<LIMBS>(MaskType<LIMBS>(_mm256_test_epi32_mask(in1.v256, _mm256_set1_epi32(int(1u << bit_pos)))));
+#else
+		// move bit `bit_pos` into the msb
+		const __m256i t = _mm256_sll_epi32(in1.v256, _mm_cvtsi32_si128(int(31u - bit_pos)));
+		return Mask<LIMBS>(MaskType<LIMBS>(uint32_t(_mm256_movemask_ps(_mm256_castsi256_ps(t)))));
+#endif
+	}
+
 	/// \param a
 	/// \param b
 	/// \return
@@ -4161,6 +4979,69 @@ struct Xint32x8_t {
 		}
         return c;
     }
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are zero, as `_mm512_maskz_compress_epi32`
+	/// \param in1[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return compress(in1, S::set1(0), m);
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are taken from `in2`, as `_mm512_mask_compress_epi32`
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const S in2,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m)) & 0xFFu;
+		S ret;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_mask_compress_epi32(in2.v256, k, in1.v256);
+#elif defined(USE_BMI2)
+		// `pext` packs the lane indices, then `in2` is blended into the
+		// lanes >= popcount(k)
+		const uint64_t bm = _pdep_u64(k, 0x0101010101010101ull) * 0xFFu;
+		const uint64_t sel = _pext_u64(0x0706050403020100ull, bm);
+		const __m256i idx = _mm256_cvtepu8_epi32(_mm_cvtsi64_si128((long long) sel));
+		const __m256i lt = _mm256_cmpgt_epi32(_mm256_set1_epi32(__builtin_popcount(k)),
+		                                      _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7));
+		ret.v256 = _mm256_blendv_epi8(in2.v256, _mm256_permutevar8x32_epi32(in1.v256, idx), lt);
+#else
+		// NOTE: AVX2 has no compress instruction, needs BMI2 for `pext`
+		ret = in2;
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			if ((k >> i) & 1u) { ret.d[j++] = in1.d[i]; }
+		}
+#endif
+		return ret;
+	}
+
+	/// writes the lanes of `in1` selected by `m` contiguously to `ptr`,
+	/// as `_mm512_mask_compressstoreu_epi32`
+	/// \param ptr[out]:
+	/// \param in1[in]:
+	/// \param m[in]:
+	constexpr static inline void compress(limb_type *ptr,
+	                                      const S in1,
+	                                      const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m)) & 0xFFu;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		_mm256_mask_compressstoreu_epi32(ptr, k, in1.v256);
+#else
+		// only the first popcount(k) lanes are written
+		const S t = compress(in1, m);
+		const __m256i lt = _mm256_cmpgt_epi32(_mm256_set1_epi32(__builtin_popcount(k)),
+		                                      _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7));
+		_mm256_maskstore_epi32((int *) ptr, lt, t.v256);
+#endif
+	}
 };
 
 using uint32x8_t = Xint32x8_t<true>;
@@ -4263,7 +5144,7 @@ struct Xint64x4_t {
     /// set the `i`-th bit in each limb
     /// \param pos[in]: bit position to set
     constexpr inline void set_bit(const uint32_t pos) noexcept {
-        v256 = _mm256_set1_epi64x(1u << pos); 
+        v256 = _mm256_set1_epi64x(1ull << pos);
     }
 
 	/// \tparam aligned
@@ -4480,6 +5361,53 @@ struct Xint64x4_t {
 		return mullo(in1, m);
 	}
 
+	/// horizontal add of the 8 unsigned bytes of each 64 bit lane
+	/// \param in1
+	/// \return sum of the bytes, per 64 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu8(const S in1) noexcept {
+		S ret;
+		ret.v256 = _mm256_sad_epu8(in1.v256, _mm256_setzero_si256());
+		return ret;
+	}
+
+	/// horizontal add of the 4 unsigned 16 bit values of each 64 bit lane
+	/// \param in1
+	/// \return sum, per 64 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu16(const S in1) noexcept {
+		const __v4du x = (__v4du) in1.v256;
+		constexpr uint64_t m = 0x0000FFFF0000FFFFull;
+		const __v4du t = (x & m) + ((x >> 16u) & m);
+		S ret;
+		ret.v256 = (__m256i) ((t & 0xFFFFFFFFull) + (t >> 32u));
+		return ret;
+	}
+
+	/// horizontal add of the 2 unsigned 32 bit values of each 64 bit lane
+	/// \param in1
+	/// \return sum, per 64 bit lane
+	[[nodiscard]] constexpr static inline S hadd_epu32(const S in1) noexcept {
+		const __v4du x = (__v4du) in1.v256;
+		S ret;
+		ret.v256 = (__m256i) ((x & 0xFFFFFFFFull) + (x >> 32u));
+		return ret;
+	}
+
+	/// number of 4 bit values (nibbles) equal to `in2` in each 64 bit lane
+	/// \param in1
+	/// \param in2 nibble to count, < 16
+	/// \return per 64 bit lane: #{i : nibble i of the lane == in2}, in [0, 16]
+	[[nodiscard]] constexpr static inline S histogram_epi4(const S in1,
+	                                                       const uint8_t in2) noexcept {
+		assert(in2 < 16);
+		const __v4du z = (__v4du) in1.v256 ^ (0x1111111111111111ull * in2);
+		const __v4du nz = (z | (z >> 1u) | (z >> 2u) | (z >> 3u)) & 0x1111111111111111ull;
+		S t;
+		t.v256 = (__m256i) nz;
+		t = S::popcnt(t);
+		t.v256 = (__m256i) (16u - (__v4du) t.v256);
+		return t;
+	}
+
 	/// \param in1
 	/// \param in2
 	/// \return
@@ -4596,6 +5524,27 @@ struct Xint64x4_t {
 	///
 	/// \param in1
 	/// \param in2
+	/// \return in1 <= in2 uncompressed
+	[[nodiscard]] constexpr static inline S le_(const S in1,
+	                                            const S in2) noexcept {
+		S ret;
+		ret.v256 = (__m256i) ((V) in1.v256 <= (V) in2.v256);
+		return ret;
+	}
+
+	///
+	/// \param in1
+	/// \param in2
+	/// \return in1 <= in2 compressed
+	[[nodiscard]] constexpr static inline uint32_t le(const S in1,
+	                                                  const S in2) noexcept {
+		const auto tmp = (__m256i) ((V) in1.v256 <= (V) in2.v256);
+		return __builtin_ia32_movmskpd256((__v4df) tmp);
+	}
+
+	///
+	/// \param in1
+	/// \param in2
 	/// \return in1 == in2 uncompressed
 	[[nodiscard]] constexpr static inline S eq_(const S in1,
 	                                            const S in2) noexcept {
@@ -4656,6 +5605,35 @@ struct Xint64x4_t {
 		return ret;
 	}
 
+	/// without AVX512CD: all bits below the highest set bit are set, then the
+	/// zeros are counted
+	/// \param in
+	/// \return the number of leading zeros of each 64 bit lane (64 for 0)
+	[[nodiscard]] constexpr static inline S lzcnt(const S in) noexcept {
+#if defined(USE_AVX512CD) && defined(USE_AVX512VL)
+		S ret;
+		ret.v256 = _mm256_lzcnt_epi64(in.v256);
+		return ret;
+#else
+		S t = in;
+		t = S::or_(t, S::srli(t, 1));
+		t = S::or_(t, S::srli(t, 2));
+		t = S::or_(t, S::srli(t, 4));
+		t = S::or_(t, S::srli(t, 8));
+		t = S::or_(t, S::srli(t, 16));
+		t = S::or_(t, S::srli(t, 32));
+		return S::popcnt(S::not_(t));
+#endif
+	}
+
+	/// tzcnt(x) = popcnt((x - 1) & ~x)
+	/// \param in
+	/// \return the number of trailing zeros of each 64 bit lane (64 for 0)
+	[[nodiscard]] constexpr static inline S tzcnt(const S in) noexcept {
+		const S t = S::and_(S::sub(in, S::set1(1)), S::not_(in));
+		return S::popcnt(t);
+	}
+
 	/// checks if all 64bits are equal
 	/// \param in
 	/// \return
@@ -4673,6 +5651,23 @@ struct Xint64x4_t {
 		return ret;
 	}
 
+	/// runtime version of `permute<in2>`: ret[i] = in1[(in2 >> 2i) & 3]
+	/// \param in1
+	/// \param in2 8 bit, 2 bits per lane
+	/// \return
+	[[nodiscard]] constexpr static inline S permute(const S in1,
+	                                                const uint32_t in2) noexcept {
+		// 32 bit lane indices {2*sel_i, 2*sel_i + 1} with sel_i = (in2 >> 2i) & 3
+		const __m256i shift = _mm256_setr_epi32(0, 0, 2, 2, 4, 4, 6, 6);
+		const __m256i sel = _mm256_and_si256(_mm256_srlv_epi32(_mm256_set1_epi32(int(in2)), shift),
+		                                     _mm256_set1_epi32(3));
+		const __m256i idx = _mm256_add_epi32(_mm256_slli_epi32(sel, 1),
+		                                     _mm256_setr_epi32(0, 1, 0, 1, 0, 1, 0, 1));
+		S ret;
+		ret.v256 = _mm256_permutevar8x32_epi32(in1.v256, idx);
+		return ret;
+	}
+
 	/// \tparam in2
 	/// \param in1
 	/// \return
@@ -4680,6 +5675,29 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S permute(const S in1) noexcept {
 		S ret;
 		ret.v256 = ((__m256i) __builtin_ia32_permdi256((__v4di) (__m256i) (in1.v256), (int) (in2)));
+		return ret;
+	}
+
+	/// same semantics as `vpconflictq` (AVX512CD):
+	/// lane i is the bitmask of all lanes j < i with in1[j] == in1[i].
+	/// \param in1
+	/// \return
+	[[nodiscard]] constexpr static inline S conflict(const S in1) noexcept {
+		S ret;
+#if defined(USE_AVX512CD) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_conflict_epi64(in1.v256);
+#else
+		// compare all lanes with the broadcasted lane j, keep the lanes > j
+		const __m256i idx = _mm256_setr_epi64x(0, 1, 2, 3);
+		__m256i r = _mm256_setzero_si256();
+		for (uint32_t j = 0; j < LIMBS - 1u; ++j) {
+			const __m256i b = _mm256_permutevar8x32_epi32(in1.v256, _mm256_set1_epi64x(((long long)(2 * j + 1) << 32) | (2 * j)));
+			const __m256i t = _mm256_and_si256(_mm256_cmpeq_epi64(in1.v256, b),
+			                                   _mm256_cmpgt_epi64(idx, _mm256_set1_epi64x(j)));
+			r = _mm256_or_si256(r, _mm256_and_si256(t, _mm256_set1_epi64x(1ll << j)));
+		}
+		ret.v256 = r;
+#endif
 		return ret;
 	}
 
@@ -4743,11 +5761,10 @@ struct Xint64x4_t {
 	[[nodiscard]] constexpr static inline S gather(const void *ptr,
 												   const uint8x32_t data) noexcept {
 		static_assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+		// zero extend the first 4 bytes to 32 bit offsets
+		const __m128i off = _mm_cvtepu8_epi32(_mm256_castsi256_si128(data.v256));
 		S ret;
-		const auto *ptr8 = (uint8_t *) ptr;
-		for (uint32_t i = 0; i < S::LIMBS; i++) {
-			ret.d[i] = *(limb_type *)(ptr8 + data.d[i]);
-		}
+		ret.v256 = _mm256_i32gather_epi64((const long long *) ptr, off, scale);
 		return ret;
 	}
 	///
@@ -4765,6 +5782,58 @@ struct Xint64x4_t {
 		for (uint32_t i = 0; i < 4; i++) {
 			*(uint64_t *) (ptr8 + offset.v64[i] * scale) = data.v64[i];
 		}
+	}
+
+	/// \param in1[in]:
+	/// \return the minimum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_min(const S in1) noexcept {
+		const __m128i lo = _mm256_castsi256_si128(in1.v256);
+		const __m128i hi = _mm256_extracti128_si256(in1.v256, 1);
+		__m128i t;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		if constexpr (__unsigned) {
+			t = _mm_min_epu64(lo, hi);
+			t = _mm_min_epu64(t, _mm_unpackhi_epi64(t, t));
+		} else {
+			t = _mm_min_epi64(lo, hi);
+			t = _mm_min_epi64(t, _mm_unpackhi_epi64(t, t));
+		}
+#else
+		// AVX2 has no 64 bit min: signed compare + blend, the xor maps the
+		// unsigned order onto the signed one
+		const __m128i f = _mm_set1_epi64x(__unsigned ? (long long) (1ull << 63u) : 0ll);
+		const __m128i a = _mm_xor_si128(lo, f), b = _mm_xor_si128(hi, f);
+		t = _mm_blendv_epi8(a, b, _mm_cmpgt_epi64(a, b));
+		const __m128i u = _mm_unpackhi_epi64(t, t);
+		t = _mm_xor_si128(_mm_blendv_epi8(t, u, _mm_cmpgt_epi64(t, u)), f);
+#endif
+		return limb_type(_mm_cvtsi128_si64(t));
+	}
+
+	/// \param in1[in]:
+	/// \return the maximum of all lanes
+	[[nodiscard]] constexpr static inline limb_type reduce_max(const S in1) noexcept {
+		const __m128i lo = _mm256_castsi256_si128(in1.v256);
+		const __m128i hi = _mm256_extracti128_si256(in1.v256, 1);
+		__m128i t;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		if constexpr (__unsigned) {
+			t = _mm_max_epu64(lo, hi);
+			t = _mm_max_epu64(t, _mm_unpackhi_epi64(t, t));
+		} else {
+			t = _mm_max_epi64(lo, hi);
+			t = _mm_max_epi64(t, _mm_unpackhi_epi64(t, t));
+		}
+#else
+		// AVX2 has no 64 bit max: signed compare + blend, the xor maps the
+		// unsigned order onto the signed one
+		const __m128i f = _mm_set1_epi64x(__unsigned ? (long long) (1ull << 63u) : 0ll);
+		const __m128i a = _mm_xor_si128(lo, f), b = _mm_xor_si128(hi, f);
+		t = _mm_blendv_epi8(a, b, _mm_cmpgt_epi64(b, a));
+		const __m128i u = _mm_unpackhi_epi64(t, t);
+		t = _mm_xor_si128(_mm_blendv_epi8(t, u, _mm_cmpgt_epi64(u, t)), f);
+#endif
+		return limb_type(_mm_cvtsi128_si64(t));
 	}
 
 	/// \param a
@@ -4794,6 +5863,21 @@ struct Xint64x4_t {
         return c;
     }
 
+	/// as `_mm512_test_epi64_mask`
+	/// \param in1[in]: register to test
+	/// \param bit_pos[in]: bit position to test
+	/// \return bit i is set, if bit `bit_pos` of `in1[i]` is set
+	[[nodiscard]] constexpr static inline Mask<LIMBS> test(const S in1,
+	                                                       const uint32_t bit_pos) noexcept {
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		return Mask<LIMBS>(MaskType<LIMBS>(_mm256_test_epi64_mask(in1.v256, _mm256_set1_epi64x((long long) (uint64_t(1u) << bit_pos)))));
+#else
+		// move bit `bit_pos` into the msb
+		const __m256i t = _mm256_sll_epi64(in1.v256, _mm_cvtsi32_si128(int(63u - bit_pos)));
+		return Mask<LIMBS>(MaskType<LIMBS>(uint32_t(_mm256_movemask_pd(_mm256_castsi256_pd(t)))));
+#endif
+	}
+
 	/// \param a
 	/// \param b
 	/// \return
@@ -4821,6 +5905,70 @@ struct Xint64x4_t {
 
         return c;
     }
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are zero, as `_mm512_maskz_compress_epi64`
+	/// \param in1[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		return compress(in1, S::set1(0), m);
+	}
+
+	/// packs the lanes of `in1` selected by `m` to the front (in order),
+	/// the other lanes are taken from `in2`, as `_mm512_mask_compress_epi64`
+	/// \param in1[in]:
+	/// \param in2[in]:
+	/// \param m[in]:
+	/// \return
+	[[nodiscard]] constexpr static inline S compress(const S in1,
+	                                                 const S in2,
+	                                                 const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m)) & 0xFu;
+		S ret;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		ret.v256 = _mm256_mask_compress_epi64(in2.v256, k, in1.v256);
+#elif defined(USE_BMI2)
+		// `pext` packs the 32 bit lane indices (2 per 64 bit lane), then
+		// `in2` is blended into the lanes >= popcount(k)
+		const uint64_t k2 = _pdep_u64(k, 0x55u) * 3u;
+		const uint64_t bm = _pdep_u64(k2, 0x0101010101010101ull) * 0xFFu;
+		const uint64_t sel = _pext_u64(0x0706050403020100ull, bm);
+		const __m256i idx = _mm256_cvtepu8_epi32(_mm_cvtsi64_si128((long long) sel));
+		const __m256i lt = _mm256_cmpgt_epi64(_mm256_set1_epi64x(__builtin_popcount(k)),
+		                                      _mm256_setr_epi64x(0, 1, 2, 3));
+		ret.v256 = _mm256_blendv_epi8(in2.v256, _mm256_permutevar8x32_epi32(in1.v256, idx), lt);
+#else
+		// NOTE: AVX2 has no compress instruction, needs BMI2 for `pext`
+		ret = in2;
+		uint32_t j = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) {
+			if ((k >> i) & 1u) { ret.d[j++] = in1.d[i]; }
+		}
+#endif
+		return ret;
+	}
+
+	/// writes the lanes of `in1` selected by `m` contiguously to `ptr`,
+	/// as `_mm512_mask_compressstoreu_epi64`
+	/// \param ptr[out]:
+	/// \param in1[in]:
+	/// \param m[in]:
+	constexpr static inline void compress(limb_type *ptr,
+	                                      const S in1,
+	                                      const Mask<LIMBS> &m) noexcept {
+		const uint32_t k = uint32_t(MaskType<LIMBS>(m)) & 0xFu;
+#if defined(USE_AVX512F) && defined(USE_AVX512VL)
+		_mm256_mask_compressstoreu_epi64(ptr, k, in1.v256);
+#else
+		// only the first popcount(k) lanes are written
+		const S t = compress(in1, m);
+		const __m256i lt = _mm256_cmpgt_epi64(_mm256_set1_epi64x(__builtin_popcount(k)),
+		                                      _mm256_setr_epi64x(0, 1, 2, 3));
+		_mm256_maskstore_epi64((long long *) ptr, lt, t.v256);
+#endif
+	}
 };
 
 using uint64x4_t = Xint64x4_t<true>;
