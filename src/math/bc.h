@@ -179,8 +179,6 @@ inline __m256i opt_max_bc_avx(const __m256i a, const __m256i n) {
 /// \param rows rows[i] is the position of the i-th bit
 template<const uint32_t n, const uint32_t p>
 inline void biject(size_t a, uint16_t rows[p]) noexcept {
-	static_assert(p < 3, "not implemented");
-
 	size_t wn = n;
 	if constexpr (p == 1) {
 		wn -= opt_max_bc<size_t, 1>(a, wn);
@@ -203,7 +201,43 @@ inline void biject(size_t a, uint16_t rows[p]) noexcept {
 		return;
 	}
 
-	assert(false);
+	if constexpr (p == 4) {
+		// bc(c, 4) = ((c^2 - 3c + 1)^2 - 1) / 24, hence the max. c with
+		// bc(c, 4) <= a is (floor(sqrt(4 * floor(sqrt(24a + 1)) + 5)) + 3) / 2
+		const size_t t = __builtin_sqrt(24. * double(a) + 1.);
+		size_t c = (size_t(__builtin_sqrt(4. * double(t) + 5.)) + 3u) / 2u;
+		// NOTE: fixes rounding errors of `sqrt` and `cbrt`
+		while (bc(c, 4) > a) { c--; }
+		while (bc(c + 1u, 4) <= a) { c++; }
+		rows[0] = c;
+		a -= bc(c, 4);
+
+		// bc(c, 3) ~ (c - 1)^3 / 6
+		c = size_t(__builtin_cbrt(6. * double(a))) + 1u;
+		while (bc(c, 3) > a) { c--; }
+		while (bc(c + 1u, 3) <= a) { c++; }
+		rows[1] = c;
+		a -= bc(c, 3);
+
+		c = (size_t(__builtin_sqrt(8. * double(a) + 1.)) + 1u) / 2u;
+		while (bc(c, 2) > a) { c--; }
+		while (bc(c + 1u, 2) <= a) { c++; }
+		rows[2] = c;
+		rows[3] = a - bc(c, 2);
+		return;
+	}
+
+	// p = 3 or p > 4: rows[j] is the max. c < rows[j-1] with bc(c, p-j) <= a
+	for (uint32_t j = 0; j < p; j++) {
+		size_t lo = p - j - 1u, hi = wn - 1u;
+		while (lo < hi) {
+			const size_t mid = (lo + hi + 1u) / 2u;
+			if (bc(mid, p - j) <= a) { lo = mid; } else { hi = mid - 1u; }
+		}
+		rows[j] = lo;
+		a -= bc(lo, p - j);
+		wn = lo;
+	}
 }
 
 #ifdef USE_AVX2

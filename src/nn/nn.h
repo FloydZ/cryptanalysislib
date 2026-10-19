@@ -14,6 +14,9 @@
 #include "random.h"
 #include "simd/simd.h"
 
+#ifdef USE_CUDA
+#include "nn/nn.cuh"
+#endif
 
 using namespace cryptanalysislib;
 
@@ -155,6 +158,21 @@ public:
 	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
 	std::vector<std::pair<size_t, size_t>> solutions;
 
+#ifdef USE_CUDA
+	// GPU lists, root/child index buffers, counters and solution, allocated by the first `run<true>`
+	T *dL1 = nullptr, *dL2 = nullptr;
+	uint32_t *dRoot = nullptr, *dB = nullptr, *dCnt = nullptr;
+	size_t *df = nullptr;
+	// pinned host copy of `df`
+	size_t *hf = nullptr;
+	// number of persistent blocks of `nn_tree_child`
+	uint32_t cuda_blocks = 0;
+	// tensor core root bruteforce: dense lists, their sizes and solutions
+	T *dDL = nullptr, *dDR = nullptr;
+	uint32_t *dTCnt = nullptr;
+	size_t *dF = nullptr;
+#endif
+
 	/// probably its ok to assert some stuff here
 	static_assert(k <= n);
 	static_assert(dk_bruteforce_size >= dk_bruteforce_weight);
@@ -162,6 +180,20 @@ public:
 	~NN() noexcept {
 		if (L1) { cryptanalysislib::aligned_free(L1); }
 		if (L2) { cryptanalysislib::aligned_free(L2); }
+#ifdef USE_CUDA
+		// NOTE: no `checkCudaErrors`, it calls `exit`
+		if (dL1) { cudaFree(dL1); }
+		if (dL2) { cudaFree(dL2); }
+		if (dRoot) { cudaFree(dRoot); }
+		if (dB) { cudaFree(dB); }
+		if (dCnt) { cudaFree(dCnt); }
+		if (df) { cudaFree(df); }
+		if (hf) { cudaFreeHost(hf); }
+		if (dDL) { cudaFree(dDL); }
+		if (dDR) { cudaFree(dDR); }
+		if (dTCnt) { cudaFree(dTCnt); }
+		if (dF) { cudaFree(dF); }
+#endif
 	}
 
 	/// transposes the two lists into the two buckets
@@ -705,6 +737,12 @@ public:
 		} else if constexpr (96 < n and n <= 128) {
 			bruteforce_simd_128_32_2_uxv<4, 4>(e1, e2);
 		} else if constexpr (128 < n and n <= 256) {
+			// NOTE: the 4x4 kernel needs 4 limbs, i.e. 192 < n
+			if constexpr (ELEMENT_NR_LIMBS != 4) {
+				bruteforce_256(e1, e2);
+				return;
+			}
+
 			// NOTE: arbitrary set
 			if (e1 < 16 && e2 < 16) {
 				bruteforce_256(e1, e2);
@@ -803,12 +841,12 @@ public:
 				} else {
 					// NOTE: 3x 32 bit chunks
 					const uint32_t *a = (const uint32_t *)L1[i], *b = (const uint32_t *)L2[j];
-					const uint32_t t = (popcount::popcount(a[0] ^ b[0]) <= d) +
-					                   (popcount::popcount(a[1] ^ b[1]) <= d) +
-					                   (popcount::popcount(a[2] ^ b[2]) <= d);
-					if (t == 3) {
-						solutions.resize(solutions_nr + 1);
-						solutions[solutions_nr++] = std::pair<size_t, size_t>{i, j};
+					// NOTE: was each chunk <= d, i.e. up to 3*d in total
+					const uint32_t wt = popcount::popcount(a[0] ^ b[0]) +
+					                    popcount::popcount(a[1] ^ b[1]) +
+					                    popcount::popcount(a[2] ^ b[2]);
+					if (wt <= d) {
+						found_solution(i, j);
 					}
 				}
 			}
@@ -921,7 +959,8 @@ public:
 	                         const uint32_t z,
 	                         Element *__restrict__ L) noexcept {
         ZoneScoped;
-		static_assert(limb <= ELEMENT_NR_LIMBS);
+		// NOTE: `limb` counts 32 bit limbs
+		static_assert(limb < (ELEMENT_NR_LIMBS * sizeof(T) / sizeof(uint32_t)));
 		static_assert(k <= 32);
 		assert(e1 <= LIST_SIZE);
 
@@ -1654,11 +1693,129 @@ public:
 		}
 	}
 
+#ifdef USE_CUDA
+	// limb type to filter on, see `nn_tree_root`
+	using CUDA_LT = std::conditional_t<(k <= 32), uint32_t, uint64_t>;
+	constexpr static uint32_t CUDA_THREADS = 256;
+	// if true, the roots below the bruteforce threshold are bruteforced on the
+	// tensor cores. Elements are padded to `CUDA_TL` limbs (multiple of 128 bit)
+#ifdef NN_CUDA_TENSOR
+	constexpr static bool CUDA_TENSOR = true;
+#else
+	constexpr static bool CUDA_TENSOR = false;
+#endif
+	constexpr static uint32_t CUDA_TL = ((ELEMENT_NR_LIMBS * sizeof(T) * 8u + 127u) / 128u) * (128u / (sizeof(T) * 8u));
+
+	/// allocates the GPU buffers, once with the max. size. Freed in `~NN`
+	void cuda_alloc() noexcept {
+		static_assert(NN_LOWER && !EXACT && !USE_REARRANGE && FINAL_SOL_WEIGHT);
+		static_assert(k <= 64);
+		static_assert(LIST_SIZE <= uint32_t(-1));
+		if (dL1 != nullptr) { return; }
+
+		int sms = 0, occupancy = 0;
+		const auto child = ::nn_tree_child<T, CUDA_LT, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR>;
+		checkCudaErrors(cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, 0));
+		checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occupancy, child, CUDA_THREADS, 0));
+		cuda_blocks = sms * occupancy;
+
+		checkCudaErrors(cudaMalloc(&dL1, LIST_SIZE * sizeof(Element)));
+		checkCudaErrors(cudaMalloc(&dL2, LIST_SIZE * sizeof(Element)));
+		checkCudaErrors(cudaMalloc(&dRoot, size_t(N) * 2 * LIST_SIZE * sizeof(uint32_t)));
+		checkCudaErrors(cudaMalloc(&dB, size_t(cuda_blocks) * 2 * (r > 1 ? r - 1 : 1) * LIST_SIZE * sizeof(uint32_t)));
+		// 2 counters per root and the work counter
+		checkCudaErrors(cudaMalloc(&dCnt, (2 * N + 1) * sizeof(uint32_t)));
+		checkCudaErrors(cudaMalloc(&df, 2 * sizeof(size_t)));
+		// NOTE: pinned, s.t. the copy back is async
+		checkCudaErrors(cudaHostAlloc(&hf, 2 * sizeof(size_t), cudaHostAllocDefault));
+		if constexpr (CUDA_TENSOR) {
+			checkCudaErrors(cudaMalloc(&dDL, size_t(N) * LIST_SIZE * CUDA_TL * sizeof(T)));
+			checkCudaErrors(cudaMalloc(&dDR, size_t(N) * LIST_SIZE * CUDA_TL * sizeof(T)));
+			checkCudaErrors(cudaMalloc(&dTCnt, 2 * N * sizeof(uint32_t)));
+			checkCudaErrors(cudaMalloc(&dF, 2 * N * sizeof(size_t)));
+		}
+	}
+
+	/// launches the GPU NN on the lists `dL1`, `dL2`, which must be on the
+	/// GPU already. Async on `stream`, see `cuda_finish`.
+	/// NOTE: the `N` roots of the loop in `run` (P = 1) are computed by
+	/// 	`nn_tree_root`, their `N` children each by `nn_tree_child`
+	void cuda_launch(const size_t e1,
+	                 const size_t e2,
+	                 cudaStream_t stream) noexcept {
+		assert(dL1);
+		assert((e1 > 0) && (e2 > 0));
+		assert(e1 <= LIST_SIZE);
+		assert(e2 <= LIST_SIZE);
+
+		checkCudaErrors(cudaMemsetAsync(dCnt, 0, (2 * N + 1) * sizeof(uint32_t), stream));
+		// the kernel expects both positions to be init with -1
+		checkCudaErrors(cudaMemsetAsync(df, 0xff, 2 * sizeof(size_t), stream));
+
+		// NOTE: ~4 elements per thread and list
+		const uint64_t seed = rng();
+		const size_t e = e1 > e2 ? e1 : e2;
+		const dim3 grid((e + 4 * CUDA_THREADS - 1) / (4 * CUDA_THREADS), N);
+		::nn_tree_root<T, CUDA_LT, ELEMENT_NR_LIMBS, dk, k><<<grid, CUDA_THREADS, 0, stream>>>
+			(dL1, dL2, e1, e2, dRoot, dRoot + N * LIST_SIZE, dCnt, LIST_SIZE, seed);
+		checkCudaErrors(cudaGetLastError());
+#ifdef NN_CUDA_TENSOR
+		{
+			// NOTE: the roots below the threshold on the tensor cores, the
+			// 	children of the others below
+			checkCudaErrors(cudaMemsetAsync(dF, 0xff, 2 * N * sizeof(size_t), stream));
+			::nn_tree_gather<T, ELEMENT_NR_LIMBS, CUDA_TL, r><<<grid, CUDA_THREADS, 0, stream>>>
+				(dL1, dL2, dRoot, dRoot + N * LIST_SIZE, dCnt, dDL, dDR, dTCnt, LIST_SIZE, BRUTEFORCE_THRESHHOLD);
+			checkCudaErrors(cudaGetLastError());
+			// NOTE: 32 CTAs (of 128 L rows) per root, grid-stride over the rest
+			::nn_tree_tensor<T, CUDA_TL, d><<<dim3(32, 1, N), (8 + 4) * 32, 0, stream>>>
+				(dDL, dDR, dTCnt, LIST_SIZE, dF);
+			checkCudaErrors(cudaGetLastError());
+			::nn_tree_tensor_result<<<1, 1, 0, stream>>>
+				(dRoot, dRoot + N * LIST_SIZE, dF, N, LIST_SIZE, df, df + 1);
+			checkCudaErrors(cudaGetLastError());
+		}
+#endif
+		::nn_tree_child<T, CUDA_LT, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR><<<cuda_blocks, CUDA_THREADS, 0, stream>>>
+			(dL1, dL2, dRoot, dRoot + N * LIST_SIZE, dCnt, dB, LIST_SIZE,
+			 BRUTEFORCE_THRESHHOLD, df, df + 1, dCnt + 2 * N, seed);
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaMemcpyAsync(hf, df, 2 * sizeof(size_t), cudaMemcpyDeviceToHost, stream));
+	}
+
+	/// waits for `cuda_launch`. If a solution was found, its two elements are
+	/// copied into `L1`, `L2` and it is added to the solutions.
+	void cuda_finish(cudaStream_t stream) noexcept {
+		checkCudaErrors(cudaStreamSynchronize(stream));
+		if (hf[0] != size_t(-1)) {
+			checkCudaErrors(cudaMemcpy(L1[hf[0]], dL1 + hf[0] * ELEMENT_NR_LIMBS, sizeof(Element), cudaMemcpyDeviceToHost));
+			checkCudaErrors(cudaMemcpy(L2[hf[1]], dL2 + hf[1] * ELEMENT_NR_LIMBS, sizeof(Element), cudaMemcpyDeviceToHost));
+			found_solution(hf[0], hf[1]);
+		}
+	}
+#endif
+
 	/// core entry function for the implementation of the Esser, Kuebler, Zweydinger NN algorithm
+	/// \tparam cuda if true, the NN runs on the GPU
 	/// \param e1 size of the left list
 	/// \param e2 size of the right list
+	template<const bool cuda = false>
 	constexpr void run(const size_t e1 = LIST_SIZE,
 	                   const size_t e2 = LIST_SIZE) noexcept {
+#ifdef USE_CUDA
+		if constexpr (cuda) {
+			if ((e1 == 0) || (e2 == 0)) { return; }
+			cuda_alloc();
+			checkCudaErrors(cudaMemcpy(dL1, L1, e1 * sizeof(Element), cudaMemcpyHostToDevice));
+			checkCudaErrors(cudaMemcpy(dL2, L2, e2 * sizeof(Element), cudaMemcpyHostToDevice));
+			cuda_launch(e1, e2, 0);
+			cuda_finish(0);
+			return;
+		}
+#else
+		static_assert(!cuda, "`cuda` needs `USE_CUDA`");
+#endif
+
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;
 
 		for (size_t i = 0; i < P * N; ++i) {
