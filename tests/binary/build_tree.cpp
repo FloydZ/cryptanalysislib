@@ -192,6 +192,63 @@ TEST(TreeTest, join8lists) {
 	EXPECT_LT(out.load(),1u<<17);
 }
 
+TEST(TreeTest, twolevel_streamjoin_on_iT) {
+	constexpr uint32_t basesize = 6u;
+	constexpr uint32_t k_lower1 = 0, k_upper1 = n/2, k_lower2 = n/2, k_upper2 = n;
+	BinaryMatrix A;
+	A.identity();
+
+	BinaryList out{1u<<14}, iL{0}, l1{0}, l2{0};
+	l1.random(1u << basesize, A);
+	l2.random(1u << basesize, A);
+	iL.random(1u << basesize, A);
+
+	BinaryLabel target {};
+	target.random();
+
+	// NOTE: `L1` must be sorted by the caller
+	l1.sort_level(k_lower1, k_upper1);
+
+	BinaryTree t{1, A, 0};
+	const size_t ret = t.twolevel_streamjoin_on_iT(out, iL, l1, l2, target,
+	                                               k_lower1, k_upper1, k_lower2, k_upper2);
+
+	// brute force: L1[i] + L2[j] = target on [k_lower1, k_upper1) and
+	// 	L1[i] + L2[j] + iL[l] = target on [k_lower2, k_upper2)
+	size_t num = 0;
+	BinaryLabel e1, e2;
+	for (size_t i = 0; i < l1.load(); ++i) {
+		for (size_t j = 0; j < l2.load(); ++j) {
+			BinaryLabel::add(e1, l1[i].label, l2[j].label);
+			if (!e1.is_equal(target, k_lower1, k_upper1)) { continue; }
+			for (size_t l = 0; l < iL.load(); ++l) {
+				BinaryLabel::add(e2, e1, iL[l].label);
+				num += e2.is_equal(target, k_lower2, k_upper2);
+			}
+		}
+	}
+
+	EXPECT_GT(num, 0);
+	EXPECT_EQ(ret, num);
+	EXPECT_EQ(out.load(), num);
+	for (size_t i = 0; i < out.load(); ++i) {
+		EXPECT_TRUE(out[i].label.is_equal(target, k_lower2, k_upper2));
+	}
+
+	// the join stops, if `f` returns true
+	out.set_load(0);
+	size_t calls = 0;
+	const size_t ret2 = t.twolevel_streamjoin_on_iT(out, iL, l1, l2, target,
+	                                                k_lower1, k_upper1, k_lower2, k_upper2, true,
+	        [&calls](BinaryList &, BinaryList &, BinaryElement &, const size_t) {
+		        calls += 1;
+		        return calls == 3;
+	        });
+	EXPECT_EQ(ret2, std::min<size_t>(3, num));
+	EXPECT_EQ(calls, ret2);
+	EXPECT_EQ(out.load(), 0);
+}
+
 #ifndef EXTERNAL_MAIN
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

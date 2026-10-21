@@ -1,17 +1,20 @@
-#pragma once 
+#pragma once
 
 #include <iterator>
 #include <cstdint>
+#include <future>
+#include <vector>
 
 #ifdef USE_AVX512F
 #include <immintrin.h>
-#include "simd/simd.h"
 #include "algorithm/countl.h"
-#include "algorithm/bits/popcount.h"
 #endif
-
-// TODO simd version 
-// TODO parrallel version
+#include "simd/simd.h"
+#include "algorithm/algorithm.h"
+#include "algorithm/bits/popcount.h"
+#include "algorithm/bounds.h"
+#include "algorithm/copy.h"
+#include "thread/thread.h"
 
 namespace cryptanalysislib {
     struct AlgorithmSetIntersectionConfig {
@@ -69,6 +72,57 @@ namespace cryptanalysislib {
                 if (a[i] < b[j]) { ++i; }
                 else if (b[j] < a[i]) { ++j; }
                 else { ++c; ++i; ++j; }
+            }
+            return c;
+        }
+
+        /// SIMD kernel of `set_intersection_simd`: a block of `a` is compared
+        /// with every element of a block of `b`, the matches are compress
+        /// stored. Afterwards the block(s) with the smaller last element are
+        /// skipped.
+        /// \return the number of elements written to `out`
+        template<typename T,
+                 const AlgorithmSetIntersectionConfig &config = algorithmSetIntersectionConfig>
+#if __cplusplus > 201709L
+            requires std::unsigned_integral<T>
+#endif
+        size_t set_intersection_uXX_simd(const T *a, const size_t n,
+                                         const T *b, const size_t m,
+                                         T *out) noexcept {
+            using S = SIMDSelector<T>;
+            constexpr uint32_t limbs = S::LIMBS;
+            using M = MaskType<limbs>;
+
+            size_t i = 0, j = 0, c = 0;
+            while (((i + limbs) <= n) && ((j + limbs) <= m)) {
+                const S va = S::template load<config.aligned_instructions != 0>(a + i);
+                M mask = 0;
+                for (uint32_t k = 0; k < limbs; ++k) {
+                    mask |= M(va == S::set1(b[j + k]));
+                }
+
+                if (mask) {
+                    if constexpr (requires(T *p, const S x, const Mask<limbs> &k) { S::compress(p, x, k); }) {
+                        S::compress(out + c, va, Mask<limbs>(mask));
+                        c += popcount::popcount(mask);
+                    } else {
+                        // NOTE: the generic SIMD types have no `compress`
+                        for (uint32_t k = 0; k < limbs; ++k) {
+                            if ((mask >> k) & 1u) { out[c++] = a[i + k]; }
+                        }
+                    }
+                }
+
+                const T amax = a[i + limbs - 1u], bmax = b[j + limbs - 1u];
+                if (amax <= bmax) { i += limbs; }
+                if (bmax <= amax) { j += limbs; }
+            }
+
+            // tail management
+            while ((i < n) && (j < m)) {
+                if (a[i] < b[j]) { ++i; }
+                else if (b[j] < a[i]) { ++j; }
+                else { out[c++] = a[i]; ++i; ++j; }
             }
             return c;
         }
@@ -232,6 +286,133 @@ namespace cryptanalysislib {
                               InputIt2 last2, 
                               OutputIt d_first) {
         return set_intersection(first1, last1, first2, last2, d_first, std::less{});
+    }
+
+    /// Computes the intersection of two strictly increasing (sorted and
+    /// duplicate free) arrays of unsigned integers with SIMD instructions
+    /// NOTE: for multisets the result differs from `set_intersection`.
+    /// \param a[in]: first array
+    /// \param n[in]: number of elements in `a`
+    /// \param b[in]: second array
+    /// \param m[in]: number of elements in `b`
+    /// \param out[out]: the common elements (increasing), must have space for min(n, m) elements
+    /// \return number of common elements
+    template<typename T,
+             const AlgorithmSetIntersectionConfig &config = algorithmSetIntersectionConfig>
+#if __cplusplus > 201709L
+        requires std::unsigned_integral<T>
+#endif
+    size_t set_intersection_simd(const T *a, const size_t n,
+                                 const T *b, const size_t m,
+                                 T *out) noexcept {
+        return internal::set_intersection_uXX_simd<T, config>(a, n, b, m, out);
+    }
+
+    /// Computes the intersection of two sorted ranges (parallel version)
+    /// The first range is split into chunks (without splitting a run of
+    /// equivalent elements), the corresponding part of the second range is
+    /// found by binary search. Every chunk is intersected into its own
+    /// buffer, which are then copied to `d_first`.
+    /// NOTE: the result is the same as of the sequential version (also for multisets)
+    /// \param policy[in]: execution policy
+    /// \param first1[in]: iterator to the beginning of the first range
+    /// \param last1[in]: iterator to the end of the first range
+    /// \param first2[in]: iterator to the beginning of the second range
+    /// \param last2[in]: iterator to the end of the second range
+    /// \param d_first[out]: iterator to the beginning of the destination range
+    /// \param comp[in]: comparison function object
+    /// \return iterator to the end of the constructed range
+    template<class ExecPolicy,
+             class RandIt1,
+             class RandIt2,
+             class OutIt,
+             class Compare,
+             const AlgorithmSetIntersectionConfig &config = algorithmSetIntersectionConfig>
+#if __cplusplus > 201709L
+        requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<RandIt1> &&
+                 std::random_access_iterator<RandIt2> &&
+                 std::random_access_iterator<OutIt>
+#endif
+    OutIt set_intersection(ExecPolicy &&policy,
+                           RandIt1 first1,
+                           RandIt1 last1,
+                           RandIt2 first2,
+                           RandIt2 last2,
+                           OutIt d_first,
+                           Compare comp) noexcept {
+        using T = typename std::iterator_traits<RandIt1>::value_type;
+        const size_t n = static_cast<size_t>(std::distance(first1, last1));
+        const uint32_t nthreads = should_par(policy, config, n);
+        if (is_seq<ExecPolicy>(policy) || (nthreads < 2)) {
+            return cryptanalysislib::set_intersection(first1, last1, first2, last2, d_first, comp);
+        }
+
+        // chunk boundaries in both ranges: a chunk of the first range ends at
+        // the end of a run of equivalent elements
+        std::vector<size_t> b1(nthreads + 1u), b2(nthreads + 1u);
+        b1[0] = 0; b2[0] = 0;
+        for (uint32_t k = 1; k < nthreads; ++k) {
+            size_t p = (n * k) / nthreads;
+            if (p < b1[k - 1]) { p = b1[k - 1]; }
+            if (p > 0) {
+                p = static_cast<size_t>(cryptanalysislib::upper_bound(first1 + p, last1, *(first1 + (p - 1)), comp) - first1);
+            }
+            b1[k] = p;
+            b2[k] = (p == n) ? static_cast<size_t>(std::distance(first2, last2))
+                             : static_cast<size_t>(internal::bounds_lower_bound(first2, last2, *(first1 + p), comp) - first2);
+        }
+        b1[nthreads] = n;
+        b2[nthreads] = static_cast<size_t>(std::distance(first2, last2));
+
+        auto &task_pool = *policy.pool();
+        std::vector<std::vector<T>> tmp(nthreads);
+        std::vector<std::future<void>> futures;
+        for (uint32_t k = 0; k < nthreads; ++k) {
+            futures.emplace_back(task_pool.submit([&, k]() {
+                tmp[k].resize(std::min(b1[k + 1] - b1[k], b2[k + 1] - b2[k]));
+                const auto e = cryptanalysislib::set_intersection(first1 + b1[k], first1 + b1[k + 1],
+                                                                  first2 + b2[k], first2 + b2[k + 1],
+                                                                  tmp[k].begin(), comp);
+                tmp[k].resize(static_cast<size_t>(e - tmp[k].begin()));
+            }));
+        }
+        for (auto &f : futures) { f.wait(); }
+        futures.clear();
+
+        // copy the chunks to their offsets
+        size_t off = 0;
+        for (uint32_t k = 0; k < nthreads; ++k) {
+            const size_t o = off;
+            off += tmp[k].size();
+            futures.emplace_back(task_pool.submit([&, k, o]() {
+                cryptanalysislib::copy(tmp[k].begin(), tmp[k].end(), d_first + o);
+            }));
+        }
+        for (auto &f : futures) { f.wait(); }
+        return d_first + off;
+    }
+
+    /// Computes the intersection of two sorted ranges using the less operator (parallel version)
+    template<class ExecPolicy,
+             class RandIt1,
+             class RandIt2,
+             class OutIt,
+             const AlgorithmSetIntersectionConfig &config = algorithmSetIntersectionConfig>
+#if __cplusplus > 201709L
+        requires ExecutionPolicy<ExecPolicy> &&
+                 std::random_access_iterator<RandIt1> &&
+                 std::random_access_iterator<RandIt2> &&
+                 std::random_access_iterator<OutIt>
+#endif
+    OutIt set_intersection(ExecPolicy &&policy,
+                           RandIt1 first1,
+                           RandIt1 last1,
+                           RandIt2 first2,
+                           RandIt2 last2,
+                           OutIt d_first) noexcept {
+        return cryptanalysislib::set_intersection<ExecPolicy, RandIt1, RandIt2, OutIt, std::less<>, config>
+            (std::forward<ExecPolicy>(policy), first1, last1, first2, last2, d_first, std::less<>{});
     }
 
 }; // end namespace

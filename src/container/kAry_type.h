@@ -55,7 +55,9 @@ public:
 	constexpr static uint64_t M_limit = 0;
 
 	//using T = TypeTemplate<q>;
-	using T2 = TypeTemplate<__uint128_t(q) * __uint128_t(q)>;
+	// NOTE: at least `T`, which can be wider than needed for `q` (`kAry_Type_T_big`)
+	using T2 = std::conditional_t<(sizeof(T) > sizeof(TypeTemplate<__uint128_t(q) * __uint128_t(q)>)),
+	                              T, TypeTemplate<__uint128_t(q) * __uint128_t(q)>>;
 	using S = SIMDSelector<T>;
 
 	// this is needed to make sure that we have enough `bits` in reserve to
@@ -87,7 +89,7 @@ public:
 	// we are godd C++ devs
 	typedef T ContainerLimbType;
 	using DataType = T;
-	using ContainerType = FqElement<T, q>;
+	using ContainerType = FqElement<T, q, Metric, config>;
 
 	// list compatibility typedef
 	typedef T LimbType;
@@ -1370,38 +1372,21 @@ private:
 	T __value;
 };
 
-/// TODO remove
+/// element mod `q` stored in the smallest limb type for `q`
+/// NOTE: `q` cannot be deduced through this alias, write templates against
+///		`FqElement<T, q, Metric, config>` instead.
 template<const uint64_t q,
 		 class Metric = HammingMetric,
 		 const FqConfig &config=fqConfig>
-class kAry_Type_T : public FqElement<TypeTemplate<q> , q, Metric, config> {
-public:
-	// NOTE: otherwise the implicit copy assignment hides the base overloads,
-	// 	and e.g. `k = -1` goes through `kAry_Type_T(uint64_t)` (wraps around)
-	using FqElement<TypeTemplate<q> , q, Metric, config>::operator=;
+using kAry_Type_T = FqElement<TypeTemplate<q>, q, Metric, config>;
 
-	// The problem is, that copy constructors are never inherited
-	constexpr inline kAry_Type_T() noexcept {
-		this->set(0, 0);
-	};
-	constexpr inline kAry_Type_T(const uint64_t k) noexcept {
-		this->set(k, 0);
-	}
-	constexpr inline kAry_Type_T(FqElement<TypeTemplate<q> , q, Metric, config> &&k) noexcept {
-		this->set(k.get(0), 0);
-	}
-	constexpr inline kAry_Type_T(FqElement<TypeTemplate<q> , q, Metric, config> &k) noexcept {
-		this->set(k.get(0), 0);
-	}
-};
-
-// TODO
+/// element mod `q` stored in the given limb type `T`, e.g. a limb type
+/// wider than needed for `q`
 template<typename T,
 		 const T q,
          class Metric = HammingMetric,
 		 const FqConfig &config=fqConfig>
-class kAry_Type_T_big : public FqElement<T, q, Metric, config> {
-};
+using kAry_Type_T_big = FqElement<T, q, Metric, config>;
 
 
 //generic abs function for the kAryType
@@ -1414,11 +1399,13 @@ T abs(T in) {
 	}
 }
 
-template<const uint64_t _q,
-         class Metric = HammingMetric>
-std::ostream &operator<<(std::ostream &out, const kAry_Type_T<_q, Metric> &obj) {
+template<typename T,
+         const T _q,
+         class Metric,
+         const FqConfig &config>
+std::ostream &operator<<(std::ostream &out, const FqElement<T, _q, Metric, config> &obj) {
 	constexpr static bool bin = true;
-	using S = kAry_Type_T<_q, Metric>;
+	using S = FqElement<T, _q, Metric, config>;
 
 	if constexpr (bin) {
 		uint64_t tmp = obj.value();

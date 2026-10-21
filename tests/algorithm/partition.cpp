@@ -85,6 +85,33 @@ TEST(partition, sequential) {
 	}
 }
 
+/// SIMD `partition_copy_less` (uint32_t) and the generic fallback against std::
+TEST(partition, partition_copy_less) {
+	for (const size_t s : {size_t(0), size_t(1), size_t(7), size_t(8), size_t(15), size_t(16),
+	                       size_t(17), size_t(31), size_t(100), size_t(1000)}) {
+		for (const uint32_t pivot : {0u, 1u, 1u << 31u, 0xffffffffu, rng<uint32_t>()}) {
+			std::vector<uint32_t> v(s);
+			for (auto &x : v) { x = rng<uint32_t>(); }
+			if (s > 3) { v[1] = pivot; v[2] = 0; v[3] = 0xffffffffu; }
+
+			const auto p = [pivot](const uint32_t x) { return x < pivot; };
+			std::vector<uint32_t> t(s), f(s), te(s), fe(s);
+			const auto r = cryptanalysislib::partition_copy_less(v.begin(), v.end(), t.begin(), f.begin(), pivot);
+			const auto e = std::partition_copy(v.begin(), v.end(), te.begin(), fe.begin(), p);
+			EXPECT_EQ(r.first - t.begin(), e.first - te.begin()) << s << " " << pivot;
+			EXPECT_EQ(r.second - f.begin(), e.second - fe.begin()) << s << " " << pivot;
+			EXPECT_EQ(t, te) << s << " " << pivot;
+			EXPECT_EQ(f, fe) << s << " " << pivot;
+
+			// generic (non SIMD) version
+			std::vector<uint64_t> v64(v.begin(), v.end()), t64(s), f64(s);
+			const auto r64 = cryptanalysislib::partition_copy_less(v64.begin(), v64.end(), t64.begin(), f64.begin(), uint64_t(pivot));
+			EXPECT_EQ(r64.first - t64.begin(), e.first - te.begin());
+			for (size_t i = 0; i < size_t(r64.first - t64.begin()); ++i) { EXPECT_EQ(t64[i], te[i]); }
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

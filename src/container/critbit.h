@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "algorithm/countl.h"
+
 /// Source
 /// https://github.com/glk/critbit 
 // struct critbit_key;
@@ -16,14 +18,9 @@
 // 	(no node is needed). Leaves are the user's `critbit_ref` objects (not
 // 	owned by the tree), internal nodes are `malloc`ed by the caller and
 // 	`free`d by the tree (remove, clear, destructor).
-
-
-/// TODO move somewhere useful
-/// \returns the msb
-constexpr static inline uint8_t ms1b8(uint8_t v) noexcept {
-	uint32_t value = v;
-	return value ? 1 << (31 - __builtin_clz(value)) : 0;
-}
+// NOTE: the functors `Hash`, `KeyCompare`, `KeyLen`, `KeyBinary` are not
+// 	stored, every call constructs a temporary (so they can also have a
+// 	static `operator()`).
 
 template<typename critbit_ref,
          typename critbit_key,
@@ -39,16 +36,23 @@ private:
 	void *root;
 	void *free_arg;
 
-	// TODO static () Operator
-    KeyCompare keycmp = KeyCompare();
-    KeyLen keylen = KeyLen(); 
-	Hash hash{};
-	KeyBinary keybinary{};
-
 	struct critbit_key_ref_tuple {
 		critbit_key key;
 		critbit_ref ref;
 	};
+
+	[[nodiscard]] constexpr static inline int keycmp(const critbit_key *a, const critbit_key *b) noexcept {
+		return KeyCompare{}(a, b);
+	}
+	[[nodiscard]] constexpr static inline size_t keylen(const critbit_key *a) noexcept {
+		return KeyLen{}(a);
+	}
+	[[nodiscard]] constexpr static inline const critbit_key *hash(const critbit_ref *a) noexcept {
+		return Hash{}(a);
+	}
+	[[nodiscard]] constexpr static inline const uint8_t *keybinary(const critbit_key *a) noexcept {
+		return KeyBinary{}(a);
+	}
 
 public:
     struct critbit_node {
@@ -56,15 +60,6 @@ public:
     	uint32_t byte;
     	uint8_t otherbits;
     };
-    
-private: 
-    /// TODO move somewhere usefull
-    static inline void
-    critbit_node_free(critbit_node *node) noexcept {
-    	// assert(t->node_free != NULL);
-    	// t->node_free(t, node);
-        free(node);
-    }
 
 public:
     /// creates an empty tree
@@ -129,7 +124,7 @@ private:
         critbit_node *q = critbit_ref_get_node(p);
         clear(q->child[0]);
         clear(q->child[1]);
-        critbit_node_free(q);
+        free(q);
     }
 
     template<typename F>
@@ -177,38 +172,6 @@ private:
     	const critbit_key *key = hash(ref);
     	assert(!critbit_ref_is_internal(ref));
     	return (critbit_key *)key;
-    }
-
-    constexpr static inline const uint8_t *
-    critbit_buf_keybuf(const critbit_key *key) noexcept {
-    	return ((const uint8_t *)(key));
-    }
-    
-    constexpr static inline const uint8_t *
-    critbit_str_keybuf(const critbit_key *key) noexcept {
-    	return (*(uint8_t **)(key));
-    }
-   
-    /// TODO abstract away as class template function
-    constexpr static inline 
-    int critbit_str_keycmp(const uint8_t *a, 
-                           const uint8_t *b, 
-                           const size_t blen) noexcept {
-    	size_t alen;
-    	int rv;
-    
-    	alen = strlen((char *)a);
-    	rv = alen - blen;
-    	if (rv != 0)
-    		return (rv);
-    	return (memcmp(a, b, blen));
-    }
-    
-    constexpr static inline
-    int critbit_buf_keycmp(const uint8_t *a,
-                           const uint8_t *b,
-                           size_t blen) noexcept {
-    	return (memcmp(a, b, blen));
     }
 
 public:
@@ -266,7 +229,7 @@ public:
     	if (p == nullptr) {
             // case where the first element is inserted
     		critbit_ref_set_key((critbit_ref **)&this->root, (const critbit_key *)ref);
-    		critbit_node_free(newnode);
+    		free(newnode);
     		return nullptr;
     	}
     
@@ -297,12 +260,12 @@ public:
     		goto different_byte_found;
     	}
     
-    	critbit_node_free(newnode);
+    	free(newnode);
     	return (critbit_ref_get_key(p));
     
     different_byte_found:
     
-    	newotherbits = ms1b8(newotherbits) ^ 255;
+    	newotherbits = cryptanalysislib::bit_floor(uint8_t(newotherbits)) ^ 255;
     	const uint32_t newdirection = (1 + (newotherbits | pkey[newbyte])) >> 8;
     
     	newnode->byte = newbyte;
@@ -372,7 +335,7 @@ public:
 
     	assert(q);
     	*whereq = (critbit_ref *)(q->child[1 - direction]);
-    	critbit_node_free(q);
+    	free(q);
 
     	return critbit_ref_get_key(p);
     }

@@ -190,13 +190,21 @@ public:
 		m.mul(label, value);
 	}
 
+	/// recalculates only the label coordinates [k_lower, k_upper),
+	/// all other coordinates are left untouched.
+	/// \param m Matrix
+	/// \param k_lower lower coordinate (inclusive)
+	/// \param k_upper upper coordinate (exclusive)
 	constexpr inline void recalculate_label(const MatrixType &m,
 	                                        const uint32_t k_lower,
 	                                        const uint32_t k_upper) noexcept {
-		// TODO: matrix_view?
-		(void)k_lower;
-		(void)k_upper;
-		m.mul(label, value);
+		assert(k_lower < k_upper);
+		assert(k_upper <= LabelLENGTH);
+		Label tmp;
+		m.mul(tmp, value);
+		for (uint32_t i = k_lower; i < k_upper; ++i) {
+			label.set(tmp.get(i), i);
+		}
 	}
 
 	/// checks if label == value*m

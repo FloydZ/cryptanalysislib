@@ -8,17 +8,19 @@
 
 using namespace cryptanalysislib;
 
-struct RSA_instance {
-	/// TODO generic Fq numbers
-	const uint64_t N;
+/// \tparam L unsigned type of the modulus, the numbers mod N are
+///		`kAry_Type_T_big<L, N>`
+template<typename L = uint64_t>
+struct RSA_instance_T {
+	const L N;
 };
+using RSA_instance = RSA_instance_T<uint64_t>;
 
-template<const RSA_instance &config>
+template<const auto &config>
 struct RSACmp {
 public:
-	// using L = TypeTemplate<config.N>;
-	using T = kAry_Type_T<config.N>;
-	using L = T::LimbType;
+	using L = std::remove_cv_t<decltype(config.N)>;
+	using T = kAry_Type_T_big<L, config.N>;
 
 	constexpr static T one{1};
 	constexpr static T N{config.N};
@@ -32,11 +34,11 @@ public:
 	}
 };
 
-template<const RSA_instance &config>
+template<const auto &config>
 class rsa_pollard_rho {
 public:
-	using L = TypeTemplate<config.N>;
-	using T = kAry_Type_T<config.N>;
+	using L = std::remove_cv_t<decltype(config.N)>;
+	using T = kAry_Type_T_big<L, config.N>;
 
 	[[nodiscard]] bool run() noexcept {
 		T a, b;

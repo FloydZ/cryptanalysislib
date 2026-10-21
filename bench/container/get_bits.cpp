@@ -9,7 +9,7 @@ B63_BASELINE(SoImplemented, nn) {
 	BinaryVector<n> v1{};
 	uint64_t k = 0, res=0;
 	uint64_t i=0, j=0, r;
-	for (; k < nn*100000; k++) {
+	for (; k < nn; k++) {
 		B63_SUSPEND {
 			v1.random();
 			i = rand() % (n-63);
@@ -38,7 +38,7 @@ B63_BENCHMARK(SoImplementedInline, nn) {
 
 	uint64_t k=0, res=0, r;
 	uint64_t i=0, j=0;
-	for (; k < nn*100000; k++) {
+	for (; k < nn; k++) {
 		B63_SUSPEND {
 			v1.random();
 			i = rand() % (n-63);
@@ -72,7 +72,7 @@ B63_BENCHMARK(Old, nn) {
 
 	uint64_t k=0, res=0;
 	uint64_t i=0, j=0;
-	for (; k < nn*100000; k++) {
+	for (; k < nn; k++) {
 		B63_SUSPEND {
 			v1.random();
 			i = rand() % (n-63);

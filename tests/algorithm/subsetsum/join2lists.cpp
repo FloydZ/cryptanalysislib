@@ -577,6 +577,81 @@ TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2) {
 	EXPECT_GT(sols, 0);
 }
 
+TEST(SubSetSum, constexpr_join2lists_on_iT_hashmap_hashmap_v2_multithreaded) {
+	Matrix A; A.random();
+	constexpr uint32_t k_lower=0, k_higher=8;
+	constexpr uint32_t nthreads = 2;
+
+	constexpr size_t baselist_size = sum_bc(n/2, n/4);
+	// NOTE: the threads work on the chunks of the lists
+	List l1{baselist_size, nthreads}, l2{baselist_size, nthreads};
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
+	Enumerator e{A};
+	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&l1, &l2, n/2);
+	ASSERT_EQ(l1.load(), l1.size());
+	ASSERT_EQ(l2.load(), l2.size());
+
+	using D = typename Label::DataType;
+	// NOTE: the hashmaps are written concurrently
+	constexpr static SimpleHashMapConfig simpleHashMapConfig{
+			100, 1ul<<(k_higher-k_lower), nthreads
+	};
+	using HMIn = SimpleHashMap<D, size_t, simpleHashMapConfig, Hash<D, k_lower, k_higher, 2>>;
+	using HMOut= SimpleHashMap<D, std::pair<size_t, size_t>, simpleHashMapConfig, Hash<D, k_lower+8, k_higher+8, 2>>;
+	HMIn *hmIn = new HMIn{};
+	HMOut *hmOut = new HMOut{};
+
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+
+	Tree t{1, A, 0};
+	const size_t found = t.template join2lists_on_iT_v2
+			<k_lower, k_higher, 100, nthreads>
+			(par_if(true), *hmOut, l1, l2, *hmIn, target);
+
+	size_t sols = 0;
+	Element te;
+	for (size_t i = 0; i < HMOut::nrbuckets; ++i) {
+		for (uint32_t j = 0; j < hmOut->load_without_hash(i); ++j) {
+			sols += 1;
+			const size_t a1 = (*hmOut)[i*HMOut::bucketsize + j].first;
+			const size_t a2 = (*hmOut)[i*HMOut::bucketsize + j].second;
+			ASSERT_LT(a1, l1.load());
+			ASSERT_LT(a2, l2.load());
+
+			Element::add(te, l1[a1], l2[a2]);
+			EXPECT_TRUE(te.label.is_equal(target, k_lower, k_higher));
+		}
+	}
+
+	Label el{};
+	uint64_t num = 0;
+	for (size_t i = 0; i < l1.load(); ++i) {
+		for (size_t j = 0; j < l2.load(); ++j) {
+			Label::add(el, l1[i].label, l2[j].label);
+			if (el.is_equal(target, k_lower, k_higher)) {
+				num += 1;
+			}
+		}
+	}
+
+	EXPECT_GT(num, 0);
+	EXPECT_EQ(found, num);
+	EXPECT_EQ(sols, num);
+
+	// the sequential policy gives the same result
+	const size_t found_seq = t.template join2lists_on_iT_v2
+			<k_lower, k_higher, 100, nthreads>
+			(par_if(false), *hmOut, l1, l2, *hmIn, target);
+	EXPECT_EQ(found_seq, num);
+
+	delete hmIn;
+	delete hmOut;
+}
+
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

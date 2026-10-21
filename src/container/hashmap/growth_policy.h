@@ -35,6 +35,8 @@ namespace cryptanalysislib::hh {
 	template<std::size_t GrowthFactor>
 	class power_of_two_growth_policy {
 	public:
+	/// as if created with a bucket count of 0
+	constexpr power_of_two_growth_policy() noexcept = default;
 
 	/**
      * Called on the hash table creation and on rehash. The number of buckets for
@@ -98,7 +100,7 @@ namespace cryptanalysislib::hh {
 		              (cryptanalysislib::popcount::popcount(GrowthFactor) == 1),
 		              "GrowthFactor must be a power of two >= 2.");
 
-		std::size_t m_mask;
+		std::size_t m_mask = 0;
 	};
 
 	/**
@@ -109,6 +111,9 @@ namespace cryptanalysislib::hh {
 	template<class GrowthFactor = std::ratio<3, 2>>
 	class mod_growth_policy {
 	public:
+		/// as if created with a bucket count of 0
+		constexpr mod_growth_policy() noexcept = default;
+
 		constexpr explicit mod_growth_policy(const std::size_t &min_bucket_count_in_out) noexcept {
 			if (min_bucket_count_in_out > max_bucket_count()) {
 				assert(false);
@@ -157,7 +162,7 @@ namespace cryptanalysislib::hh {
 		static_assert(REHASH_SIZE_MULTIPLICATION_FACTOR >= 1.1,
 		              "Growth factor should be >= 1.1.");
 
-		std::size_t m_mod;
+		std::size_t m_mod = 1;
 	};
 
 	namespace detail {
@@ -241,6 +246,9 @@ namespace cryptanalysislib::hh {
 	*/
 	class prime_growth_policy {
 	public:
+		/// as if created with a bucket count of 0
+		constexpr prime_growth_policy() noexcept = default;
+
 		constexpr explicit prime_growth_policy(std::size_t &min_bucket_count_in_out) noexcept {
 			auto it_prime = std::lower_bound(
 			        detail::PRIMES.begin(), detail::PRIMES.end(), min_bucket_count_in_out);
@@ -276,7 +284,7 @@ namespace cryptanalysislib::hh {
 		constexpr void clear() noexcept { m_iprime = 0; }
 
 	private:
-		uint32_t m_iprime;
+		uint32_t m_iprime = 0;
 
 		static_assert(std::numeric_limits<decltype(m_iprime)>::max() >=
 		                      detail::PRIMES.size(),

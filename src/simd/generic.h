@@ -1106,6 +1106,35 @@ public:
 		return ret;
 	}
 
+	/// \param in1
+	/// \return the sum of all lanes (modulo 2**limb_bits)
+	[[nodiscard]] constexpr static inline T reduce_add(const TxN_t &in1) noexcept {
+		T ret = 0;
+		uint32_t i = 0;
+		if (!std::is_constant_evaluated()) {
+			// lane-wise sum of all chunks, then one reduction
+			if constexpr (simd512_enable && requires(const simd512_type a) {
+				              simd512_type::add(a, a); simd512_type::reduce_add(a); }) {
+				simd512_type acc = in1.v512[0];
+				for (i = nr_limbs_in_simd512; i + nr_limbs_in_simd512 <= N; i += nr_limbs_in_simd512) {
+					acc = simd512_type::add(acc, in1.v512[i / nr_limbs_in_simd512]);
+				}
+				ret = simd512_type::reduce_add(acc);
+			} else if constexpr (simd256_enable && requires(const simd256_type a) {
+				                     simd256_type::add(a, a); simd256_type::reduce_add(a); }) {
+				simd256_type acc = in1.v256[0];
+				for (i = nr_limbs_in_simd256; i + nr_limbs_in_simd256 <= N; i += nr_limbs_in_simd256) {
+					acc = simd256_type::add(acc, in1.v256[i / nr_limbs_in_simd256]);
+				}
+				ret = simd256_type::reduce_add(acc);
+			}
+		}
+		for (; i < N; ++i) {
+			ret = T(ret + in1.d[i]);
+		}
+		return ret;
+	}
+
 	/// \param a
 	/// \param b
 	/// \return lane-wise minimum

@@ -9,8 +9,7 @@ template<class List,
 #if __cplusplus > 201709L
 requires TreeAble<List>
 #endif
-template<const uint32_t weight,
-         typename F>
+template<typename F>
 size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
 						 const uint32_t k_lower1, const uint32_t k_upper1,
 						 const uint32_t k_lower2, const uint32_t k_upper2,
@@ -79,13 +78,11 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 	return ret;
 }
 
-// TODO remove the weight
 template<class List,
 		 const TreeConfig &config>
 #if __cplusplus > 201709L
 requires TreeAble<List>
 #endif
-template<const uint32_t weight>
 size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, List &L2,
 												 const uint32_t k_lower1, const uint32_t k_upper1,
 												 const uint32_t k_lower2, const uint32_t k_upper2,
@@ -103,32 +100,18 @@ size_t Tree_T<List, config>::twolevel_streamjoin(List &out, List &iL, List &L1, 
 		// NOTE: it can happen that the addition here is a representation, thus
 		// it will not hold any longer that value*matrix = label, if one simply
 		// adds the two results.
-		// NOTE: `weight == 0` means no filtering, otherwise only elements
-		// 	with exactly `weight` bits set in the value are kept.
-		if constexpr (weight) {
-			const size_t b = out.load();
-			if (b >= out.size()) { return; }
-			if constexpr (sub) {
-				ElementType::sub(out[b], iL[l], e, k_lower1, k_upper2, filter);
-			} else {
-				ElementType::add(out[b], iL[l], e, k_lower1, k_upper2, filter);
-			}
-			if (out[b].value.popcnt() != weight) { return; }
-			out.set_load(b + 1);
-		} else {
-			out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
+		out.add_and_append(iL[l], e, k_lower1, k_upper2, filter, sub);
 #ifdef DEBUG
-			// NOTE: guaranteed on the last level; [k_lower1, k_upper1) is
-			// 	only zero if `iL` is zero there (e.g. in `join4lists`)
-			const size_t b = out.load() - 1;
-			if (!out[b].label.is_zero(k_lower2, k_upper2)) {
-				std::cout << iL[l] << std::endl;
-				std::cout << e << std::endl;
-				std::cout << out[b] << std::endl;
-				assert(false);
-			}
-#endif
+		// NOTE: guaranteed on the last level; [k_lower1, k_upper1) is
+		// 	only zero if `iL` is zero there (e.g. in `join4lists`)
+		const size_t b = out.load() - 1;
+		if (!out[b].label.is_zero(k_lower2, k_upper2)) {
+			std::cout << iL[l] << std::endl;
+			std::cout << e << std::endl;
+			std::cout << out[b] << std::endl;
+			assert(false);
 		}
+#endif
 	};
 
 	return twolevel_streamjoin(out, iL, L1, L2, k_lower1, k_upper1, k_lower2, k_upper2, prepare, f);
@@ -228,7 +211,7 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT(List &out, List &iL, cons
 		return false;
 	};
 
-	return twolevel_streamjoin_on_iT(out, iL, L1, L2, target, k_lower1, k_upper1, k_lower1, k_upper2, prepare, f);
+	return twolevel_streamjoin_on_iT(out, iL, L1, L2, target, k_lower1, k_upper1, k_lower2, k_upper2, prepare, f);
 }
 
 /// doc see tree.h
@@ -390,7 +373,9 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(List &out,
                                             const HashMap2 &hmL2,
                                             const LabelType &target,
                                             const LabelType &iT,
-                                            F f) noexcept {
+                                            F f,
+                                            const size_t start,
+                                            const size_t end) noexcept {
 	static_assert(k_lower1 < k_upper1);
 	static_assert(k_lower2 < k_upper2);
 	static_assert(k_lower1 < k_upper1);
@@ -404,7 +389,8 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(List &out,
 	LoadType2 load2 = 0;
 
 	size_t ret = 0;
-	for (size_t k = 0; k < L1.load(); ++k) {
+	const size_t epos = (end == size_t(-1)) ? L1.load() : end;
+	for (size_t k = start; k < epos; ++k) {
 		LabelType::sub(t1, iT, L1[k].label);
 
 		const size_t s2 = hmL2.find(t1.value(), load2);
@@ -469,64 +455,23 @@ size_t Tree_T<List, config>::twolevel_streamjoin_on_iT_hashmap_v2(
 	if (is_seq<ExecPolicy>(policy) || nthreads == 0) {
 		return twolevel_streamjoin_on_iT_hashmap_v2
 				<k_lower1, k_upper1, k_lower2, k_upper2, HashMap1, HashMap2>
-				(out, L1, L2, hmiL, hmL2, target, iT, f);
+				(out, hmiL, L1, L2, hmL2, target, iT, f);
 	}
 	// NOTE: the pool only exists for parallel policies (`seq.pool()` is
 	// 	null), so it is not dereferenced before the sequential check
 	auto& task_pool = *policy.pool();
 
-	static_assert(k_lower1 < k_upper1);
-	static_assert(k_lower2 < k_upper2);
-	static_assert(k_lower1 < k_upper1);
-	(void) k_lower2;
-	using LoadType1 = typename HashMap1::load_type;
-	using LoadType2 = typename HashMap2::load_type;
-
 	std::vector<std::future<size_t>> futures;
 
 	for (size_t tid = 0; tid < nthreads; tid++) {
-
-		futures.emplace_back(task_pool.enqueue(
-				[tid, &out, &hmiL, &L1, &hmL2, &L2, &target, &iT, &f]
-				() __attribute__((always_inline)) {
-
-			/// TODO diesen teil der function wird irgendwie hundert mal copy&pasted
-			/// kann man das irgendwie besser machen
-			ElementType te1, te2;
-			LabelType t1, t2;
-			LoadType1 load1 = 0;
-			LoadType2 load2 = 0;
-
-			size_t ret = 0;
-			const size_t spos = L1.start_pos(tid);
-			const size_t epos = L1.end_pos(tid);
-			for (size_t k = spos; k < epos; ++k) {
-				LabelType::sub(t1, iT, L1[k].label);
-
-				const size_t s2 = hmL2.find(t1.value(), load2);
-				for (size_t l2 = s2; l2 < (s2 + load2); ++l2) {
-					const size_t b1 = hmL2[l2];
-
-					const LabelType t3 = L2[b1].label;
-					LabelType::sub(t2, target, L1[k].label);
-					LabelType::sub(t2, t2, t3);
-
-					ElementType::add(te1, L1[k], L2[b1]);
-
-					// NOTE: its shifted
-					const size_t s1 = hmiL.find(t2.value(), load1);
-					for (size_t l1 = s1; l1 < (s1 + load1); ++l1) {
-						ret += 1;
-						// TODO abstract this away?
-						const size_t a1 = hmiL[l1].first;
-						const size_t a2 = hmiL[l1].second;
-						ElementType::add(te2, L1[a1], L2[a2]);
-						if (f(out, te1, te2, b1, k, a1, a2)) { goto finish; }
-					}
-				}
-			}
-		finish:
-			return ret;
+		// NOTE: each thread streams its chunk of `L1`, `f` is shared
+		futures.emplace_back(task_pool.submit(
+				[this, tid, &out, &hmiL, &L1, &hmL2, &L2, &target, &iT, &f]
+				() __attribute__((always_inline)) -> size_t {
+			return twolevel_streamjoin_on_iT_hashmap_v2
+					<k_lower1, k_upper1, k_lower2, k_upper2, HashMap1, HashMap2>
+					(out, hmiL, L1, L2, hmL2, target, iT, std::ref(f),
+					 L1.start_pos(tid), L1.end_pos(tid));
 		}));
 	}
 

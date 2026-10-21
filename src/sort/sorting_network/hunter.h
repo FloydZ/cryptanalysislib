@@ -1,9 +1,7 @@
 #pragma once
 // source https://github.com/bertdobbelaere/SorterHunter
 // TODO improvements:  https://github.com/HJLebbink/SorterHunter (256 hannels)
-// TODO add a function to `Pair_t` which checks if its a simd swap pattern
-//          so this is only include swaps of equal size.
-// Mutation which is a swap pattern
+// TODO mutation which keeps the layers SIMD swap patterns (`isSimdSwapPattern`)
 // TODO find until Level=91 oder so
 
 #include <stdint.h>
@@ -40,6 +38,9 @@ public:
 	///< low and high line indices connected by the element
 	[[nodiscard]] constexpr inline bool operator==(const Pair_t &p) const noexcept { return (lo == p.lo) && (hi == p.hi); }
 	[[nodiscard]] constexpr inline bool operator!=(const Pair_t &p) const noexcept { return (lo != p.lo) || (hi != p.hi); }
+
+	/// \return the distance between the two connected lines
+	[[nodiscard]] constexpr inline u8 size() const noexcept { return hi - lo; }
 
 	u8 lo=0, hi=0;
 };
@@ -255,6 +256,21 @@ static std::vector<Network_t> computeLayers(const Network_t &nw) noexcept {
 	}
 
 	return layers;
+}
+
+/// SIMD swap pattern: all compare and exchange elements of a layer have the
+/// same size (`hi - lo`), i.e. the layer is a single min/max between the
+/// input and the input shifted by this size.
+/// \param layer[in]: layer of a network (pairwise disjoint pairs)
+/// \return true if `layer` is a SIMD swap pattern (an empty layer is one)
+static bool isSimdSwapPattern(const Network_t &layer) noexcept {
+	for (const Pair_t &p : layer) {
+		if (p.size() != layer[0].size()) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /// Symmetry: every layer of the network is axisymmetric, i.e. for every pair

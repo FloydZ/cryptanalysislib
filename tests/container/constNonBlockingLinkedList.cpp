@@ -253,6 +253,16 @@ TEST(FreeList, allocator) {
 	EXPECT_EQ(l.contains(50), 0);
 }
 
+/// FreeList with an explicitly given atomic type
+TEST(FreeList, atomic) {
+	FreeList<uint64_t, cryptanalysislib::allocator, std::atomic> l;
+	for (uint64_t i = 1; i <= 100; ++i) { EXPECT_EQ(l.insert(i), 0); }
+	EXPECT_EQ(l.size(), 100u);
+	EXPECT_EQ(l.remove(50), 0);
+	EXPECT_EQ(l.contains(50), 0);
+	EXPECT_EQ(l.size(), 99u);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

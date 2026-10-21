@@ -3088,6 +3088,12 @@ struct Xint8x32_t {
 		}
 	}
 
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**8)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		return limb_type(vaddvq_u8(vaddq_u8(in1.v128[0], in1.v128[1])));
+	}
+
 	/// \param in1[in]: vector element
 	/// \param in2[in]: divisor, must not be zero
 	/// \return in1 / in2, lane-wise
@@ -4042,6 +4048,12 @@ struct Xint16x16_t {
 		} else {
 			return vmaxvq_s16(vmaxq_s16(vreinterpretq_s16_u16(in1.v128[0]), vreinterpretq_s16_u16(in1.v128[1])));
 		}
+	}
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**16)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		return limb_type(vaddvq_u16(vaddq_u16(in1.v128[0], in1.v128[1])));
 	}
 
 	/// \param in1[in]: vector element
@@ -5051,6 +5063,12 @@ struct Xint32x8_t {
 		} else {
 			return vmaxvq_s32(vmaxq_s32(vreinterpretq_s32_u32(in1.v128[0]), vreinterpretq_s32_u32(in1.v128[1])));
 		}
+	}
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**32)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		return limb_type(vaddvq_u32(vaddq_u32(in1.v128[0], in1.v128[1])));
 	}
 
 	/// \param in1[in]: vector element
@@ -6098,6 +6116,12 @@ struct Xint64x4_t {
 		const uint64x2_t t = vbslq_u64(gt, in1.v128[0], in1.v128[1]);
 		const limb_type a = limb_type(vgetq_lane_u64(t, 0)), b = limb_type(vgetq_lane_u64(t, 1));
 		return a > b ? a : b;
+	}
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**64)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		return limb_type(vaddvq_u64(vaddq_u64(in1.v128[0], in1.v128[1])));
 	}
 
 	/// \param in1[in]: vector element

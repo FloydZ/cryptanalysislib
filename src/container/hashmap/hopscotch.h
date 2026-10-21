@@ -174,11 +174,8 @@ private:
 					KeySelect,
 					ValueSelect,
 	                Hash,
-	                KeyOrValueHasher<Key, std::pair<Key, T>, Hash>,
-	        		KeyEqual ,
-	                KeyOrValueEquality<Key, std::pair<Key, T>, KeyEqual>,
-	                Allocator,
-	                typename std::allocator_traits<Allocator>::template rebind_alloc<sherwood_v3_entry<std::pair<Key, T>>>
+	        		KeyEqual,
+	                Allocator
 	>;
 	using ht = tsl::detail_hopscotch_hash::hopscotch_hash<
 	        		std::pair<Key, T>,

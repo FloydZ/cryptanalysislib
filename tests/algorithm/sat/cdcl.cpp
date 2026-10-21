@@ -66,6 +66,72 @@ static void check(const char *name) {
 TEST(cdcl, simple)   { check("simple.cnf"); }
 TEST(cdcl, problem1) { check("problem1.cnf"); }
 
+/// the same with the `CDCL` class
+static void check_class(const char *name) {
+	using namespace cryptanalysislib::sat;
+	int nvars = 0;
+	const auto clauses = read_cnf(cnf_path(name), nvars);
+	ASSERT_LE(nvars, 20);
+
+	CDCL<> s(nvars, clauses.size());
+	bool ok = true;
+	for (const auto &c : clauses) {
+		std::vector<Literal> lits;
+		for (const int l : c) { lits.emplace_back(l); }
+		ok &= s.add_clause(lits);
+	}
+	const bool sat = ok && (s.solve() == SAT);
+
+	if (sat) {
+		for (const auto &c : clauses) {
+			bool r = false;
+			for (const int l : c) { r |= s.value(Literal(l)); }
+			EXPECT_TRUE(r) << name;
+		}
+	} else {
+		for (uint32_t x = 0; x < (1u << nvars); ++x) {
+			bool all = true;
+			for (const auto &c : clauses) {
+				bool r = false;
+				for (const int l : c) { const bool v = (x >> (std::abs(l) - 1)) & 1u; r |= (l > 0) ? v : !v; }
+				all &= r;
+			}
+			EXPECT_FALSE(all) << name << " claimed UNSAT, but " << x << " satisfies it";
+		}
+	}
+}
+
+TEST(cdcl, class_simple)   { check_class("simple.cnf"); }
+TEST(cdcl, class_problem1) { check_class("problem1.cnf"); }
+
+/// pigeon hole: 3 pigeons, 2 holes is UNSAT, 2 pigeons, 2 holes is SAT
+TEST(cdcl, class_pigeonhole) {
+	using namespace cryptanalysislib::sat;
+	for (const uint32_t p : {2u, 3u}) {
+		constexpr uint32_t h = 2;
+		// variable of pigeon i in hole j
+		const auto var = [](const uint32_t i, const uint32_t j) { return 1 + i * h + j; };
+		CDCL<> s(p * h, 0);
+		for (uint32_t i = 0; i < p; ++i) {
+			s.add_clause({Literal::pos(var(i, 0)), Literal::pos(var(i, 1))});
+		}
+		for (uint32_t j = 0; j < h; ++j) {
+			for (uint32_t i = 0; i < p; ++i) {
+				for (uint32_t k = i + 1; k < p; ++k) {
+					s.add_clause({Literal::neg(var(i, j)), Literal::neg(var(k, j))});
+				}
+			}
+		}
+		EXPECT_EQ(s.solve(), (p <= h) ? SAT : UNSAT) << p;
+	}
+
+	const Literal l = Literal::neg(5);
+	EXPECT_EQ(l.var(), 5u);
+	EXPECT_TRUE(l.negated());
+	EXPECT_EQ((-l).dimacs(), 5);
+	EXPECT_EQ(-l, Literal::pos(5));
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

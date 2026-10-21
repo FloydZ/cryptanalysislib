@@ -18,13 +18,13 @@ struct VS {
 	uint64_t &operator()(V &v) const noexcept { return v.second; }
 	const uint64_t &operator()(const V &v) const noexcept { return v.second; }
 };
-using Table = sherwood_v3_table<V, KS, VS,
-                                std::hash<uint64_t>, KeyOrValueHasher<uint64_t, V, std::hash<uint64_t>>,
-                                std::equal_to<uint64_t>, KeyOrValueEquality<uint64_t, V, std::equal_to<uint64_t>>,
-                                std::allocator<V>, std::allocator<sherwood_v3_entry<V>>>;
+template<typename GrowthPolicy = cryptanalysislib::hh::fibonacci_growth_policy>
+using Table = sherwood_v3_table<V, KS, VS, std::hash<uint64_t>, std::equal_to<uint64_t>,
+                                std::allocator<V>, GrowthPolicy>;
 
 /// insert, operator[], find (also with a precomputed hash), erase against std::map
-TEST(ska_flat, random_vs_std_map) {
+template<typename Table>
+void random_vs_std_map() {
 	for (const uint64_t mod : {50ull, 5000ull, 1ull << 40}) {
 		Table t;
 		std::map<uint64_t, uint64_t> e;
@@ -51,7 +51,22 @@ TEST(ska_flat, random_vs_std_map) {
 			ASSERT_NE(it, t.end());
 			EXPECT_EQ(it->second, v);
 		}
+
+		t.clear();
+		EXPECT_EQ(t.size(), 0u);
+		EXPECT_EQ(t.find(1), t.end());
 	}
+}
+
+TEST(ska_flat, random_vs_std_map) {
+	random_vs_std_map<Table<>>();
+}
+
+/// the other growth policies
+TEST(ska_flat, growth_policies) {
+	random_vs_std_map<Table<cryptanalysislib::hh::power_of_two_growth_policy<2>>>();
+	random_vs_std_map<Table<cryptanalysislib::hh::mod_growth_policy<>>>();
+	random_vs_std_map<Table<cryptanalysislib::hh::prime_growth_policy>>();
 }
 
 int main(int argc, char **argv) {

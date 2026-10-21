@@ -20,7 +20,7 @@ static void BM_stdall_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
 
@@ -40,7 +40,7 @@ static void BM_all_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();
@@ -59,7 +59,7 @@ static void BM_all_of_multithreaded(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();
@@ -80,7 +80,7 @@ static void BM_stdnone_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
 
@@ -100,7 +100,7 @@ static void BM_none_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();
@@ -119,7 +119,7 @@ static void BM_none_of_multithreaded(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();
@@ -139,7 +139,7 @@ static void BM_stdany_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
 
@@ -159,7 +159,7 @@ static void BM_any_of(benchmark::State &state) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();
@@ -174,11 +174,11 @@ static void BM_any_of_multithreaded(benchmark::State &state) {
     uint64_t c = 0;
 	for (auto _: state) {
         c -= cpucycles();
-        auto r = cryptanalysislib::none_of(par_if(true), fr.begin(), fr.end(), [](const T &a) {
+        auto r = cryptanalysislib::any_of(par_if(true), fr.begin(), fr.end(), [](const T &a) {
 	        return a == 1;
         });
         c += cpucycles();
-        benchmark::DoNotOptimize(r += 1);
+        benchmark::DoNotOptimize(r);
 		benchmark::ClobberMemory();
 	}
     state.counters["cycles"] = (double)c/(double)state.iterations();

@@ -22,10 +22,8 @@ using namespace cryptanalysislib::popcount;
 using namespace cryptanalysislib::algorithm;
 using namespace cryptanalysislib;
    
-// TODO remove? use __uint128?
-typedef struct imap_u128 {
-    uint64_t v[2];
-} imap_u128_t;
+using imap_u128 = __uint128_t;
+using imap_u128_t = imap_u128;
 
 ///
 struct imap_node_t {
@@ -342,10 +340,10 @@ public:
         imap_node_t *node = imap__node__(tree, mark);
         mark <<= 3;
         tree->vec32[imap__tree_vfre__] = mark;
-        node->vec128[0].v[0] = mark + (2 << imap__slot_shift__);
-        node->vec128[1].v[0] = mark + (4 << imap__slot_shift__);
-        node->vec128[2].v[0] = mark + (6 << imap__slot_shift__);
-        node->vec128[3].v[0] = 0;
+        node->vec128[0] = mark + (2 << imap__slot_shift__);
+        node->vec128[1] = mark + (4 << imap__slot_shift__);
+        node->vec128[2] = mark + (6 << imap__slot_shift__);
+        node->vec128[3] = 0;
         return mark;
     }
 
@@ -401,11 +399,11 @@ public:
                 newtree->vec64[7] = 0;
             } else if (sizeof(__uint128_t) == ysize) {
                 newtree->vec32[imap__tree_vfre__] = 4 << imap__slot_shift__;
-                newtree->vec128[1].v[1] = 0;
-                newtree->vec128[2].v[0] = 6 << imap__slot_shift__;
-                newtree->vec128[2].v[1] = 0;
-                newtree->vec128[3].v[0] = 0;
-                newtree->vec128[3].v[1] = 0;
+                // NOTE: only the upper half of `vec128[1]`, the lower
+                //  half contains the tree header (`vec32`)
+                newtree->vec64[3] = 0;
+                newtree->vec128[2] = 6 << imap__slot_shift__;
+                newtree->vec128[3] = 0;
             } else {
                 newtree->vec32[imap__tree_vfre__] = 0;
                 newtree->vec64[3] = 0;
@@ -684,7 +682,7 @@ public:
             if (!sval)
                 sval = imap__alloc_val128__(tree);
             assert(sval >> imap__slot_shift__);
-            tree->vec32[imap__tree_vfre__] = (uint32_t)((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)].v[0];
+            tree->vec32[imap__tree_vfre__] = (uint32_t)((imap_u128 *)tree)[sval >> (imap__slot_shift__ + 1)];
         }
         assert(!(sval & imap__slot_node__));
         assert(imap__slot_boxed__(sval));

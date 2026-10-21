@@ -427,6 +427,83 @@ TEST(SubSetSum, constexpr_join4lists_on_iT_hashmap_v2) {
 	}
 }
 
+TEST(SubSetSum, constexpr_twolevel_streamjoin_on_iT_hashmap_v2_weight) {
+	Matrix A; A.random();
+	constexpr uint32_t k_lower1=0, k_higher1=8;
+	constexpr uint32_t k_lower2=8, k_higher2=16;
+	// NOTE: the solution has weight n/2 = 4*p, so it is the sum of four
+	// 	elements with disjoint supports
+	constexpr uint32_t p = n/8;
+
+	constexpr size_t baselist_size = sum_bc(n/2, p);
+	List out{1u<<12}, out_w{4}, l1{baselist_size}, l2{baselist_size};
+
+	using Enumerator = BinaryLexicographicEnumerator<List, n/2, p>;
+	Enumerator e{A};
+	e.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			(&l1, &l2, n/2);
+
+	using D = typename Label::DataType;
+	using E = std::pair<size_t, size_t>;
+	constexpr static SimpleHashMapConfig simpleHashMapConfigL0 {
+			100, 1ul<<(k_higher1-k_lower1), 1
+	};
+	constexpr static SimpleHashMapConfig simpleHashMapConfigL1 {
+			100, 1ul<<(k_higher2-k_lower2), 1
+	};
+	using HML0 = SimpleHashMap<D, size_t, simpleHashMapConfigL0, Hash<D, k_lower1, k_higher1, 2>>;
+	using HML1 = SimpleHashMap<D,      E, simpleHashMapConfigL1, Hash<D, k_lower2, k_higher2, 2>>;
+	HML0 hml0{};
+	HML1 hml1{};
+
+	Label target;
+	std::vector<uint32_t> weights(n/2);
+	generate_subsetsum_instance(target, weights, A, n);
+
+	Tree t{1, A, 0};
+	uint32_t found = 0;
+	for (uint32_t tries = 0; (tries < 32) && (found == 0); ++tries) {
+		Label iT, t1;
+		iT.random(0, 1ull << k_higher1);
+		hml0.clear(); hml1.clear();
+		t.template join2lists_on_iT_v2
+				<k_lower1, k_higher1>
+				(hml1, l1, l2, hml0, iT, true);
+		Label::sub(t1, target, iT);
+
+		// weight == 0: every match is appended
+		out.set_load(0);
+		const size_t matches = t.template twolevel_streamjoin_on_iT_hashmap_v2
+				<k_lower1, k_higher1, k_lower2, k_higher2, 0>
+				(out, hml1, l1, l2, hml0, target, t1);
+		ASSERT_LT(matches, out.size());
+		EXPECT_EQ(matches, out.load());
+
+		size_t with_weight = 0;
+		for (size_t i = 0; i < out.load(); ++i) {
+			EXPECT_TRUE(out[i].label.is_equal(target, k_lower1, k_higher2));
+			with_weight += out[i].value.popcnt() == n/2;
+		}
+
+		// weight == n/2: stops at the first match with the correct weight
+		out_w.set_load(0);
+		const size_t matches_w = t.template twolevel_streamjoin_on_iT_hashmap_v2
+				<k_lower1, k_higher1, k_lower2, k_higher2, n/2>
+				(out_w, hml1, l1, l2, hml0, target, t1);
+		EXPECT_LE(matches_w, matches);
+		EXPECT_EQ(out_w.load(), with_weight ? 1u : 0u);
+		if (out_w.load()) {
+			EXPECT_EQ(out_w[0].value.popcnt(), n/2);
+			EXPECT_TRUE(out_w[0].label.is_equal(target, k_lower1, k_higher2));
+			found += 1;
+		} else {
+			EXPECT_EQ(matches_w, matches);
+		}
+	}
+
+	EXPECT_GT(found, 0);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

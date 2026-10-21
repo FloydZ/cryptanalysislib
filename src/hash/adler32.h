@@ -8,47 +8,12 @@
 
 #if defined(USE_AVX2) || defined(USE_AVX512F)
 #include <immintrin.h>
+#include "simd/simd.h"
 #endif
-
-// TODO move the internal horizontally addition functions to the simd interface
 
 namespace cryptanalysislib::hash::adler32::internal {
 	constexpr static uint32_t MOD = 65521u;
 	constexpr static uint32_t NMAX = 5552u;
-
-#if defined(USE_AVX2) || defined(USE_AVX512F)
-	/// Horizontal addition of 32-bit integers in a 256-bit AVX2 vector
-	/// Used for summing partial results in Adler32 calculation
-	/// 
-	/// \param v[in] Vector containing values to be horizontally added
-	/// \return Sum of all 32-bit integers in the vector
-	static uint32_t avx2_hadd_adler32(const __m256i v) noexcept {
-		alignas(32) __m128i tmp[2];
-		_mm256_store_si256((__m256i *)tmp, v);
-	    auto sum = _mm_add_epi32(tmp[0], tmp[1]);
-	    auto hi = _mm_unpackhi_epi64(sum, sum);
-	
-	    sum = _mm_add_epi32(hi, sum);
-	    hi = _mm_shuffle_epi32(sum, _MM_SHUFFLE(2, 3, 0, 1));
-	
-	    sum = _mm_add_epi32(sum, hi);
-	    return _mm_cvtsi128_si32(sum);
-	}
-
-#if defined(USE_AVX512F)
-	/// Horizontal addition of 32-bit integers in a 512-bit AVX512 vector
-	/// Uses avx2_hadd_adler32 to process two 256-bit halves of the input vector
-	/// 
-	/// \param v[in] Vector containing values to be horizontally added
-	/// \return Sum of all 32-bit integers in the vector
-	static uint32_t avx512_hadd_adler32(const __m512i v) noexcept {
-		alignas(64) __m256i b[2];
-		_mm512_store_si512((__m512i *)b, v);
-		return avx2_hadd_adler32(b[0]) +
-			   avx2_hadd_adler32(b[1]);
-	}
-#endif
-#endif
 };// namespace cryptanalysislib::hash::adler32::internal
 
 // NOTE: in `cryptanalysislib`, as zlib declares a global `adler32`
@@ -130,7 +95,6 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
                                   	   const size_t in_len) noexcept {
 	using cryptanalysislib::hash::adler32::internal::MOD;
 	using cryptanalysislib::hash::adler32::internal::NMAX;
-	using cryptanalysislib::hash::adler32::internal::avx2_hadd_adler32;
 
 	// NOTE: bytes per AVX2 register, fixed by the algorithm
 	constexpr size_t BLOCK_SIZE = 32u;
@@ -173,8 +137,10 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 		}
 
 		b_v = _mm256_add_epi32(b_v, _mm256_slli_epi32(p_v, 5));
-		a = (a + avx2_hadd_adler32(a_v)) % MOD;
-		b = avx2_hadd_adler32(b_v) % MOD;
+		uint32x8_t ta, tb;
+		ta.v256 = a_v; tb.v256 = b_v;
+		a = (a + uint32x8_t::reduce_add(ta)) % MOD;
+		b = uint32x8_t::reduce_add(tb) % MOD;
 		blocks_left -= nb;
 	}
 
@@ -202,7 +168,6 @@ constexpr static uint32_t avx512_adler32(uint32_t val,
 
 	using cryptanalysislib::hash::adler32::internal::MOD;
 	using cryptanalysislib::hash::adler32::internal::NMAX;
-	using cryptanalysislib::hash::adler32::internal::avx512_hadd_adler32;
     const __m512i weights = _mm512_set_epi8(
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
       24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
@@ -240,8 +205,10 @@ constexpr static uint32_t avx512_adler32(uint32_t val,
 		}
 
 		b_v = _mm512_add_epi32(b_v, _mm512_slli_epi32(p_v, 6));
-		a = (a + avx512_hadd_adler32(a_v)) % MOD;
-		b = avx512_hadd_adler32(b_v) % MOD;
+		uint32x16_t ta, tb;
+		ta.v512 = a_v; tb.v512 = b_v;
+		a = (a + uint32x16_t::reduce_add(ta)) % MOD;
+		b = uint32x16_t::reduce_add(tb) % MOD;
 		blocks_left -= nb;
 	}
 
