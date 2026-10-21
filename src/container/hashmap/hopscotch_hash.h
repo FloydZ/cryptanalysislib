@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "algorithm/countr.h"
 #include "growth_policy.h"
 
 #if (defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ < 9))
@@ -1595,8 +1596,8 @@ namespace tsl {
    			 * Avoid the creation of an iterator to just get the value for operator[] and
    			 * at() in maps. Faster this way.
    			 *
-   			 * Return null if no value for the key (TODO use std::optional when
-   			 * available).
+   			 * Return null if no value for the key. NOTE: a pointer, because
+   			 * `std::optional<T &>` needs C++26.
    			 */
 			template <class K, class U = ValueSelect,
 			         typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
@@ -1692,26 +1693,23 @@ namespace tsl {
 			        const hopscotch_bucket* bucket_for_hash) const noexcept {
 				(void)hash;  // Avoid warning of unused variable when StoreHash is false;
 
-				// TODO Try to optimize the function.
-				// I tried to use ffs and  __builtin_ffs functions but I could not reduce
-				// the time the function takes with -march=native
-
+				// only visits the buckets whose neighborhood bit is set
 				neighborhood_bitmap neighborhood_infos =
 				        bucket_for_hash->neighborhood_infos();
 				while (neighborhood_infos != 0) {
-					if ((neighborhood_infos & 1) == 1) {
-						// Check StoreHash before calling bucket_hash_equal. Functionally it
-						// doesn't change anything. If StoreHash is false, bucket_hash_equal is a
-						// no-op. Avoiding the call is there to help GCC optimizes `hash`
-						// parameter away, it seems to not be able to do without this hint.
-						if ((!StoreHash || bucket_for_hash->bucket_hash_equal(hash)) &&
-						    compare_keys(KeySelect()(bucket_for_hash->value()), key)) {
-							return bucket_for_hash;
-						}
+					const hopscotch_bucket *bucket =
+					        bucket_for_hash + cryptanalysislib::countr_zero(neighborhood_infos);
+					// Check StoreHash before calling bucket_hash_equal. Functionally it
+					// doesn't change anything. If StoreHash is false, bucket_hash_equal is a
+					// no-op. Avoiding the call is there to help GCC optimizes `hash`
+					// parameter away, it seems to not be able to do without this hint.
+					if ((!StoreHash || bucket->bucket_hash_equal(hash)) &&
+					    compare_keys(KeySelect()(bucket->value()), key)) {
+						return bucket;
 					}
 
-					++bucket_for_hash;
-					neighborhood_infos = neighborhood_bitmap(neighborhood_infos >> 1);
+					// clear the lowest set bit
+					neighborhood_infos = neighborhood_bitmap(neighborhood_infos & (neighborhood_infos - 1));
 				}
 
 				return nullptr;

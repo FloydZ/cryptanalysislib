@@ -52,6 +52,22 @@ TEST(T, Simple) {
 	EXPECT_EQ(l1, t1);
 }
 
+TEST(T, dist) {
+	for (uint32_t i = 0; i < TESTSIZE; ++i) {
+		const uint64_t x = rng() % PRIME, y = rng() % PRIME;
+		const S a = x, b = y;
+		const uint64_t d = (x + PRIME - y) % PRIME;
+		const uint64_t e = std::min(d, uint64_t(PRIME) - d);
+		EXPECT_EQ(S::dist(a, b), e);
+		EXPECT_EQ(S::dist(b, a), e);
+		EXPECT_EQ(S::dist(a, a), 0);
+	}
+
+	const S zero = 0, max = PRIME - 1;
+	EXPECT_EQ(S::dist(zero, max), 1);
+	EXPECT_EQ(S::dist(max, zero), 1);
+}
+
 TEST(T, EdgeCases) {
 	S l1;
 	S::LimbType t1 = PRIME;

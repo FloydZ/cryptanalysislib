@@ -41,8 +41,9 @@ TEST(SubSetSum, join4lists) {
 	// not split enumeration (e.g. L1=L3, L2=L4)
 	using Enumerator = BinaryLexicographicEnumerator<List, n/2, n/4>;
 	Enumerator e{A};
-	e.run(&l1, &l2, n/2);
-	e.run(&l3, &l4, n/2);
+	// NOTE: the elements of the second list are placed after the first n/2 coordinates
+	e.run(&l1, &l2);
+	e.run(&l3, &l4);
 
 	Label target;
 	std::vector<uint32_t> weights(n/2);
@@ -59,14 +60,17 @@ TEST(SubSetSum, join4lists) {
 	// NOTE: the planted solution is only found with probability ~1-1/e for a
 	// 	random intermediate target, hence the retries. `join4lists` modifies
 	// 	the lists, so they are enumerated again.
+	// `right` counts how often the planted solution was found
 	uint32_t right=0;
 	for (uint32_t tries = 0; (tries < 32) && (right == 0); ++tries) {
-	if (tries) { e.run(&l1, &l2, n/2); e.run(&l3, &l4, n/2); }
+	if (tries) { e.run(&l1, &l2); e.run(&l3, &l4); }
 	t.join4lists(out, l1, l2, l3, l4, target,
 	                 k_lower1, k_higher1, k_lower2, k_higher2, true);
 
 	for(uint64_t i = 0; i < out.load(); ++i) {
-		// just for debugging, we are not filtering
+		// NOTE: L1=L3 and L2=L4, so the supports of the combined base elements
+		//	may overlap: then the value is their xor, but the label their sum,
+		// 	i.e. only the elements of weight n/2 can be solutions.
 		if (out[i].value.popcnt() != n/2) {
 			continue;
 		}
@@ -90,10 +94,17 @@ TEST(SubSetSum, join4lists) {
 		EXPECT_EQ(true, test_recalc1.is_equal(out[i].label, 0, n));
 		std::cout << out[i] << std::endl;
 
-		// TODO not finished
-		if (Label::cmp(out[i].label, target)) {
-			right += 1;
+		// a solution: `A*value == target`
+		if (!Label::cmp(out[i].label, target)) {
+			continue;
 		}
+
+		// the planted solution
+		bool planted = true;
+		for (const uint32_t w : weights) {
+			planted &= out[i].value.get(w);
+		}
+		right += planted;
 	}
 	}
 

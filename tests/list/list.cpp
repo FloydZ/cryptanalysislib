@@ -208,6 +208,42 @@ TEST(Keke, sort_level_target_constexpr) {
 	EXPECT_EQ(L.is_sorted(rnd.label, false, k_lower, k_higher), true);
 }
 
+/// `add_and_append(..., tid)` appends into the chunk `tid` of the list, a full
+/// chunk does not overwrite the other chunks
+TEST(ListName, add_and_append_tid) {
+	constexpr uint32_t threads = 2;
+	List L{LS, threads};
+	Matrix m;
+	m.random();
+	Element e1, e2, e;
+	e1.random(m); e2.random(m);
+	Element::add(e, e1, e2, 0, N, -1u);
+
+	// both overloads, both chunks
+	for (uint32_t tid = 0; tid < threads; ++tid) {
+		L.add_and_append(e1, e2, 0, N, -1u, false, tid);
+		L.template add_and_append<0, N, -1u, false>(e1, e2, tid);
+		EXPECT_EQ(L.load(tid), 2u) << tid;
+		for (size_t i = L.start_pos(tid); i < L.start_pos(tid) + L.load(tid); ++i) {
+			EXPECT_TRUE(L[i].label.is_equal(e.label)) << tid << " " << i;
+			EXPECT_TRUE(L[i].value.is_equal(e.value)) << tid << " " << i;
+		}
+	}
+
+	// fill chunk 1 (and more): chunk 0 is untouched
+	Element z;
+	z.zero();
+	for (size_t i = 0; i < L.size(1) + 3; ++i) {
+		L.add_and_append(z, z, 0, N, -1u, false, 1);
+	}
+	EXPECT_EQ(L.load(1), L.size(1));
+	EXPECT_EQ(L.load(0), 2u);
+	for (size_t i = L.start_pos(0); i < L.start_pos(0) + L.load(0); ++i) {
+		EXPECT_TRUE(L[i].label.is_equal(e.label)) << i;
+	}
+	EXPECT_EQ(L.size(), LS);
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

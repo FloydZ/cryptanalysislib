@@ -71,6 +71,25 @@ TEST(hunter, simd_swap_pattern) {
 	EXPECT_FALSE(isSimdSwapPattern(computeLayers(nw8)[2]));
 }
 
+TEST(hunter, simd_swap_layers) {
+	EXPECT_EQ(countNonSimdLayers(nw4), 0u);
+	// only the third layer: (1,2),(5,6),(0,4),(3,7)
+	EXPECT_EQ(countNonSimdLayers(nw8), 1u);
+	EXPECT_EQ(countNonSimdLayers(Network_t{}), 0u);
+
+	// default config: 20 inputs, symmetric, no prefix and postfix (not built)
+	ASSERT_TRUE(prefix.empty());
+	ASSERT_TRUE(postfix.empty());
+	const Network_t before = {{0, 1}};
+	// (0,1),(18,19) | (1,3),(16,18): both layers are SIMD swap patterns
+	EXPECT_TRUE(keepsSimdSwapLayers(before, Network_t{{0, 1}, {1, 3}}));
+	// (2,5),(14,17) are packed into the layer of (0,1),(18,19)
+	EXPECT_FALSE(keepsSimdSwapLayers(before, Network_t{{0, 1}, {2, 5}}));
+	// removing a pair never hurts here
+	EXPECT_TRUE(keepsSimdSwapLayers(Network_t{{0, 1}, {2, 5}}, before));
+	EXPECT_EQ(totalNetwork(Network_t{{0, 1}, {2, 5}}), (Network_t{{0, 1}, {18, 19}, {2, 5}, {14, 17}}));
+}
+
 TEST(hunter, symmetric_expansion) {
 	Network_t out;
 	symmetricExpansion(4, Network_t{{0, 1}, {1, 2}, {0, 2}}, out);

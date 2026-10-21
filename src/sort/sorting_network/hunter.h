@@ -1,7 +1,7 @@
 #pragma once
 // source https://github.com/bertdobbelaere/SorterHunter
-// TODO improvements:  https://github.com/HJLebbink/SorterHunter (256 hannels)
-// TODO mutation which keeps the layers SIMD swap patterns (`isSimdSwapPattern`)
+// up to 256 inputs (`NMAX`) as in https://github.com/HJLebbink/SorterHunter
+// networks with SIMD swap pattern layers: `SortHunterConfig::simd_swap_layers`
 // TODO find until Level=91 oder so
 
 #include <stdint.h>
@@ -12,6 +12,8 @@
 #include <string.h>
 #include <vector>
 #include <algorithm>
+#include <compare>
+#include <type_traits>
 
 #include "random.h"
 #include "algorithm/shuffle.h"
@@ -19,13 +21,118 @@
 using namespace cryptanalysislib;
 
 
+/// Maximal number of inputs: 64, 128 or 256 (`SortHunterConfig::N` < 256,
+/// as the lines are `u8`). Can be set by the user (`-DNMAX=256` or before
+/// including this header).
+#ifndef NMAX
 #define NMAX (64)
+#endif
+static_assert((NMAX == 64) || (NMAX == 128) || (NMAX == 256), "NMAX must be 64, 128 or 256");
 #define PARWORDSIZE (64)
 
 using std::size_t;
 
+/// 256 bit unsigned integer, the `SortWord_t` for `NMAX == 256`: the bit
+/// operations, shifts, comparisons, `+` and `*=` the search needs
+struct SortWord256_t {
+	constexpr static uint32_t limbs = 4;
+	uint64_t w[limbs] = {0};
+
+	constexpr SortWord256_t() noexcept = default;
+	constexpr SortWord256_t(const uint64_t a) noexcept : w{a, 0, 0, 0} {}
+
+	/// \return the lowest 64 bits
+	explicit constexpr operator uint64_t() const noexcept { return w[0]; }
+
+	friend constexpr bool operator==(const SortWord256_t &a, const SortWord256_t &b) noexcept = default;
+
+	/// numeric order: from the highest limb
+	friend constexpr std::strong_ordering operator<=>(const SortWord256_t &a, const SortWord256_t &b) noexcept {
+		for (uint32_t i = limbs; i-- > 0;) {
+			if (a.w[i] != b.w[i]) { return a.w[i] <=> b.w[i]; }
+		}
+		return std::strong_ordering::equal;
+	}
+
+	constexpr SortWord256_t &operator&=(const SortWord256_t &b) noexcept {
+		for (uint32_t i = 0; i < limbs; i++) { w[i] &= b.w[i]; }
+		return *this;
+	}
+
+	constexpr SortWord256_t &operator|=(const SortWord256_t &b) noexcept {
+		for (uint32_t i = 0; i < limbs; i++) { w[i] |= b.w[i]; }
+		return *this;
+	}
+
+	constexpr SortWord256_t &operator^=(const SortWord256_t &b) noexcept {
+		for (uint32_t i = 0; i < limbs; i++) { w[i] ^= b.w[i]; }
+		return *this;
+	}
+
+	friend constexpr SortWord256_t operator&(SortWord256_t a, const SortWord256_t &b) noexcept { return a &= b; }
+	friend constexpr SortWord256_t operator|(SortWord256_t a, const SortWord256_t &b) noexcept { return a |= b; }
+	friend constexpr SortWord256_t operator^(SortWord256_t a, const SortWord256_t &b) noexcept { return a ^= b; }
+
+	friend constexpr SortWord256_t operator~(SortWord256_t a) noexcept {
+		for (uint32_t i = 0; i < limbs; i++) { a.w[i] = ~a.w[i]; }
+		return a;
+	}
+
+	/// \param s shift, < 256
+	constexpr SortWord256_t &operator<<=(const uint32_t s) noexcept {
+		const uint32_t l = s / 64u, b = s % 64u;
+		// from the top, `w[i - l]` and `w[i - l - 1]` are not overwritten yet
+		for (uint32_t i = limbs; i-- > 0;) {
+			uint64_t v = (i >= l) ? (w[i - l] << b) : 0;
+			if ((b != 0) && (i >= l + 1)) { v |= w[i - l - 1] >> (64u - b); }
+			w[i] = v;
+		}
+		return *this;
+	}
+
+	/// \param s shift, < 256
+	constexpr SortWord256_t &operator>>=(const uint32_t s) noexcept {
+		const uint32_t l = s / 64u, b = s % 64u;
+		// from the bottom, `w[i + l]` and `w[i + l + 1]` are not overwritten yet
+		for (uint32_t i = 0; i < limbs; i++) {
+			uint64_t v = (i + l < limbs) ? (w[i + l] >> b) : 0;
+			if ((b != 0) && (i + l + 1 < limbs)) { v |= w[i + l + 1] << (64u - b); }
+			w[i] = v;
+		}
+		return *this;
+	}
+
+	friend constexpr SortWord256_t operator<<(SortWord256_t a, const uint32_t s) noexcept { return a <<= s; }
+	friend constexpr SortWord256_t operator>>(SortWord256_t a, const uint32_t s) noexcept { return a >>= s; }
+
+	/// modulo 2^256
+	friend constexpr SortWord256_t operator+(const SortWord256_t &a, const SortWord256_t &b) noexcept {
+		SortWord256_t r;
+		uint64_t c = 0;
+		for (uint32_t i = 0; i < limbs; i++) {
+			const uint64_t s = a.w[i] + c;
+			c = (s < c);
+			r.w[i] = s + b.w[i];
+			c += (r.w[i] < s);
+		}
+		return r;
+	}
+
+	/// modulo 2^256
+	constexpr SortWord256_t &operator*=(const uint64_t f) noexcept {
+		unsigned __int128 c = 0;
+		for (uint32_t i = 0; i < limbs; i++) {
+			c += (unsigned __int128)w[i] * f;
+			w[i] = (uint64_t)c;
+			c >>= 64u;
+		}
+		return *this;
+	}
+};
+
 //< Needs to contain at least NMAX bits
-typedef uint64_t SortWord_t;
+using SortWord_t = std::conditional_t<NMAX == 64, uint64_t,
+                   std::conditional_t<NMAX == 128, unsigned __int128, SortWord256_t>>;
 
 ///< Bit-parallel operation word, needs to contain at least PARWORDSIZE bits
 typedef uint64_t BPWord_t;  
@@ -166,6 +273,13 @@ public:
 	///< Maximum allowed number of mutations in evolution step
 	const u32 MaxMutations = 3;
 
+	///< Search for networks, whose layers are SIMD swap patterns
+	/// (`isSimdSwapPattern`): a mutation must not increase the number of
+	/// layers, which are not, and only such networks are reported. The layers
+	/// are the ones of prefix + network + postfix, so the prefix should be
+	/// one as well (`PrefixType` 0, or 1 with e.g. the `FixedPrefix` below).
+	const bool simd_swap_layers = false;
+
 
 	///< Fixed prefix to use (if applicable)
 	const Pair_t FixedPrefix[20] = {{.lo=0,.hi=1},{.lo=2,.hi=3},{.lo=4,.hi=5},{.lo=6,.hi=7},{.lo=8,.hi=9},{.lo=10,.hi=11},{.lo=12,.hi=13},{.lo=14,.hi=15},{.lo=16,.hi=17},{.lo=18,.hi=19},{.lo=0,.hi=2},{.lo=1,.hi=3},{.lo=4,.hi=6},{.lo=5,.hi=7},{.lo=8,.hi=10},{.lo=9,.hi=11},{.lo=12,.hi=14},{.lo=13,.hi=15},{.lo=16,.hi=18},{.lo=17,.hi=19}};
@@ -214,7 +328,7 @@ constexpr static u32 computeDepth(const Network_t &nw) noexcept {
 		int matchidx = nlayers;
 		int idx = nlayers - 1;
 		while (idx >= 0) {
-			if ((layers[idx] & ((1ULL << i) | (1ULL << j))) == 0) {
+			if ((layers[idx] & ((SortWord_t(1) << i) | (SortWord_t(1) << j))) == 0) {
 				matchidx = idx;
 			} else {
 				break;
@@ -225,8 +339,8 @@ constexpr static u32 computeDepth(const Network_t &nw) noexcept {
 			layers.push_back(0);
 			nlayers++;
 		}
-		layers[matchidx] |= 1ULL << i;
-		layers[matchidx] |= 1ULL << j;
+		layers[matchidx] |= SortWord_t(1) << i;
+		layers[matchidx] |= SortWord_t(1) << j;
 	}
 
 	return nlayers;
@@ -239,7 +353,7 @@ static std::vector<Network_t> computeLayers(const Network_t &nw) noexcept {
 	std::vector<Network_t> layers;
 
 	for (size_t k = 0; k < nw.size(); k++) {
-		const SortWord_t m = (1ULL << nw[k].lo) | (1ULL << nw[k].hi);
+		const SortWord_t m = (SortWord_t(1) << nw[k].lo) | (SortWord_t(1) << nw[k].hi);
 		size_t matchidx = layers.size();
 		for (size_t idx = layers.size(); idx-- > 0;) {
 			if ((used[idx] & m) != 0) {
@@ -471,10 +585,10 @@ public:
 	void clear() noexcept {
 		for (u32 k = 0; k < ninputs; k++) {
 			clusterAlloc[k] = k;
-			masks[k] = 1ULL << k;
+			masks[k] = SortWord_t(1) << k;
 			patternlists[k].clear();
 			patternlists[k].push_back(0);
-			patternlists[k].push_back(1ULL << k);
+			patternlists[k].push_back(SortWord_t(1) << k);
 		}
 	}
 
@@ -543,7 +657,7 @@ public:
 
 #if 1
 		if (prod == 0)// Special case for N=NMAX, dirty hack avoiding wrap-around to 0 of empty network: set size to one less.
-			prod -= 1;
+			prod = ~SortWord_t(0);
 #endif
 
 		return prod;
@@ -622,7 +736,7 @@ void computePrefixOutputs(u8 ninputs,
 		for (size_t k = 1; k < todo.size(); k++)// Skip 1st element, we just handled it
 		{
 			Pair_t el = todo[k];
-			SortWord_t elmask = (1ull << el.lo) | (1ull << el.hi);
+			SortWord_t elmask = (SortWord_t(1) << el.lo) | (SortWord_t(1) << el.hi);
 
 			if (((visitmask & elmask) == 0) && cg.isSameCluster(el)) {
 				// Prioritize elements that can be applied without extra cluster joining.
@@ -651,9 +765,9 @@ bool hasSmallerMirror(const u8 ninputs,
 	SortWord_t rw = 0u;
 	SortWord_t tmp = w;
 	for (u32 k = 0; k < ninputs; k++) {
-		rw <<= 1;
-		rw |= ~tmp & 1u;
-		tmp >>= 1;
+		rw <<= 1u;
+		rw |= ~tmp & SortWord_t(1);
+		tmp >>= 1u;
 	}
 	return w > rw;
 }
@@ -664,7 +778,7 @@ constexpr static bool isSorted(const u8 ninputs,
                                SortWord_t w) noexcept {
     (void)ninputs;
 	w = ~w & all_n_inputs_mask;
-	return (w & (w + 1)) == 0;
+	return (w & (w + SortWord_t(1))) == 0;
 }
 
 
@@ -678,7 +792,7 @@ void convertToBitParallel(u8 ninputs,
 
 	all_n_inputs_mask = 0ULL;
 	for (u32 k = 0; k < ninputs; k++) {
-		all_n_inputs_mask |= 1ULL << k;
+		all_n_inputs_mask |= SortWord_t(1) << k;
 	}
 
 	for (size_t idx = 0; idx < singles.size(); idx++) {
@@ -697,8 +811,8 @@ void convertToBitParallel(u8 ninputs,
 
 		for (u32 b = 0; b < ninputs; b++) {
 			buffer[b] <<= 1;
-			buffer[b] |= (w & 1);
-			w >>= 1;
+			buffer[b] |= (BPWord_t)(w & SortWord_t(1));
+			w >>= 1u;
 		}
 		level++;
 
@@ -813,8 +927,8 @@ SortWord_t createGreedyPrefix(u8 ninputs,
 /// \param pair Representation of CE to apply
 static void swap_sortedpatterns(SinglePatternList_t &patterns,
                                 const Pair_t &pair) noexcept {
-	SortWord_t p = 1ULL << pair.lo;
-	SortWord_t q = 1ULL << pair.hi;
+	SortWord_t p = SortWord_t(1) << pair.lo;
+	SortWord_t q = SortWord_t(1) << pair.hi;
 	SortWord_t mask = p | q;
 
 	SinglePatternList_t res;
@@ -822,7 +936,7 @@ static void swap_sortedpatterns(SinglePatternList_t &patterns,
 	size_t idxp = 0;
 	size_t idxnp = 0;
 	size_t l = patterns.size();
-	SortWord_t last = -1;
+	SortWord_t last = ~SortWord_t(0);
 
 	while ((idxp < l) && ((patterns[idxp] & mask) != p)) { idxp++; }
 	while ((idxnp < l) && ((patterns[idxnp] & mask) == p)) { idxnp++; }
@@ -1034,7 +1148,7 @@ bool testInitialPairsFromPrefixOutput(const Network_t &pairs,
 			}
 
 			for (size_t k = 0; k < config.N; k++)
-				failed_output_pattern |= (data[k] & 1) << k;
+				failed_output_pattern |= SortWord_t(data[k] & 1u) << k;
 
 			return false;
 		}
@@ -1095,7 +1209,41 @@ void fillprefixFixedThenGreedyA(Network_t &prefix,
 }
 
 
-/// Attempt to apply a single mutation to the network. If the mutation is a 
+/// \return the number of layers of `nw` (see `computeLayers`), which are not
+/// 	a SIMD swap pattern (see `isSimdSwapPattern`)
+static u32 countNonSimdLayers(const Network_t &nw) noexcept {
+	u32 ret = 0;
+	for (const Network_t &layer : computeLayers(nw)) {
+		ret += !isSimdSwapPattern(layer);
+	}
+	return ret;
+}
+
+/// \param core[in]: the evolving network between prefix and postfix
+/// \return the whole network: prefix + (symmetric expansion of) `core` + postfix
+static Network_t totalNetwork(const Network_t &core) noexcept {
+	Network_t ret = prefix, e;
+	if (config.use_symmetry) {
+		symmetricExpansion(config.N, core, e);
+	} else {
+		e = core;
+	}
+
+	appendNetwork(ret, e);
+	appendNetwork(ret, postfix);
+	return ret;
+}
+
+/// \param before[in]: core network before a mutation
+/// \param after[in]: core network after the mutation
+/// \return true if the mutation does not increase the number of layers of
+/// 	the whole network (`totalNetwork`), which are not SIMD swap patterns
+static bool keepsSimdSwapLayers(const Network_t &before,
+                                const Network_t &after) noexcept {
+	return countNonSimdLayers(totalNetwork(after)) <= countNonSimdLayers(totalNetwork(before));
+}
+
+/// Attempt to apply a single mutation to the network. If the mutation is a
 ///     priory rejected, 0 is returned and we will try again.
 /// \param newpairs [IN/OUT] candidate network
 /// \return Positive integer identifying type of mutation applied, or 0 if none.
@@ -1103,6 +1251,8 @@ static
 u32 attemptMutation(Network_t &newpairs) {
 	u32 applied = 0;// config.Nothing
 	u32 mtype = 1 + RANDELEM(mutationSelector);
+	// the network before the mutation, see `simd_swap_layers`
+	const Network_t old = config.simd_swap_layers ? newpairs : Network_t{};
 
 	switch (mtype) {
 		case 1:
@@ -1231,12 +1381,23 @@ u32 attemptMutation(Network_t &newpairs) {
 			break;
 	}
 
+	if (config.simd_swap_layers && (applied != 0) && !keepsSimdSwapLayers(old, newpairs)) {
+		// rejected: undo the mutation
+		newpairs = old;
+		applied = 0;
+	}
+
 	return applied;
 }
 
 /// Report sorting network if it is an improved (size,depth) combination
 /// \param nw Valid sorting network
 static void checkImproved(const Network_t &nw) noexcept {
+	if (config.simd_swap_layers && (countNonSimdLayers(nw) != 0)) {
+		// only networks, whose layers are SIMD swap patterns, are reported
+		return;
+	}
+
 	u32 depth = computeDepth(nw);
 	if (conv_hull.improved(nw.size(), depth)) {
 		// Print only if the sorter is an improved (size,depth) combination

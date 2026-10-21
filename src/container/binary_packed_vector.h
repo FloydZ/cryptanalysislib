@@ -34,23 +34,19 @@
 		return 0;
 
 
-/// 
-struct BinaryVectorConfig : public AlignmentConfig {
-};
-constexpr static BinaryVectorConfig binaryVectorConfig;
-
 /// \tparam _n number of bits
 /// \tparam T
+/// \tparam config see `FqPackedVectorMetaConfig` (`binary_align`)
 template<const uint32_t _n,
-		 typename T>
-		 // TODO const BinaryVectorConfig &config=binaryVectorConfig>
+		 typename T,
+		 const FqPackedVectorMetaConfig &config>
 #if __cplusplus > 201709L
     requires std::unsigned_integral<T>
 #endif
-class FqPackedVector<_n, 2, T> {
+class FqPackedVector<_n, 2, T, true, config> {
 public:
 	// Internal Types needed for the template system.
-	typedef FqPackedVector<_n, 2, T> ContainerType;
+	typedef FqPackedVector<_n, 2, T, true, config> ContainerType;
 	typedef T LimbType;
 	typedef T ContainerLimbType;
 	typedef bool DataType;
@@ -80,12 +76,11 @@ public:
 	//private:
 	// DO NOT CALL THIS FUNCTION. Use 'limbs()'.
 	constexpr static uint16_t compute_limbs() noexcept {
-		// TODO config this via config
-#ifdef BINARY_CONTAINER_ALIGNMENT
-		return (alignment() + limb_bits_width() - 1) / limb_bits_width();
-#else
-		return (length + limb_bits_width() - 1) / limb_bits_width();
-#endif
+		if constexpr (config.binary_align) {
+			return (alignment() + limb_bits_width() - 1) / limb_bits_width();
+		} else {
+			return (length + limb_bits_width() - 1) / limb_bits_width();
+		}
 	};
 
 	/// default constructor
@@ -1322,8 +1317,8 @@ public:
 		return hm + popcnt_T(__data[ulimb] & rmask);
 	}
 
-	/// TODO add to concept and add to kAryTypes
-	/// NOTE: need to abs
+	/// \return the hamming distance (the number of different coordinates).
+	/// NOTE: part of `ElementDataAble`, the other containers implement it too
 	constexpr static inline uint32_t dist(const FqPackedVector &a,
 	                                      const FqPackedVector &b) noexcept {
 		uint32_t ret = 0;
@@ -1717,8 +1712,8 @@ public:
 
 
 
-/// TODO make this an field in the config
-#ifdef BINARY_CONTAINER_ALIGNMENT
+	/// \return the number of bits, if `config.binary_align`: the length is
+	///		rounded up to a multiple of 16 bytes
 	static constexpr uint16_t alignment() {
 		// Aligns to a multiple of 32 Bytes
 		//constexpr uint16_t bytes = (length+7)/8;
@@ -1730,7 +1725,6 @@ public:
 		constexpr uint16_t limbs = (((bytes - 1) >> 4) + 1) << 4;
 		return limbs * 8;
 	}
-#endif
 
 	// length operators
 	[[nodiscard]] __FORCEINLINE__ constexpr static bool binary() noexcept { return true; }
@@ -1741,11 +1735,11 @@ public:
 		return 1;
 	}
 	[[nodiscard]] __FORCEINLINE__ constexpr static uint32_t bytes() noexcept {
-#ifdef BINARY_CONTAINER_ALIGNMENT
-		return alignment() / 8;
-#else
-		return limbs() * sizeof(T);
-#endif
+		if constexpr (config.binary_align) {
+			return alignment() / 8;
+		} else {
+			return limbs() * sizeof(T);
+		}
 	}
 
 	[[nodiscard]] __FORCEINLINE__ T *ptr() noexcept { return __data.data(); };
@@ -1789,26 +1783,27 @@ private:
 template<const uint32_t n, typename T = uint64_t>
 using BinaryVector = FqPackedVector<n, 2, T>;
 
-template<const uint32_t n, typename T>
-constexpr inline bool operator==(const FqPackedVector<n, 2, T> &a,
-                                 const FqPackedVector<n, 2, T> &b) noexcept {
+template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
+constexpr inline bool operator==(const FqPackedVector<n, 2, T, true, config> &a,
+                                 const FqPackedVector<n, 2, T, true, config> &b) noexcept {
 	return a.is_equal(b);
 }
-template<const uint32_t n, typename T>
-constexpr inline bool operator<(const FqPackedVector<n, 2, T> &a,
-                                const FqPackedVector<n, 2, T> &b) noexcept {
+template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
+constexpr inline bool operator<(const FqPackedVector<n, 2, T, true, config> &a,
+                                const FqPackedVector<n, 2, T, true, config> &b) noexcept {
 	return a.is_lower(b);
 }
-template<const uint32_t n, typename T>
-constexpr inline bool operator>(const FqPackedVector<n, 2, T> &a,
-                                const FqPackedVector<n, 2, T> &b) noexcept {
+template<const uint32_t n, typename T, const FqPackedVectorMetaConfig &config>
+constexpr inline bool operator>(const FqPackedVector<n, 2, T, true, config> &a,
+                                const FqPackedVector<n, 2, T, true, config> &b) noexcept {
 	return a.is_greater(b);
 }
 
 template<uint64_t _n,
-        typename T=uint64_t>
+        typename T=uint64_t,
+        const FqPackedVectorMetaConfig &config>
 std::ostream &operator<<(std::ostream &out,
-                         const FqPackedVector<_n, 2, T> &obj) {
+                         const FqPackedVector<_n, 2, T, true, config> &obj) {
 	constexpr bool print_weight = true;
 	for (size_t i = 0; i < obj.length; ++i) {
 		out << obj[i];

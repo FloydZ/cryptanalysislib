@@ -261,11 +261,19 @@ __device__ void dnn(T *L, T *R,
 			(L, R, e1, e2, f1, f2, threadIdx.x + blockIdx.x*blockDim.x, blockDim.x*gridDim.x);
 		return;
 	} else {
-		/// TODO here the selection process for the correct nn algorithm
-		/// 	- irgendwie hier die estimated list size berechnen und abhängig davon
-		/// 		dann zwischen dierser implementierung mit shared mem und einer
-		/// 		anderen implementierung die auf den eigentlichen listen arbeitet
-		/// 		switchen.
+		/// selection: the bruteforce on the lists costs `e1*e2` comparisons,
+		/// the nn filters both lists for each of the `N` leaves of each block.
+		/// The bruteforce is exact, so it is used whenever it is not more
+		/// expensive. Uniform over all blocks, i.e. all blocks take the same branch.
+		const uint64_t bruteforce_cost = uint64_t(e1) * uint64_t(e2);
+		const uint64_t nn_cost = uint64_t(gridDim.x) * N * (uint64_t(e1) + uint64_t(e2));
+		if (bruteforce_cost <= nn_cost) {
+			dbruteforce
+				<T, nr_limbs, d>
+				(L, R, e1, e2, f1, f2, threadIdx.x + blockIdx.x*blockDim.x, blockDim.x*gridDim.x);
+			return;
+		}
+
 		dnn_shared
 			<T, nr_limbs, d, dk, N, lvl>
 			(L, R, e1, e2, f1, f2, randState);

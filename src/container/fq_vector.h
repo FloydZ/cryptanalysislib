@@ -233,6 +233,18 @@ public:
 		return r;
 	}
 
+	/// \return the hamming distance: the number of coordinates in which
+	///		`a` and `b` differ
+	[[nodiscard]] constexpr static inline uint32_t dist(const FqNonPackedVectorMeta &a,
+	                                                    const FqNonPackedVectorMeta &b) noexcept {
+		uint32_t r = 0;
+		for (uint32_t i = 0; i < length; ++i) {
+			r += a.__data[i] != b.__data[i];
+		}
+
+		return r;
+	}
+
 	/// swap coordinate i, j, boundary checks are done
 	/// \param i[in]: coordinate
 	/// \param j[in]: coordinate

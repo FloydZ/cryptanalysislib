@@ -79,6 +79,40 @@ TEST(hopscotch, ranges) {
 	EXPECT_EQ(m2.count(2), 0u);
 }
 
+/// random and colliding keys (identity hash, shared low bits), i.e. occupied
+/// neighborhoods and overflow, hits and misses against std::unordered_map
+TEST(hopscotch, random_vs_std) {
+	for (const uint32_t shift : {0u, 8u, 16u}) {
+		hopscotch_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
+		              std::allocator<std::pair<uint64_t, uint64_t>>, 8> m;
+		hopscotch_map<uint64_t, uint64_t, std::hash<uint64_t>, std::equal_to<uint64_t>,
+		              std::allocator<std::pair<uint64_t, uint64_t>>, 30, true> ms;
+		std::unordered_map<uint64_t, uint64_t> e;
+		for (uint64_t i = 0; i < 20000; ++i) {
+			const uint64_t k = (cryptanalysislib::rng<uint64_t>() % 50000) << shift;
+			if (cryptanalysislib::rng() % 4) {
+				m[k] = i; ms[k] = i; e[k] = i;
+			} else {
+				EXPECT_EQ(m.erase(k), e.erase(k));
+				ms.erase(k);
+			}
+		}
+
+		ASSERT_EQ(m.size(), e.size());
+		ASSERT_EQ(ms.size(), e.size());
+		for (uint64_t i = 0; i < 20000; ++i) {
+			const uint64_t k = (cryptanalysislib::rng<uint64_t>() % 100000) << shift;
+			const auto ie = e.find(k);
+			EXPECT_EQ(m.count(k), e.count(k));
+			EXPECT_EQ(ms.count(k), e.count(k));
+			if (ie != e.end()) {
+				EXPECT_EQ(m.at(k), ie->second);
+				EXPECT_EQ(ms.at(k), ie->second);
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

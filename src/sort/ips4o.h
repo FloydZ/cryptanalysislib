@@ -58,6 +58,7 @@
 #include "memory/memory.h"
 #include "alloc/alloc.h"
 #include "algorithm/countl.h"
+#include "math/math.h"
 #include "random.h"
 
 #if IPS4O_SIMD
@@ -72,24 +73,18 @@
 #define IPS4OML_IS_NOT(c) assert(!(c))
 
 
-// TODO allocator + thread template
+// TODO thread template (parallel version)
 namespace ips4o {
 	namespace detail {
 
 #if IPS4O_SIMD
 		using namespace hwy::HWY_NAMESPACE;
 #endif
-    
 
-        /// TODO move somewhere usefull
-        /// Compute the logarithm to base 2, rounded down (0 for n = 0).
-		inline constexpr unsigned long log2(unsigned long n) {
-			return n ? (std::numeric_limits<unsigned long>::digits - 1 - cryptanalysislib::countl_zero(n)) : 0ul;
-		}
-
-		// TODO(?): make into template to allow other key types.
+		/// \tparam T key type (trivially copyable, compared with `std::less`)
+		template<typename T>
 		struct Cfg {
-			using value_type = uint32_t;
+			using value_type = T;
 			using iterator = value_type *__restrict__;// restrict is important
 
 			// Must be at least 1 vector.
@@ -117,11 +112,11 @@ namespace ips4o {
 			constexpr static int logBuckets(const ptrdiff_t n) noexcept {
 				if (n <= kSingleLevelThreshold) {
 					// Only one more level until the base case, reduce the number of buckets
-					return std::max(1ul, log2(n / kBaseCaseSize));
+					return std::max(1ul, floor_log2(n / kBaseCaseSize));
 				} else if (n <= kTwoLevelThreshold) {
 					// Only two more levels until we reach the base case, split the buckets
 					// evenly
-					return std::max(1ul, (log2(n / kBaseCaseSize) + 1) / 2);
+					return std::max(1ul, (floor_log2(n / kBaseCaseSize) + 1) / 2);
 				} else {
 					// Use the maximum number of buckets
 					return kLogBuckets;
@@ -146,6 +141,7 @@ namespace ips4o {
 		};
 
 		// Read/write indices
+		template<class Cfg>
 		class BucketPointers {
 		public:
             /// \param l_w[in]:
@@ -183,32 +179,33 @@ namespace ips4o {
 		};
 
         /// A single buffer block: array of values.
+		template<class Cfg>
 		class Block {
 		public:
-			constexpr inline Cfg::value_type *data() noexcept { 
-                return storage_; 
+			constexpr inline Cfg::value_type *data() noexcept {
+                return storage_;
             }
 
-			constexpr inline const Cfg::value_type *data() const noexcept { 
-                return storage_; 
+			constexpr inline const Cfg::value_type *data() const noexcept {
+                return storage_;
             }
 
-			__attribute__((noinline)) 
+			__attribute__((noinline))
             void readFrom(const Cfg::iterator src) noexcept {
 				// memcpy(storage_, src, Cfg::kBlockSizeInBytes);
-				memcpy<Cfg::value_type>(storage_, src, Cfg::kBlockSize);
+				memcpy<typename Cfg::value_type>(storage_, src, Cfg::kBlockSize);
 			}
 
 			__attribute__((noinline))
             void writeToBlock(Block &block) noexcept {
 				//memcpy(block.storage_, storage_, Cfg::kBlockSizeInBytes);
-				memcpy<Cfg::value_type>(block.storage_, storage_, Cfg::kBlockSize);
+				memcpy<typename Cfg::value_type>(block.storage_, storage_, Cfg::kBlockSize);
 			}
 
-			__attribute__((noinline)) 
+			__attribute__((noinline))
             void writeTo(Cfg::iterator dest) noexcept {
 				// memcpy(dest, storage_, Cfg::kBlockSizeInBytes);
-				memcpy<Cfg::value_type>(dest, storage_, Cfg::kBlockSize);
+				memcpy<typename Cfg::value_type>(dest, storage_, Cfg::kBlockSize);
 			}
 
 		private:
@@ -216,12 +213,16 @@ namespace ips4o {
 		};
 
         /// Per-thread buffers for each bucket (array of pointers into one allocation).
-        // TODO template<class Allocator = std::allocator<int>>
+        /// \tparam Allocator interface of `AlignmentMallocator`:
+        ///		static `allocate(bytes)` and `deallocate(pointer, bytes)`
+		template<class Cfg, class Allocator>
 		class Buffers {
+			constexpr static size_t kStorageBytes = Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2;
+
 		public:
 			Buffers() noexcept
 			    : storage_(static_cast<Cfg::value_type *>(
-			              cryptanalysislib::aligned_alloc(Cfg::kDataAlignment, Cfg::kBlockSizeInBytes * Cfg::kMaxBuckets * 2))) {
+			              static_cast<void *>(Allocator::allocate(kStorageBytes)))) {
 				for (size_t idx_bucket = 0; idx_bucket < Cfg::kMaxBuckets; ++idx_bucket) {
 					reset(idx_bucket);
 					end_[idx_bucket] = indices_[idx_bucket] + Cfg::kBlockSize;
@@ -229,7 +230,7 @@ namespace ips4o {
 			}
 
 			~Buffers() noexcept {
-                cryptanalysislib::aligned_free(storage_);
+                Allocator::deallocate(static_cast<Allocator::pointer>(static_cast<void *>(storage_)), kStorageBytes);
             }
 
             /// Resets to initial position.
@@ -265,7 +266,7 @@ namespace ips4o {
                 // rewind to start of buffer
 				indices_[idx_bucket] -= Cfg::kBlockSize;
 
-				Cfg::value_type *bucket = storage_ + indices_[idx_bucket];
+				typename Cfg::value_type *bucket = storage_ + indices_[idx_bucket];
 				//memcpy(dest, bucket, Cfg::kBlockSizeInBytes);
 				memcpy(dest, bucket, Cfg::kBlockSize);
 			}
@@ -275,11 +276,12 @@ namespace ips4o {
 			size_t indices_[Cfg::kMaxBuckets];// into storage_
 			size_t end_[Cfg::kMaxBuckets];    // into storage_
 			// Blocks should have no extra elements or padding
-			static_assert(sizeof(Block) == sizeof(Cfg::value_type) * Cfg::kBlockSize, "");
+			static_assert(sizeof(Block<Cfg>) == sizeof(typename Cfg::value_type) * Cfg::kBlockSize, "");
 		};
 
 
         /// Branch-free classifier.
+		template<class Cfg>
 		class Classifier {
 		public:
 			using value_type = typename Cfg::value_type;
@@ -311,7 +313,7 @@ namespace ips4o {
 				IPS4OML_ASSUME_NOT(log_buckets > Cfg::kLogBuckets + 1);
 
 				IdxBucket b = 1;
-				std::less<Cfg::value_type> comp_;
+				std::less<value_type> comp_;
 				for (uint32_t l = 0; l < log_buckets; ++l) {
 					b = 2 * b + comp_(*splitter(b), value);
                 }
@@ -354,6 +356,7 @@ namespace ips4o {
 		};
 
         /// draws random samples, via the cryptanalysislib prng (`rng`)
+		template<class Cfg>
 		class Sampler {
 		public:
 			/// moves `num_samples` random elements of [begin, end) to the front
@@ -374,9 +377,9 @@ namespace ips4o {
 		template<class It>
 		__attribute__((noinline)) void baseCaseSort(It begin, It end) noexcept {
 			// Insertion sort
-			std::less<Cfg::value_type> comp;
+			std::less<std::iter_value_t<It>> comp;
 			for (It it = begin + 1; it < end; ++it) {
-				Cfg::value_type val = *it;
+				std::iter_value_t<It> val = *it;
 				if (comp(val, *begin)) {
 					std::move_backward(begin, it, it + 1);
 					*begin = std::move(val);
@@ -391,6 +394,7 @@ namespace ips4o {
 			}
 		}
 
+		template<class Cfg, class Allocator>
 		class Sorter {
 		public:
 			using iterator = Cfg::iterator;
@@ -423,24 +427,25 @@ namespace ips4o {
 				// Set parameters for this partitioning step
 				// Must do this AFTER sampling, because sampling will recurse to sort
 				// splitters.
-				this->bucket_start_ = bucket_start;
-				this->overflow_ = nullptr;
 				this->begin_ = begin;
 				this->end_ = end;
 
-				sequentialClassification(use_equal_buckets);
+				// true if a block was written into the `overflow` buffer
+				bool overflowed = false;
+
+				sequentialClassification(use_equal_buckets, bucket_start);
 
 				// Compute which bucket can cause overflow
-				const int overflow_bucket = computeOverflowBucket();
+				const int overflow_bucket = computeOverflowBucket(bucket_start);
 
 				// Block Permutation
 				if (use_equal_buckets)
-					permuteBlocks<true>();
+					permuteBlocks<true>(overflowed);
 				else
-					permuteBlocks<false>();
+					permuteBlocks<false>(overflowed);
 
 				// Write remaining elements; save excess elements at right end of stripe.
-				writeMargins(0, num_buckets_, overflow_bucket, -1, 0);
+				writeMargins(bucket_start, overflowed, 0, num_buckets_, overflow_bucket, -1, 0);
 
 				std::fill_n(bucket_size, Cfg::kMaxBuckets, 0);
 
@@ -482,30 +487,25 @@ namespace ips4o {
 
 		private:
 			ptrdiff_t bucket_size[Cfg::kMaxBuckets] = {0};
-			Buffers buffers;
+			Buffers<Cfg, Allocator> buffers;
 
-			Classifier classifier;
+			Classifier<Cfg> classifier;
 
 			// Bucket information
-			BucketPointers bucket_pointers[Cfg::kMaxBuckets];
+			BucketPointers<Cfg> bucket_pointers[Cfg::kMaxBuckets];
 
-			Sampler sampler_;
-
-			// TODO(?): for verification, we should narrow the scope/visibility of these.
-			// They are set and used in the recursion.
-			ptrdiff_t *bucket_start_;
-			Block *overflow_;
+			Sampler<Cfg> sampler_;
 
 			iterator begin_;
 			iterator end_;
 			uint32_t num_buckets_;
 
-			Block swap[2];
-			Block overflow;
+			Block<Cfg> swap[2];
+			Block<Cfg> overflow;
 
             /// The oversampling factor to be used for input of size n.
 			[[nodiscard]] static constexpr double oversamplingFactor(ptrdiff_t n) noexcept {
-				return (0.2 * log2(n)) < 1.0 ? 1.0 : (0.2 * log2(n));
+				return (0.2 * floor_log2(n)) < 1.0 ? 1.0 : (0.2 * floor_log2(n));
 			}
 
             ///  Builds the classifer.
@@ -524,17 +524,17 @@ namespace ips4o {
 				sequential(begin, begin + num_samples);
 				iterator splitter = begin + step - 1;
 				auto sorted_splitters = classifier.getSortedSplitters();
-				std::less<Cfg::value_type> comp;
+				std::less<value_type> comp;
 
 				// Choose the splitters
 				IPS4OML_ASSUME_NOT(sorted_splitters == nullptr);
-				new (sorted_splitters) typename Cfg::value_type(*splitter);
+				new (sorted_splitters) value_type(*splitter);
 				for (int i = 2; i < num_buckets; ++i) {
 					splitter += step;
 					// Skip duplicates
 					if (comp(*sorted_splitters, *splitter)) {
 						IPS4OML_ASSUME_NOT(sorted_splitters + 1 == nullptr);
-						new (++sorted_splitters) Cfg::value_type(*splitter);
+						new (++sorted_splitters) value_type(*splitter);
 					}
 				}
 
@@ -545,11 +545,11 @@ namespace ips4o {
 				        num_buckets - 1 - diff_splitters >= Cfg::kEqualBucketsThreshold;
 
 				// Fill the array to the next power of two
-				log_buckets = log2(diff_splitters) + 1;
+				log_buckets = floor_log2(diff_splitters) + 1;
 				num_buckets = 1 << log_buckets;
 				for (int i = diff_splitters + 1; i < num_buckets; ++i) {
 					IPS4OML_ASSUME_NOT(sorted_splitters + 1 == nullptr);
-					new (++sorted_splitters) Cfg::value_type(*splitter);
+					new (++sorted_splitters) value_type(*splitter);
 				}
 
 				// Build the tree
@@ -606,7 +606,7 @@ namespace ips4o {
 			HWY_INLINE Vec512<int32_t> X2PlusComp(Vec512<int32_t> vb,
 			                                      Vec512<int32_t> items,
 			                                      Vec512<int32_t> split) {
-				const CappedTag<Cfg::value_type, 16> d;
+				const CappedTag<value_type, 16> d;
 				vb = Add(vb, vb);
 				// Poor codegen here with clang, unnecessary shift of the predicate value.
 				const auto gt = Gt(items, split);
@@ -625,13 +625,16 @@ namespace ips4o {
 			                                                     iterator end) noexcept {
 				iterator write = begin;
 				const ptrdiff_t num_buckets = 1l << (kLogBuckets + kEqualBuckets);
-				constexpr const size_t kUnroll = 1; // AVX-512: TODO was 16 for avx 512
+				// AVX-512: one vector of 16 32-bit keys per iteration
+				constexpr const size_t kUnroll = IPS4O_SIMD ? 16 : 1;
 				static_assert(kUnroll <= Cfg::kBaseCaseSize, "Need >= 1 iteration");
 
 				alignas(64) uint32_t bucket_indices[kUnroll];
 				const size_t num = static_cast<size_t>(end - begin);
+				size_t i = 0;
 #if IPS4O_SIMD
-				const CappedTag<Cfg::value_type, 16> d;
+				static_assert(sizeof(value_type) == 4, "the SIMD classifier needs 32 bit keys");
+				const CappedTag<value_type, 16> d;
 				const auto splitter0 = LoadU(d, classifier.splitter(0));
 				const auto splitter1 = LoadU(d, classifier.splitter(16));
 				const auto splitter2 = LoadU(d, classifier.splitter(32));
@@ -642,7 +645,8 @@ namespace ips4o {
 				const auto sort_splitter2 = LoadU(d, classifier.sortedSplitter(32));
 				const auto sort_splitter3 = LoadU(d, classifier.sortedSplitter(48));
 
-				for (size_t i = 0; i < num; i += kUnroll) {
+				// only full vectors, the tail is classified by the scalar loop
+				for (; i + kUnroll <= num; i += kUnroll) {
 					auto vb = Set(d, 1);
 					const auto items = LoadU(d, &begin[i]);
 
@@ -695,15 +699,14 @@ namespace ips4o {
 
 					vb = Sub(vb, Set(d, num_buckets));
 					Store(vb, d, reinterpret_cast<int32_t *>(bucket_indices));
-					size_t batch_size = HWY_MIN(kUnroll, num - i);
-					ScatterBatch(bucket_indices, batch_size, begin + i, write);
+					ScatterBatch(bucket_indices, kUnroll, begin + i, write);
 				}
-#else
-				// TODO tail mngt
-				for (size_t i = 0; i < num; i += kUnroll) {
-					for (size_t j = 0; j < kUnroll; ++j) {
+#endif
+				for (; i < num; i += kUnroll) {
+					const size_t batch_size = std::min(kUnroll, num - i);
+					for (size_t j = 0; j < batch_size; ++j) {
 						IdxBucket b = 1;
-						std::less<Cfg::value_type> comp_;
+						std::less<value_type> comp_;
 						for (size_t l = 0; l < kLogBuckets; ++l)
 							b = 2 * b + comp_(*classifier.splitter(b), begin[i + j]);
 						if (kEqualBuckets)
@@ -711,10 +714,8 @@ namespace ips4o {
 							                   *classifier.sortedSplitter(b - num_buckets / 2));
 						bucket_indices[j] = b - num_buckets;
 					}
-					size_t batch_size = std::min(kUnroll, num - i);
 					ScatterBatch(bucket_indices, batch_size, begin + i, write);
 				}
-#endif
 
 				// Update bucket sizes to account for partially filled buckets
 				for (uint32_t i = 0; i < num_buckets_; ++i) bucket_size[i] += buffers.size(i);
@@ -722,25 +723,27 @@ namespace ips4o {
 				return write - begin_;
 			}
 
+			/// \param bucket_start[out]: bucket boundaries, `num_buckets_ + 1` entries
 			__attribute__((noinline)) void sequentialClassification(
-			        const bool use_equal_buckets) {
+			        const bool use_equal_buckets,
+			        ptrdiff_t *const bucket_start) {
 				const auto my_first_empty_block =
 				        use_equal_buckets ? classifyLocally<true>(begin_, end_)
 				                          : classifyLocally<false>(begin_, end_);
 
 				// Find bucket boundaries
 				ptrdiff_t sum = 0;
-				bucket_start_[0] = 0;
+				bucket_start[0] = 0;
 				for (uint32_t i = 0; i < num_buckets_; ++i) {
 					sum += bucket_size[i];
-					bucket_start_[i + 1] = sum;
+					bucket_start[i + 1] = sum;
 				}
-				IPS4OML_ASSUME_NOT(bucket_start_[num_buckets_] != end_ - begin_);
+				IPS4OML_ASSUME_NOT(bucket_start[num_buckets_] != end_ - begin_);
 
 				// Set write/read pointers for all buckets
 				for (uint32_t bucket = 0; bucket < num_buckets_; ++bucket) {
-					const auto start = Cfg::alignToNextBlock(bucket_start_[bucket]);
-					const auto stop = Cfg::alignToNextBlock(bucket_start_[bucket + 1]);
+					const auto start = Cfg::alignToNextBlock(bucket_start[bucket]);
+					const auto stop = Cfg::alignToNextBlock(bucket_start[bucket + 1]);
 					bucket_pointers[bucket].set(
 					        start,
 					        (start >= my_first_empty_block
@@ -755,11 +758,12 @@ namespace ips4o {
             * All buckets must consist of full blocks followed by empty blocks.
             */
 			__attribute__((noinline)) void moveEmptyBlocks(
+			        const ptrdiff_t *const bucket_start,
 			        const ptrdiff_t my_begin, const ptrdiff_t my_end,
 			        const ptrdiff_t my_first_empty_block) {
 				// Find range of buckets that start in this stripe
 				const int bucket_range_start = [&](int i) {
-					while (Cfg::alignToNextBlock(bucket_start_[i]) < my_begin) ++i;
+					while (Cfg::alignToNextBlock(bucket_start[i]) < my_begin) ++i;
 					return i;
 				}(0);
 
@@ -786,14 +790,14 @@ namespace ips4o {
                  */
 
 				// Check if last bucket overlaps the end of the stripe
-				const auto bucket_end = Cfg::alignToNextBlock(bucket_start_[num_buckets_]);
+				const auto bucket_end = Cfg::alignToNextBlock(bucket_start[num_buckets_]);
 				const bool last_bucket_is_overlapping = bucket_end > my_end;
 
 				// Case 1)
 				for (uint32_t b = bucket_range_start;
 				     b < num_buckets_ - last_bucket_is_overlapping; ++b) {
-					const auto start = Cfg::alignToNextBlock(bucket_start_[b]);
-					const auto stop = Cfg::alignToNextBlock(bucket_start_[b + 1]);
+					const auto start = Cfg::alignToNextBlock(bucket_start[b]);
+					const auto stop = Cfg::alignToNextBlock(bucket_start[b + 1]);
 					auto read = stop;
 					if (my_first_empty_block <= start) {
 						// Bucket is completely empty
@@ -808,29 +812,29 @@ namespace ips4o {
 				// Cases 2) and 3)
 				if (last_bucket_is_overlapping) {
 					const int overlapping_bucket = num_buckets_ - 1;
-					const auto bucket_start =
-					        Cfg::alignToNextBlock(bucket_start_[overlapping_bucket]);
+					const auto overlapping_start =
+					        Cfg::alignToNextBlock(bucket_start[overlapping_bucket]);
 
 					// If it is a very large bucket, other threads will also move blocks
 					// around in it (case 3) Count how many filled blocks are in this bucket
 					ptrdiff_t flushed_elements_in_bucket = 0;
-					if (bucket_start < my_begin) {
+					if (overlapping_start < my_begin) {
 						abort();
 					}
 
 					// Threads to our left will move this many blocks (0 if we are the
 					// left-most)
 					// ptrdiff_t elements_reserved = 0;
-					if (my_begin > bucket_start) {
+					if (my_begin > overlapping_start) {
 						// Threads to the left of us get priority
-						// elements_reserved =  my_begin - bucket_start - flushed_elements_in_bucket;
+						// elements_reserved =  my_begin - overlapping_start - flushed_elements_in_bucket;
 
 						// Count how many elements we flushed into this bucket
 						flushed_elements_in_bucket += my_first_empty_block - my_begin;
-					} else if (my_first_empty_block > bucket_start) {
+					} else if (my_first_empty_block > overlapping_start) {
 						// We are the left-most thread
 						// Count how many elements we flushed into this bucket
-						flushed_elements_in_bucket += my_first_empty_block - bucket_start;
+						flushed_elements_in_bucket += my_first_empty_block - overlapping_start;
 					}
 
 					// Find stripe which contains last block of this bucket (off by one)
@@ -838,16 +842,16 @@ namespace ips4o {
 
 					// After moving blocks, this will be the first empty block in this bucket
 					const auto first_empty_block_in_bucket =
-					        bucket_start + flushed_elements_in_bucket;
+					        overlapping_start + flushed_elements_in_bucket;
 
 					// This is the range of blocks we want to fill
-					// auto write_ptr = begin_ + std::max(my_first_empty_block, bucket_start);
+					// auto write_ptr = begin_ + std::max(my_first_empty_block, overlapping_start);
 					// const auto write_ptr_end = begin_ + std::min(first_empty_block_in_bucket, my_end);
 
 					// Set bucket pointers if the bucket starts in this stripe
-					if (my_begin <= bucket_start) {
+					if (my_begin <= overlapping_start) {
 						bucket_pointers[overlapping_bucket].set(
-						        bucket_start, first_empty_block_in_bucket - Cfg::kBlockSize);
+						        overlapping_start, first_empty_block_in_bucket - Cfg::kBlockSize);
 					}
 				}
 			}
@@ -856,9 +860,9 @@ namespace ips4o {
    * Computes which bucket can cause an overflow,
    * i.e., the last bucket that has more than one full block.
    */
-			int computeOverflowBucket() {
+			int computeOverflowBucket(const ptrdiff_t *const bucket_start) {
 				int bucket = num_buckets_ - 1;
-				while (bucket >= 0 && (bucket_start_[bucket + 1] - bucket_start_[bucket]) <=
+				while (bucket >= 0 && (bucket_start[bucket + 1] - bucket_start[bucket]) <=
 				                              Cfg::kBlockSize)
 					--bucket;
 				return bucket;
@@ -869,7 +873,7 @@ namespace ips4o {
    */
 			template<bool kEqualBuckets>
 			int classifyAndReadBlock(const int read_bucket) {
-				BucketPointers &bp = bucket_pointers[read_bucket];
+				BucketPointers<Cfg> &bp = bucket_pointers[read_bucket];
 
 				ptrdiff_t write, read;
 				std::tie(write, read) = bp.decRead();
@@ -891,10 +895,10 @@ namespace ips4o {
    */
 			template<bool kEqualBuckets>
 			int swapBlock(const ptrdiff_t max_off, const int dest_bucket,
-			              const bool current_swap) {
+			              const bool current_swap, bool &overflowed) {
 				ptrdiff_t write, read;
 				int new_dest_bucket;
-				BucketPointers &bp = bucket_pointers[dest_bucket];
+				BucketPointers<Cfg> &bp = bucket_pointers[dest_bucket];
 				do {
 					std::tie(write, read) = bp.incWrite();
 					if (write > read) {
@@ -902,7 +906,7 @@ namespace ips4o {
 						if (write >= max_off) {
 							// Out-of-bounds; write to overflow buffer instead
 							swap[current_swap].writeToBlock(overflow);
-							overflow_ = &overflow;
+							overflowed = true;
 							return -1;
 						}
 
@@ -926,7 +930,8 @@ namespace ips4o {
    * Block permutation phase.
    */
 			template<bool kEqualBuckets>
-			__attribute__((noinline)) void permuteBlocks() {
+			/// \param overflowed[out]: set to true if a block was written into `overflow`
+			__attribute__((noinline)) void permuteBlocks(bool &overflowed) {
 				const auto num_buckets = num_buckets_;
 				// Distribute starting points of threads
 				int read_bucket = 0;
@@ -943,7 +948,7 @@ namespace ips4o {
 						bool current_swap = 0;
 						// ... then write it to the correct bucket
 						while ((dest_bucket = swapBlock<kEqualBuckets>(max_off, dest_bucket,
-						                                               current_swap)) != -1) {
+						                                               current_swap, overflowed)) != -1) {
 							// Read another block, keep going
 							current_swap = !current_swap;
 						}
@@ -953,7 +958,11 @@ namespace ips4o {
 			}
 
             /// Fills margins from buffers.
-			__attribute__((noinline)) void writeMargins(const int first_bucket,
+			/// \param bucket_start[in]: bucket boundaries
+			/// \param overflowed[in]: true if the `overflow` buffer holds a block
+			__attribute__((noinline)) void writeMargins(const ptrdiff_t *const bucket_start,
+			                                            const bool overflowed,
+			                                            const int first_bucket,
 			                                            const int last_bucket,
 			                                            const int overflow_bucket,
 			                                            const int swap_bucket,
@@ -962,21 +971,21 @@ namespace ips4o {
 
 				for (int i = first_bucket; i < last_bucket; ++i) {
 					// Get bucket information
-					const auto bstart = bucket_start_[i];
-					const auto bend = bucket_start_[i + 1];
+					const auto bstart = bucket_start[i];
+					const auto bend = bucket_start[i + 1];
 					const auto bwrite = bucket_pointers[i].getWrite();
 					// Destination where elements can be written
 					auto dst = begin_ + bstart;
 					auto remaining = Cfg::alignToNextBlock(bstart) - bstart;
 
-					if (i == overflow_bucket && overflow_) {
+					if (i == overflow_bucket && overflowed) {
 						// Is there overflow?
 
 						// Overflow buffer has been written => write pointer must be at end of
 						// bucket
 						IPS4OML_ASSUME_NOT(Cfg::alignToNextBlock(bend) != bwrite);
 
-						auto src = overflow_->data();
+						auto src = overflow.data();
 						// There must be space for at least BlockSize elements
 						IPS4OML_ASSUME_NOT((bend - (bwrite - Cfg::kBlockSize)) + remaining <
 						                   Cfg::kBlockSize);
@@ -1047,7 +1056,7 @@ namespace ips4o {
 		/// \return true if [begin, end) is sorted afterwards: it was empty,
 		/// 	sorted or reverse sorted (then it is reversed)
 		template<class It,
-		         class Compare = std::less<Cfg::value_type>>
+		         class Compare = std::less<std::iter_value_t<It>>>
 		__attribute__((noinline)) bool sortSimpleCases(It begin,
                                                        It end,
 		                                               Compare comp = Compare{}) noexcept {
@@ -1077,27 +1086,35 @@ namespace ips4o {
 
 	}// namespace detail
 
-    /// sorts the `uint32_t` elements of [begin, end) increasingly
-    /// \tparam It contiguous iterator to `uint32_t`
-	template<class It>
+    /// sorts the elements of [begin, end) increasingly (`std::less`)
+    /// \tparam It contiguous iterator to a trivially copyable, totally ordered type
+    /// \tparam Allocator for the internal buffers, interface of
+    ///		`AlignmentMallocator` (static, in bytes)
+	template<class It,
+	         class Allocator = AlignmentMallocator<std::iter_value_t<It>,
+	                                               detail::Cfg<std::iter_value_t<It>>::kDataAlignment>>
 #if __cplusplus > 201709L
 		requires std::contiguous_iterator<It> &&
-		         std::is_same_v<std::iter_value_t<It>, detail::Cfg::value_type>
+		         std::is_trivially_copyable_v<std::iter_value_t<It>> &&
+		         std::totally_ordered<std::iter_value_t<It>>
 #endif
 	void sort(It begin, It end) noexcept {
+		using T = std::iter_value_t<It>;
+		using Cfg = detail::Cfg<T>;
+
 		// Negligible cost.
 		if (detail::sortSimpleCases(begin, end)) {
 			return;
 		}
 
-		if ((end - begin) <= 16 * detail::Cfg::kBaseCaseSize) {
+		if ((end - begin) <= 16 * Cfg::kBaseCaseSize) {
 			detail::baseCaseSort(begin, end);
 			return;
 		}
 
-		alignas(64) detail::Sorter sorter;
+		alignas(64) detail::Sorter<Cfg, Allocator> sorter;
 		// NOTE: `begin != end` here, so `*begin` is valid
-		uint32_t *first = &(*begin);
+		T *first = &(*begin);
 		sorter.sequential(first, first + (end - begin));
 	}
 

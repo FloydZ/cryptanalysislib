@@ -66,18 +66,37 @@ TYPED_TEST(PluggableSort, quicksort) {
 	});
 }
 
-TEST(ips4o, kek) {
+/// ips4o against std::sort, for the key type `T`
+template<typename T, typename... Allocator>
+static void check_ips4o() {
 	for (const size_t s : {0ul, 1ul, 100ul, 513ul, 10000ul, 300000ul}) {
-		using T = uint32_t;
 		std::vector<T> data;
 		generate_list(data, s);
 		// few distinct values (equality buckets)
-		if (s > 1000) { for (size_t i = 0; i < s; i += 2) { data[i] %= 7u; } }
+		if (s > 1000) { for (size_t i = 0; i < s; i += 2) { data[i] = T(data[i] % T(7)); } }
 		auto expect = data;
-		cryptanalysislib::sort(expect.begin(), expect.end());
-		ips4o::sort(data.begin(), data.end());
-		EXPECT_EQ(data, expect);
+		std::sort(expect.begin(), expect.end());
+		ips4o::sort<typename std::vector<T>::iterator, Allocator...>(data.begin(), data.end());
+		EXPECT_EQ(data, expect) << s;
 	}
+}
+
+TEST(ips4o, kek) {
+	check_ips4o<uint32_t>();
+}
+
+/// other key types
+TEST(ips4o, types) {
+	check_ips4o<uint8_t>();
+	check_ips4o<uint16_t>();
+	check_ips4o<uint64_t>();
+	check_ips4o<int32_t>();
+	check_ips4o<int64_t>();
+}
+
+/// other allocator for the internal buffers
+TEST(ips4o, allocator) {
+	check_ips4o<uint32_t, AlignmentMallocator<uint32_t, 4096>>();
 }
 
 /// the pluggable sorts with a comparator (descending), the comparator `sort`

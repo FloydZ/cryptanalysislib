@@ -887,7 +887,13 @@ public:
 
 	constexpr static uint32_t norepslen = n - split;
 	constexpr static uint32_t norepslen_quarter = (norepslen + 3) / 4;
-	constexpr static uint32_t norepslen_offset = (norepslen) / 4;/// TODO not fully correct: with this the last coordinate will not be enumerated
+	/// \return the first coordinate (relative to `split`) of the `k`-th of the
+	/// 	4 blocks of length `norepslen_quarter`. The last block ends at
+	/// 	`norepslen`, so all coordinates are enumerated (the blocks overlap if
+	/// 	4 does not divide `norepslen`)
+	constexpr static uint32_t norepslen_offset(const uint32_t k) noexcept {
+		return k * (norepslen - norepslen_quarter) / 3u;
+	}
 	Combinations_Fq_Chase<mitmlen_half, q, mitm_w> mitm_chase = Combinations_Fq_Chase<mitmlen_half, q, mitm_w>{};
 	Combinations_Fq_Chase<norepslen_quarter, q, noreps_w> noreps_chase = Combinations_Fq_Chase<norepslen_quarter, q, noreps_w>{};
 
@@ -951,9 +957,10 @@ public:
 	/// \param offset
 	/// 		- number of position between the MITM strategy
 	/// \param tid thread id
-	/// \param hm hashmap
+	/// \param hm hashmap or nullptr, `L1` is inserted (index = position in `L1`)
 	/// \param e extractor
-	/// \param p predicate function
+	/// \param hm3 optional second hashmap, `L3` is inserted
+	/// 		(index = position in `L3`). Can be `nullptr`.
 	/// \return true/false if the golden element was found or not (only if
 	///  		predicate was given)
 	template<typename HashMap, typename Extractor>
@@ -965,7 +972,8 @@ public:
 	         ListType &L3, ListType &L4,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
-	         Extractor *e = nullptr) {
+	         Extractor *e = nullptr,
+	         HashMap *hm3 = nullptr) {
 		Element element3, element4;
 
 		/// clear stuff, needed if this functions is called multiple times
@@ -1000,8 +1008,8 @@ public:
 
 		for (uint32_t i = 0; i < noreps_w; ++i) {
 			for (uint32_t k = 0; k < 4; ++k) {
-				elements[k]->value.set(1u, i + split + k * norepslen_offset);
-				Label::add(elements[k]->label, elements[k]->label, HT.get(i + split + k * norepslen_offset));
+				elements[k]->value.set(1u, i + split + norepslen_offset(k));
+				Label::add(elements[k]->label, elements[k]->label, HT.get(i + split + norepslen_offset(k)));
 			}
 		}
 
@@ -1048,13 +1056,15 @@ public:
 						for (uint32_t k = 0; k < 4; ++k) {
 							check(elements[k]->label, elements[k]->value);
 							insert_list(lists[k], *elements[k], ctr, tid);
+							// NOTE: before the step, the hashed label must match the list entry
+							if constexpr (sHM) {
+								if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
+								if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+							}
 
 							gray_step(*elements[k],
-							          split + k * norepslen_offset + noreps_current_set[noreps_gray_cl[nrg]]);
+							          split + norepslen_offset(k) + noreps_current_set[noreps_gray_cl[nrg]]);
 						}
-
-						// TODO also hash the 3 element
-						if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 
 						ctr += 1;
 						if (ctr >= list_size) { return false; }
@@ -1063,9 +1073,13 @@ public:
 					for (uint32_t k = 0; k < 4; ++k) {
 						check(elements[k]->label, elements[k]->value);
 						insert_list(lists[k], *elements[k], ctr, tid);
+						if constexpr (sHM) {
+							if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
+							if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+						}
 
-						const uint32_t a = split + k * norepslen_offset + noreps_chase_cl[nrc].first;
-						const uint32_t b = split + k * norepslen_offset + noreps_chase_cl[nrc].second;
+						const uint32_t a = split + norepslen_offset(k) + noreps_chase_cl[nrc].first;
+						const uint32_t b = split + norepslen_offset(k) + noreps_chase_cl[nrc].second;
 						chase_step(*elements[k], a, b);
 					}
 
@@ -1073,7 +1087,6 @@ public:
 						if (noreps_current_set[j] == noreps_chase_cl[nrc].first) { noreps_current_set[j] = noreps_chase_cl[nrc].second; }
 					}
 
-					if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 					ctr += 1;
 					if (ctr >= list_size) { return false; }
 				}// end noreps chase
@@ -1087,6 +1100,10 @@ public:
 			for (uint32_t k = 0; k < 4; ++k) {
 				check(elements[k]->label, elements[k]->value);
 				insert_list(lists[k], *elements[k], ctr, tid);
+				if constexpr (sHM) {
+					if (k == 0) { insert_hashmap(hm, e, *elements[k], ctr, tid); }
+					if (k == 2) { insert_hashmap(hm3, e, *elements[k], ctr, tid); }
+				}
 
 				const uint32_t a = (k & 1u) * mitmlen_offset + mitm_chase_cl[mc].first;
 				const uint32_t b = (k & 1u) * mitmlen_offset + mitm_chase_cl[mc].second;
@@ -1096,7 +1113,6 @@ public:
 			for (uint32_t j = 0; j < mitm_w; ++j) {
 				if (mitm_current_set[j] == mitm_chase_cl[mc].first) { mitm_current_set[j] = mitm_chase_cl[mc].second; }
 			}
-			if constexpr (sHM) insert_hashmap(hm, e, element1, ctr, tid);
 			ctr += 1;
 			if (ctr >= list_size) { return false; }
 		}// end mitm chase

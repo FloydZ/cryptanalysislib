@@ -65,6 +65,7 @@ concept ElementDataAble = requires(Container c,
 		c.neg(i, i);
 		c.popcnt();
 		c.popcnt(i, i);
+		Container::dist(c, c);
 
 		/// printing stuff
 		c.print_binary(i, i);

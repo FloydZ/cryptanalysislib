@@ -16,8 +16,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO: simplify the enumerator interface to only need the lists as inputs and not the offset.
-
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used
 TEST(SubSetSum, n32_d2_baselists2) {

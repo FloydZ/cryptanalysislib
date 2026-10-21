@@ -55,13 +55,13 @@ int bench() {
 	return ips;
 }
 
-int main () {
-	srand(time(0));
-	//return bench();
-
+/// inserts one pair of weight `d` into two random lists of size `lam` and runs
+/// the nn on them
+/// \return 0 if a pair of weight `d` was found
+template<const uint64_t lam>
+int run() {
 	/// number of leaves per block
 	constexpr uint32_t N = 4;
-	constexpr uint64_t lam = 1u << 14u;
 	constexpr uint32_t d = 4;
 	constexpr uint32_t dk = 11;
 	constexpr uint32_t nr_limbs = 2;
@@ -175,4 +175,15 @@ int main () {
 
 	cudaFree(L);cudaFree(R);cudaFree(f1);cudaFree(f2);cudaFree(randState);
 	return weight != d;
+}
+
+int main () {
+	srand(time(0));
+	//return bench();
+
+	// nn on shared memory
+	int ret = run<1u << 14u>();
+	// small lists: the (exact) bruteforce is selected
+	ret |= run<1u << 8u>();
+	return ret;
 }

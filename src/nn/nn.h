@@ -14,7 +14,9 @@
 #include "random.h"
 #include "simd/simd.h"
 
-#ifdef USE_CUDA
+// NOTE: `USE_CUDA` is set for all targets of a CUDA build, but only nvcc
+// 	can compile the kernels: the CUDA parts need both
+#if defined(USE_CUDA) && defined(__CUDACC__)
 #include "nn/nn.cuh"
 #endif
 
@@ -158,7 +160,7 @@ public:
 	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
 	std::vector<std::pair<size_t, size_t>> solutions;
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && defined(__CUDACC__)
 	// GPU lists, root/child index buffers, counters and solution, allocated by the first `run<true>`
 	T *dL1 = nullptr, *dL2 = nullptr;
 	uint32_t *dRoot = nullptr, *dB = nullptr, *dCnt = nullptr;
@@ -180,7 +182,7 @@ public:
 	~NN() noexcept {
 		if (L1) { cryptanalysislib::aligned_free(L1); }
 		if (L2) { cryptanalysislib::aligned_free(L2); }
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && defined(__CUDACC__)
 		// NOTE: no `checkCudaErrors`, it calls `exit`
 		if (dL1) { cudaFree(dL1); }
 		if (dL2) { cudaFree(dL2); }
@@ -1693,7 +1695,7 @@ public:
 		}
 	}
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && defined(__CUDACC__)
 	// limb type to filter on, see `nn_tree_root`
 	using CUDA_LT = std::conditional_t<(k <= 32), uint32_t, uint64_t>;
 	constexpr static uint32_t CUDA_THREADS = 256;
@@ -1802,7 +1804,7 @@ public:
 	template<const bool cuda = false>
 	constexpr void run(const size_t e1 = LIST_SIZE,
 	                   const size_t e2 = LIST_SIZE) noexcept {
-#ifdef USE_CUDA
+#if defined(USE_CUDA) && defined(__CUDACC__)
 		if constexpr (cuda) {
 			if ((e1 == 0) || (e2 == 0)) { return; }
 			cuda_alloc();
@@ -1813,7 +1815,7 @@ public:
 			return;
 		}
 #else
-		static_assert(!cuda, "`cuda` needs `USE_CUDA`");
+		static_assert(!cuda, "`cuda` needs `USE_CUDA` and nvcc");
 #endif
 
 		constexpr size_t P = 1;//n;//256ull*256ull*256ull*256ull;

@@ -44,6 +44,21 @@ TEST(NAME, comparsion) {
 	}
 }
 
+TEST(NAME, dist) {
+	using V = K;
+	V t1, t2;
+	t1.zero(); t2.zero();
+	EXPECT_EQ(V::dist(t1, t2), 0);
+	for (uint32_t i = 0; i < V::length; i++){
+		t2.set(1, i);
+		EXPECT_EQ(V::dist(t1, t2), i + 1);
+		EXPECT_EQ(V::dist(t2, t1), i + 1);
+	}
+
+	t1.random();
+	EXPECT_EQ(V::dist(t1, t1), 0);
+}
+
 
 TEST(NAME, mod_T) {
 	for (uint64_t i = 0; i < PRIME; i++) {

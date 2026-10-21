@@ -17,6 +17,15 @@
 struct FqPackedVectorMetaConfig : public AlignmentConfig {
     // if true: simd operations will be used.
 	const bool activate_simd = true;
+
+	// only for binary vectors (`q = 2`): if true, the number of limbs is
+	// rounded up, such that the data is a multiple of 16 bytes.
+	// NOTE: the default can be set with `-DBINARY_CONTAINER_ALIGNMENT`
+#ifdef BINARY_CONTAINER_ALIGNMENT
+	const bool binary_align = true;
+#else
+	const bool binary_align = false;
+#endif
 };
 inline constexpr FqPackedVectorMetaConfig fqPackedVectorMetaConfig;
 
@@ -366,6 +375,18 @@ public:
 
 		return ret;
 
+	}
+
+	/// \return the hamming distance: the number of coordinates in which
+	///		`a` and `b` differ
+	[[nodiscard]] constexpr static uint32_t dist(const FqPackedVectorMeta &a,
+	                                             const FqPackedVectorMeta &b) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < n; i++) {
+			ret += a.get(i) != b.get(i);
+		}
+
+		return ret;
 	}
 
 	/// return the positions of the first p bits/numbers set
@@ -1264,11 +1285,12 @@ public:
 template<const uint32_t n,
          const uint64_t q,
          typename T=uint64_t,
-		 const bool __unsigned =  true>
+		 const bool __unsigned =  true,
+		 const FqPackedVectorMetaConfig &config=fqPackedVectorMetaConfig>
 #if __cplusplus > 201709L
     requires std::is_integral<T>::value
 #endif
-class FqPackedVector : public FqPackedVectorMeta<n, q, T, __unsigned> {
+class FqPackedVector : public FqPackedVectorMeta<n, q, T, __unsigned, config> {
 public:
 	/// Nomenclature:
 	///     Number 	:= actual data one wants to save % modulus
@@ -1281,7 +1303,7 @@ public:
 	///  numbers which first bits are on one limb and the remaining bits are on the next limb).
 	///
 
-	using M = FqPackedVectorMeta<n, q, T, __unsigned>;
+	using M = FqPackedVectorMeta<n, q, T, __unsigned, config>;
 	using M::length;
 	using M::modulus;
 
@@ -1314,16 +1336,17 @@ public:
 };
 
 /// partly specialized class for q=3 (unsigned)
-template<const uint32_t n>
+template<const uint32_t n,
+         const FqPackedVectorMetaConfig &config>
 #if __cplusplus > 201709L
     requires std::is_integral<uint64_t>::value
 #endif
-class FqPackedVector<n, 3, uint64_t> : public FqPackedVectorMeta<n, 3, uint64_t, true> {
+class FqPackedVector<n, 3, uint64_t, true, config> : public FqPackedVectorMeta<n, 3, uint64_t, true, config> {
 public:
 	/// this is just defined, because Im lazy
 	static constexpr uint32_t q = 3;
 	using T = uint64_t;
-	using M = FqPackedVectorMeta<n, 3, T, true>;
+	using M = FqPackedVectorMeta<n, 3, T, true, config>;
 
 	/// needed size descriptions
 	using M::bits_per_limb;

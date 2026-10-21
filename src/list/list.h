@@ -851,6 +851,9 @@ public:
 	/// \param k_lower lower dimension to add the label on
 	/// \param k_higher higher dimension to add the label on
 	/// \param norm filter norm. If the norm of the resulting element is higher than `norm` it will be discarded.
+	/// \param tid the element is appended to the chunk `tid` of the list
+	/// 	([start_pos(tid), start_pos(tid) + load(tid))). If the chunk is full,
+	/// 	the element is discarded, only a list with a single chunk can grow.
 	constexpr void add_and_append(const Element &e1,
 	                              const Element &e2,
 	                              const uint32_t k_lower,
@@ -869,11 +872,16 @@ public:
 		// norm  == -1:
 		// 'add' returns true if a overflow, over the given norm occurred. This means that at least coordinate 'r'
 		// exists for which it holds: |data[load].value[r]| >= norm
-		if (load() < size()) {
-			const bool b = op1(__data[load(tid)]);
+		if (load(tid) < size(tid)) {
+			const bool b = op1(__data[start_pos(tid) + load(tid)]);
 			if ((norm != uint32_t(-1u)) && b) { return; }
 		} else {
 			if constexpr (! allow_resize) {
+				return;
+			}
+
+			// NOTE: `push_back` appends behind the last chunk
+			if (threads() > 1) {
 				return;
 			}
 
@@ -890,6 +898,8 @@ public:
 		set_load(load(tid) + 1, tid);
 	}
 
+	/// same as above, with compile time limits
+	/// \param tid the element is appended to the chunk `tid` of the list
 	template<const uint32_t k_lower,
 	         const uint32_t k_higher,
 	         const uint32_t norm,
@@ -906,11 +916,16 @@ public:
 		  }
 		};
 
-		if (load() < size()) {
-			const bool b = op1(__data[load(tid)]);
+		if (load(tid) < size(tid)) {
+			const bool b = op1(__data[start_pos(tid) + load(tid)]);
 			if constexpr (norm != uint32_t(-1u)) { if (b) { return; } }
 		} else {
 			if constexpr (! allow_resize) {
+				return;
+			}
+
+			// NOTE: `push_back` appends behind the last chunk
+			if (threads() > 1) {
 				return;
 			}
 

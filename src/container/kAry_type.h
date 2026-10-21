@@ -946,6 +946,15 @@ public:
 		return (uint32_t)popcnt_T(T(__value & mask));
 	}
 
+	/// \return the distance of `a` and `b` mod q: min(a-b, b-a) mod q
+	[[nodiscard]] constexpr static inline T dist(const FqElement &a,
+	                                             const FqElement &b) noexcept {
+		// NOTE: without `a + q`, which can overflow `T`
+		const T d = (a.__value >= b.__value) ? T(a.__value - b.__value)
+		                                     : T(q - (b.__value - a.__value));
+		return (d < T(q - d)) ? d : T(q - d);
+	}
+
 	/// right rotate
 	constexpr inline static void rol(FqElement &out,
 	                                 const FqElement &in1,
