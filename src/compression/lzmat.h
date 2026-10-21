@@ -227,7 +227,11 @@ typedef struct _LZMAT_HASH_CTL {
 /// \param pbOut[in/out]: input: max length of the output buffer 
 ///                       output: actually used buffer size
 ///
-constexpr static 
+#ifdef USE_CUDA
+static
+#else
+constexpr static
+#endif
 int lzmat_encode(uint8_t *pbOut, 
                  uint32_t *pcbOut,
                  uint8_t *pbIn, 

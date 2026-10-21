@@ -960,8 +960,11 @@ namespace tsl {
 			/// 	(value initialised) object `T{}` is returned (no exceptions)
 			template <class K, class U = ValueSelect,
 			         typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-			constexpr inline typename U::value_type& at(const K& key,
-			                                            const std::size_t hash) noexcept{
+#ifndef USE_CUDA
+			constexpr
+#endif
+			inline typename U::value_type& at(const K& key,
+			                                  const std::size_t hash) noexcept{
 				using T = typename U::value_type;
 
 				T* value = find_value_impl(key, hash, m_buckets + bucket_for_hash(hash));
@@ -984,7 +987,10 @@ namespace tsl {
 
 			template <class K, class U = ValueSelect,
 			         typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-			constexpr inline const typename U::value_type& at(const K& key, std::size_t hash) const noexcept {
+#ifndef USE_CUDA
+			constexpr
+#endif
+			inline const typename U::value_type& at(const K& key, std::size_t hash) const noexcept {
 				using T = typename U::value_type;
 
 				const T* value =
