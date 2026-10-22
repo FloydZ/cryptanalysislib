@@ -473,7 +473,10 @@ TEST(SubSetSum, constexpr_twolevel_streamjoin_on_iT_hashmap_v2_weight) {
 
 	Tree t{1, A, 0};
 	uint32_t found = 0;
-	for (uint32_t tries = 0; (tries < 32) && (found == 0); ++tries) {
+	// NOTE: the planted solution has 6*6 = 36 representations (a1+b1, a2+b2),
+	// 	each one matches a random iT with probability 2^-8. So a single try
+	// 	succeeds with ~13%, 256 tries fail with probability ~e^-36.
+	for (uint32_t tries = 0; (tries < 256) && (found == 0); ++tries) {
 		Label iT, t1;
 		iT.random(0, 1ull << k_higher1);
 		hml0.clear(); hml1.clear();

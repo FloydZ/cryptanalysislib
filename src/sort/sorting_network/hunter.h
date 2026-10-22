@@ -1184,7 +1184,7 @@ void fillprefixGreedyA(Network_t &prefix,
 	prefix.clear();
 	SortWord_t sizetmp = createGreedyPrefix(config.N, npairs, config.use_symmetry, prefix);
 	if (Verbosity > 1) {
-		printf("Greedy prefix size %lu, span %lu.\n", prefix.size(), (size_t) sizetmp);
+		printf("Greedy prefix size %lu, span %lu.\n", prefix.size(), (size_t) (uint64_t) sizetmp);
 	}
 }
 
@@ -1204,7 +1204,7 @@ void fillprefixFixedThenGreedyA(Network_t &prefix,
 	prefix = copyValidPairs(t, config.N);
 	SortWord_t sizetmp = createGreedyPrefix(config.N, npairs + prefix.size(), config.use_symmetry, prefix);
 	if (Verbosity > 2) {
-		printf("Hybrid prefix size %lu, span %lu.\n", prefix.size(), (size_t) sizetmp);
+		printf("Hybrid prefix size %lu, span %lu.\n", prefix.size(), (size_t) (uint64_t) sizetmp);
 	}
 }
 
