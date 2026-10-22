@@ -15,10 +15,9 @@
 #include <utility>
 #include <vector>
 
+#include "alloc/alloc.h"
 #include "helper.h"
 #include "memory/memory.h"
-
-/// TODO add Allocator to class 
 
 namespace cryptanalysislib {
 
@@ -32,8 +31,11 @@ constexpr static BTreeSetConfig bTreeSetConfig;
 /// 
 /// \tparam E Type of elements stored in the tree (must be comparable)
 /// \tparam config Configuration options for the B-tree
+/// \tparam Allocator allocator of the keys (and rebound, of the child
+/// 	pointers) of the nodes
 template <typename E,
-		  const BTreeSetConfig &config=bTreeSetConfig>
+		  const BTreeSetConfig &config=bTreeSetConfig,
+		  class Allocator=cryptanalysislib::allocator<E>>
 class BTreeSet final {
 	// Forward declaration
 	class Node;
@@ -356,11 +358,11 @@ private:
 	public:
 
 		// Size is in the range [0, maxKeys] for root node, [minKeys, maxKeys] for all other nodes.
-        using Allocator1 = std::allocator<E>;
+        using Allocator1 = typename std::allocator_traits<Allocator>::template rebind_alloc<E>;
 		std::vector<E, Allocator1> keys;
 
 		// If leaf then size is 0, otherwise if internal node then size always equals keys.size()+1.
-        using Allocator2 = std::allocator<std::unique_ptr<Node>>;
+        using Allocator2 = typename std::allocator_traits<Allocator>::template rebind_alloc<std::unique_ptr<Node>>;
 		std::vector<std::unique_ptr<Node>, Allocator2> children;
 
 

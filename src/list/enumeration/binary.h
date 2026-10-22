@@ -91,6 +91,8 @@ public:
 	/// 		- otherwise it will compute the error with and offset
 	/// \param offset
 	/// 		- number of position between the MITM strategy
+	/// 		- default `n`: the elements of `L2` are placed after the
+	/// 		  enumerated part of `L1`
 	/// \param tid thread id
 	/// \param hm hashmap
 	/// \param e extractor
@@ -105,14 +107,14 @@ public:
 #endif
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
-	         const uint32_t offset = 0,
+	         const uint32_t offset = n,
 			 const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) {
 		/// some security checks
-		assert(n + offset <= Value::length);
+		assert((L2 == nullptr) || (n + offset <= Value::length));
 
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -197,7 +199,7 @@ public:
 	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
-			 const uint32_t offset = 0,
+			 const uint32_t offset = n,
 			 const uint32_t base_offset = 0,
 			 const uint32_t tid = 0){
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
@@ -298,6 +300,8 @@ public:
 	/// 		- otherwise it will compute the error with and offset
 	/// \param offset
 	/// 		- number of position between the MITM strategy
+	/// 		- default `n`: the elements of `L2` are placed after the
+	/// 		  enumerated part of `L1`
 	/// \param tid thread id
 	/// \param hm hashmap
 	/// \param e extractor
@@ -310,15 +314,15 @@ public:
 			(std::is_same_v<std::nullptr_t, Predicate> || std::is_invocable_v<Predicate, Label>)
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
-			 const uint32_t offset = 0,
+			 const uint32_t offset = n,
 			 const uint32_t base_offset = 0,
 			 const uint32_t tid = 0,
 			 HashMap *hm = nullptr,
 			 Extractor *e = nullptr,
 			 Predicate *p = nullptr) noexcept {
 		/// some security checks
-		assert(n + offset <= Value::length());
-		assert(offset + base_offset <= Value::length());
+		assert((L2 == nullptr) || (n + offset <= Value::length()));
+		assert((L2 == nullptr) || (offset + base_offset <= Value::length()));
 		constexpr bool write = false;
 		/// counter of how many elements already added to the list
 		size_t ctr = 0;
@@ -412,7 +416,7 @@ public:
 	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
-			 const uint32_t offset = 0,
+			 const uint32_t offset = n,
 			 const uint32_t base_offset = 0,
 			 const uint32_t tid = 0){
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
@@ -532,6 +536,8 @@ public:
 	/// 		- otherwise it will compute the error with and offset
 	/// \param offset
 	/// 		- number of position between the MITM strategy
+	/// 		- default `n`: the elements of `L2` are placed after the
+	/// 		  enumerated part of `L1`
 	/// \param tid thread id
 	/// \param hm hashmap
 	/// \param e extractor
@@ -546,15 +552,15 @@ public:
 #endif
 	bool run(ListType *L1 = nullptr,
 	         ListType *L2 = nullptr,
-	         const uint32_t offset = 0,
+	         const uint32_t offset = n,
 	         const uint32_t base_offset = 0,
 	         const uint32_t tid = 0,
 	         HashMap *hm = nullptr,
 	         Extractor *e = nullptr,
 	         Predicate *p = nullptr) noexcept {
 		/// some security checks
-		assert(n + offset <= Value::length);
-		assert(offset + base_offset <= Value::length);
+		assert((L2 == nullptr) || (n + offset <= Value::length));
+		assert((L2 == nullptr) || (offset + base_offset <= Value::length));
 		element1.zero(); element2.zero();
 
 		// check if the lists are enabled
@@ -604,7 +610,7 @@ public:
 	/// \return
 	bool run(ListType *L1 = nullptr,
 			 ListType *L2 = nullptr,
-			 const uint32_t offset = 0,
+			 const uint32_t offset = n,
 			 const uint32_t base_offset = 0,
 			 const uint32_t tid = 0){
 		return run <std::nullptr_t, std::nullptr_t, std::nullptr_t>

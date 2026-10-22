@@ -27,11 +27,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <cassert>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
+#include "memory/memory.h"
 
-// TODO: class: with allocator
-// TODO: add PR https://github.com/marijnheule/microsat/pulls
-// TODO: class for literal
+// NOTE: the C interface of microsat (`struct solver`, `parse`, `solve`) is
+// 	kept, `cryptanalysislib::sat::CDCL` (below) wraps it into a class.
 enum { END = -9,
 	   NOMEM = -1,// `parse`: the clause database could not be allocated
 	   UNSAT = 0,
@@ -114,10 +118,10 @@ inline void reduceDB(struct solver *S, int k) {                  // Removes "les
 		if (i == 0) continue;
 		int *watch = &S->first[i];                              // Get the pointer to the first watched clause
 		while (*watch != END)                                   // As long as there are watched clauses
-			if (*watch < S->mem_fixed) watch = (S->DB + *watch);// Remove the watch if it points to a lemma
+			if (*watch < S->mem_fixed) watch = (S->DB + *watch);// Keep the watch of an input clause, go to the next watch
 			else
 				*watch = S->DB[*watch];
-	}// Otherwise (meaning an input clause) go to next watch
+	}// Otherwise (meaning a lemma) remove the watch
 
 	int old_used = S->mem_used;
 	S->mem_used = S->mem_fixed;                       // Virtually remove all lemmas
@@ -259,7 +263,7 @@ inline int solve(struct solver *S) {// Determine satisfiability
 			}
 		}// Reduce the DB when it contains too many lemmas
 
-		while (S->_false[decision] || S->_false[-decision]) {// As long as the temporay decision is assigned
+		while (S->_false[decision] || S->_false[-decision]) {// As long as the temporary decision is assigned
 			decision = S->prev[decision];
 		}// Replace it with the next variable in the decision list
 		if (decision == 0) return SAT;                       // If the end of the list is reached, then a solution is found
@@ -271,14 +275,21 @@ inline int solve(struct solver *S) {// Determine satisfiability
 	}
 }// Decisions have no reason clauses
 
-inline void initCDCL(struct solver *S, int n, int m) {
+/// \param S solver
+/// \param n number of variables
+/// \param m number of clauses
+/// \param db if not `nullptr`: the zero initialized clause database of
+/// 	`mem_max` ints (owned by the caller), else it is mapped (`mem_max` = 2**30)
+/// \param mem_max size of `db` in ints
+inline void initCDCL(struct solver *S, int n, int m,
+                     int *db = nullptr, const int mem_max = 1 << 30) {
 	if (n < 1) { return; }
 	// Set the number of variables
 	S->nVars = n;
 	// Set the number of clauses
 	S->nClauses = m;
 	// Set the initial maximum memory
-	S->mem_max = 1 << 30;
+	S->mem_max = db ? mem_max : (1 << 30);
 	// The number of integers allocated in the DB
 	S->mem_used = 0;
 	// The number of learned clauses -- redundant means learned
@@ -293,9 +304,13 @@ inline void initCDCL(struct solver *S, int n, int m) {
 	// page aligned and zero initialized ("calloc (aligned)"): an anonymous
 	// mapping, zeroed lazily by the kernel. NOTE: `mem_max` ints are 4 GiB,
 	// so an aligned malloc + memset would touch all of it.
-	void *db = mmap(nullptr, sizeof(int) * (size_t)S->mem_max,
-	                PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	S->DB = (db == MAP_FAILED) ? nullptr : (int *) db;
+	if (db) {
+		S->DB = db;
+	} else {
+		void *mdb = mmap(nullptr, sizeof(int) * (size_t)S->mem_max,
+		                 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		S->DB = (mdb == MAP_FAILED) ? nullptr : (int *) mdb;
+	}
 	if (S->DB == nullptr) { return; }
 
 	// Full assignment of the (Boolean) variables (initially set to false)
@@ -331,8 +346,21 @@ inline void initCDCL(struct solver *S, int n, int m) {
 		S->model[i] = S->_false[-i] = S->_false[i] = 0;
 		S->first[i] = S->first[-i] = END;
 	}// and first (watch pointers).
+	S->_false[0] = 0;// Ensure decision 0 is unassigned.
 	S->head = n;
 }// Initialize the head of the double-linked list
+
+/// adds the input clause of `size` literals stored in `S->buffer`
+/// \return UNSAT if the clause is empty or a conflicting unit, else SAT
+inline int addInputClause(struct solver *S, const int size) {
+	int *clause = addClause(S, S->buffer, size, 1);    // Then add the clause to data_base
+	if (!size || ((size == 1) && S->_false[clause[0]]))// Check for empty clause or conflicting unit
+		return UNSAT;                                  // If either is found return UNSAT
+	if ((size == 1) && !S->_false[-clause[0]]) {       // Check for a new unit
+		assign(S, clause, 1);
+	}// Directly assign new units (forced = 1)
+	return SAT;
+}
 
 static void read_until_new_line(FILE *input) {
 	int ch;
@@ -384,12 +412,10 @@ inline int parse(struct solver *S, const char *filename) noexcept {
 		}
 		if (!lit) {
 			// If reaching the end of the clause
-			int *clause = addClause(S, S->buffer, size, 1);    // Then add the clause to data_base
-			if (!size || ((size == 1) && S->_false[clause[0]]))// Check for empty clause or conflicting unit
-				return UNSAT;                                  // If either is found return UNSAT
-			if ((size == 1) && !S->_false[-clause[0]]) {       // Check for a new unit
-				assign(S, clause, 1);
-			}// Directly assign new units (forced = 1)
+			if (addInputClause(S, size) == UNSAT) {
+				fclose(input);
+				return UNSAT;
+			}
 			size = 0;
 			--nZeros;
 		} else {
@@ -402,3 +428,103 @@ inline int parse(struct solver *S, const char *filename) noexcept {
 	// Return that no conflict was observed
 	return SAT;
 }
+
+namespace cryptanalysislib::sat {
+	/// a literal of a CNF formula: a variable (>= 1) and its polarity.
+	/// Same representation as in DIMACS: `-v` is the negation of `v`.
+	class Literal {
+		int l;
+
+	public:
+		/// \param dimacs literal in DIMACS notation (!= 0)
+		constexpr explicit Literal(const int dimacs) noexcept : l(dimacs) {
+			assert(dimacs != 0);
+		}
+
+		/// \return the positive literal of `var`
+		[[nodiscard]] constexpr static Literal pos(const uint32_t var) noexcept { return Literal(int(var)); }
+		/// \return the negative literal of `var`
+		[[nodiscard]] constexpr static Literal neg(const uint32_t var) noexcept { return Literal(-int(var)); }
+
+		/// \return the variable of the literal (>= 1)
+		[[nodiscard]] constexpr uint32_t var() const noexcept { return uint32_t(l < 0 ? -l : l); }
+		/// \return true if the literal is negated
+		[[nodiscard]] constexpr bool negated() const noexcept { return l < 0; }
+		/// \return the literal in DIMACS notation
+		[[nodiscard]] constexpr int dimacs() const noexcept { return l; }
+
+		[[nodiscard]] constexpr Literal operator-() const noexcept { return Literal(-l); }
+		[[nodiscard]] constexpr bool operator==(const Literal &o) const noexcept = default;
+	};
+
+	/// the CDCL solver (microsat) as a class: the clause database is
+	/// allocated (and zero initialized) by `Allocator`
+	/// \tparam Allocator allocator of `int`
+	template<class Allocator = std::allocator<int>>
+	class CDCL {
+		using Traits = std::allocator_traits<Allocator>;
+
+		struct solver S{};
+		Allocator alloc;
+		int *db = nullptr;
+		size_t db_size = 0;
+		bool unsat = false;
+
+	public:
+		/// \param nvars number of variables
+		/// \param nclauses number of input clauses
+		/// \param mem_max size of the clause database (input clauses and lemmas)
+		/// 	in ints. The solver exits, if it is too small.
+		/// \param a allocator
+		explicit CDCL(const uint32_t nvars,
+		              const uint32_t nclauses,
+		              const size_t mem_max = 1u << 24u,
+		              const Allocator &a = Allocator{}) noexcept : alloc(a), db_size(mem_max) {
+			db = Traits::allocate(alloc, db_size);
+			cryptanalysislib::memset(db, 0, db_size);
+			initCDCL(&S, int(nvars), int(nclauses), db, int(mem_max));
+		}
+
+		~CDCL() noexcept {
+			Traits::deallocate(alloc, db, db_size);
+		}
+
+		CDCL(const CDCL &) = delete;
+		CDCL &operator=(const CDCL &) = delete;
+
+		/// adds an input clause
+		/// \param clause at most `nvars` literals
+		/// \return false if the formula is already unsatisfiable
+		bool add_clause(const std::vector<Literal> &clause) noexcept {
+			if (unsat) { return false; }
+			assert(clause.size() <= size_t(S.nVars));
+			int size = 0;
+			for (const Literal &l : clause) {
+				assert(l.var() <= uint32_t(S.nVars));
+				S.buffer[size++] = l.dimacs();
+			}
+
+			unsat = addInputClause(&S, size) == UNSAT;
+			return !unsat;
+		}
+
+		/// \return SAT or UNSAT
+		[[nodiscard]] int solve() noexcept {
+			if (unsat) { return UNSAT; }
+			return ::solve(&S);
+		}
+
+		/// NOTE: only valid after `solve() == SAT`
+		/// \return the value of `var` in the found assignment
+		[[nodiscard]] bool value(const uint32_t var) const noexcept {
+			// `var` is true <=> its negation is false
+			return S._false[-int(var)] != 0;
+		}
+
+		/// NOTE: only valid after `solve() == SAT`
+		/// \return true if `l` is true in the found assignment
+		[[nodiscard]] bool value(const Literal &l) const noexcept {
+			return S._false[-l.dimacs()] != 0;
+		}
+	};
+} // end namespace cryptanalysislib::sat

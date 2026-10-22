@@ -17,6 +17,21 @@ using ::testing::UnitTest;
 
 #ifdef USE_AVX512F
 #ifdef USE_AVX512BW
+/// the free operators also exist for the signed types
+TEST(int32x16_t, operators) {
+	const int32x16_t a = int32x16_t::set1(-3), b = int32x16_t::set1(5);
+	const int32x16_t c = (a + b) * b - a;
+	for (uint32_t i = 0; i < 16; ++i) { EXPECT_EQ(c[i], 13); }
+	int32x16_t e = a;
+	e ^= b;
+	EXPECT_EQ(e[3], -3 ^ 5);
+
+	EXPECT_EQ((int8x64_t::set1(1) << 2)[7], 4);
+	EXPECT_EQ((int16x32_t::set1(6) & int16x32_t::set1(3))[1], 2);
+	EXPECT_EQ((int64x8_t::set1(6) | int64x8_t::set1(3))[2], 7);
+	EXPECT_EQ((~int64x8_t::set1(0))[0], -1);
+}
+
 TEST(uint16x32_t, all_equal) {
 	alignas(64) uint16_t a[32];
 	for (uint32_t r = 0; r < 1000; ++r) {

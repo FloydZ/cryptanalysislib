@@ -1052,6 +1052,14 @@ struct Xint8x64_t {
         return limb_type(_mm_extract_epi8(n, 0));
     }
 
+    /// \param in1[in]:
+    /// \return the sum of all lanes (modulo 2**8)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+        // the sum of the 8 bytes of each 64 bit lane, then of the 8 lanes
+        const __m512i t = _mm512_sad_epu8(in1.v512, _mm512_setzero_si512());
+        return limb_type(uint8_t(_mm512_reduce_add_epi64(t)));
+    }
+
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint64_t move(const S in) noexcept {
@@ -1848,6 +1856,14 @@ struct Xint16x32_t {
         return limb_type(_mm_extract_epi16(n, 0));
     }
 
+    /// \param in1[in]:
+    /// \return the sum of all lanes (modulo 2**16)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+        // pairs of 16 bit lanes -> 32 bit sums (signed, the low 16 bits are the same)
+        const __m512i t = _mm512_madd_epi16(in1.v512, _mm512_set1_epi16(1));
+        return limb_type(uint16_t(_mm512_reduce_add_epi32(t)));
+    }
+
 	/// \param in
 	/// \return
 	[[nodiscard]] constexpr static inline uint32_t move(const Xint16x32_t in) noexcept {
@@ -2594,6 +2610,12 @@ struct Xint32x16_t {
             return _mm512_reduce_max_epu32(in1.v512);
         }
         return _mm512_reduce_max_epi32(in1.v512);
+    }
+
+    /// \param in1[in]:
+    /// \return the sum of all lanes (modulo 2**32)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+        return limb_type(_mm512_reduce_add_epi32(in1.v512));
     }
 
 	/// horizontal add of the 4 unsigned bytes of each 32 bit lane
@@ -3401,6 +3423,12 @@ struct Xint64x8_t {
         return _mm512_reduce_max_epi64(in1.v512);
     }
 
+    /// \param in1[in]:
+    /// \return the sum of all lanes (modulo 2**64)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+        return limb_type(_mm512_reduce_add_epi64(in1.v512));
+    }
+
 
 	/// horizontal add of the 8 unsigned bytes of each 64 bit lane
 	/// needs `AVX512BW`
@@ -3554,194 +3582,250 @@ struct Xint64x8_t {
 using uint64x8_t = Xint64x8_t<true>;
 using  int64x8_t = Xint64x8_t<false>;
 
-/// TODO make generic
-constexpr inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	return uint8x64_t::mullo(lhs, rhs);
+/// operators for the unsigned and signed types
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator*(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	return Xint8x64_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint8x64_t operator*(const uint8x64_t &lhs, const uint8_t &rhs)noexcept {
-	return uint8x64_t::mullo(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator*(const Xint8x64_t<_unsigned> &lhs, const uint8_t &rhs)noexcept {
+	return Xint8x64_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint8x64_t operator*(const uint8_t &lhs, const uint8x64_t &rhs)noexcept {
-	return uint8x64_t::mullo(rhs, lhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator*(const uint8_t &lhs, const Xint8x64_t<_unsigned> &rhs)noexcept {
+	return Xint8x64_t<_unsigned>::mullo(rhs, lhs);
 }
-constexpr inline uint8x64_t operator+(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept{
-	return uint8x64_t::add(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator+(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept{
+	return Xint8x64_t<_unsigned>::add(lhs, rhs);
 }
-constexpr inline uint8x64_t operator-(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	return uint8x64_t::sub(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator-(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	return Xint8x64_t<_unsigned>::sub(lhs, rhs);
 }
-constexpr inline uint8x64_t operator&(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	return uint8x64_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator&(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	return Xint8x64_t<_unsigned>::and_(lhs, rhs);
 }
-constexpr inline uint8x64_t operator^(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	return uint8x64_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator^(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	return Xint8x64_t<_unsigned>::xor_(lhs, rhs);
 }
-constexpr inline uint8x64_t operator|(const uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	return uint8x64_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator|(const Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	return Xint8x64_t<_unsigned>::or_(lhs, rhs);
 }
-constexpr inline uint8x64_t operator~(const uint8x64_t &lhs) noexcept {
-	return uint8x64_t::not_(lhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator~(const Xint8x64_t<_unsigned> &lhs) noexcept {
+	return Xint8x64_t<_unsigned>::not_(lhs);
 }
-constexpr inline uint8x64_t operator>> (const uint8x64_t& lhs, const uint32_t rhs) noexcept {
-	return uint8x64_t::srli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator>> (const Xint8x64_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint8x64_t<_unsigned>::srli(lhs, rhs);
 }
-constexpr inline uint8x64_t operator<< (const uint8x64_t& lhs, const uint32_t rhs) noexcept {
-	return uint8x64_t::slli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator<< (const Xint8x64_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint8x64_t<_unsigned>::slli(lhs, rhs);
 }
-constexpr inline uint8x64_t operator^=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	lhs = uint8x64_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator^=(Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	lhs = Xint8x64_t<_unsigned>::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x64_t operator&=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	lhs = uint8x64_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator&=(Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	lhs = Xint8x64_t<_unsigned>::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint8x64_t operator|=(uint8x64_t &lhs, const uint8x64_t &rhs) noexcept {
-	lhs = uint8x64_t::or_(lhs, rhs);
-	return lhs;
-}
-
-
-///
-constexpr inline uint16x32_t operator*(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::mullo(lhs, rhs);
-}
-constexpr inline uint16x32_t operator*(const uint16x32_t &lhs, const uint8_t &rhs) noexcept {
-	return uint16x32_t::mullo(lhs, rhs);
-}
-constexpr inline uint16x32_t operator*(const uint8_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::mullo(rhs, lhs);
-}
-constexpr inline uint16x32_t operator+(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::add(lhs, rhs);
-}
-constexpr inline uint16x32_t operator-(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::sub(lhs, rhs);
-}
-constexpr inline uint16x32_t operator&(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::and_(lhs, rhs);
-}
-constexpr inline uint16x32_t operator^(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::xor_(lhs, rhs);
-}
-constexpr inline uint16x32_t operator|(const uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	return uint16x32_t::or_(lhs, rhs);
-}
-constexpr inline uint16x32_t operator~(const uint16x32_t &lhs) {
-	return uint16x32_t::not_(lhs);
-}
-constexpr inline uint16x32_t operator>> (const uint16x32_t& lhs, const uint32_t rhs) noexcept {
-	return uint16x32_t::srli(lhs, rhs);
-}
-constexpr inline uint16x32_t operator<< (const uint16x32_t& lhs, const uint32_t rhs) noexcept {
-	return uint16x32_t::slli(lhs, rhs);
-}
-constexpr inline uint16x32_t operator^=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept {
-	lhs = uint16x32_t::xor_(lhs, rhs);
-	return lhs;
-}
-constexpr inline uint16x32_t operator&=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept{
-	lhs = uint16x32_t::and_(lhs, rhs);
-	return lhs;
-}
-constexpr inline uint16x32_t operator|=(uint16x32_t &lhs, const uint16x32_t &rhs) noexcept{
-	lhs = uint16x32_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint8x64_t<_unsigned> operator|=(Xint8x64_t<_unsigned> &lhs, const Xint8x64_t<_unsigned> &rhs) noexcept {
+	lhs = Xint8x64_t<_unsigned>::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint32x16_t operator*(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
-	return uint32x16_t::mullo(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator*(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint32x16_t operator*(const uint32x16_t &lhs, const uint8_t &rhs) noexcept{
-	return uint32x16_t::mullo(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator*(const Xint16x32_t<_unsigned> &lhs, const uint8_t &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint32x16_t operator*(const uint8_t &lhs, const uint32x16_t &rhs) noexcept{
-	return uint32x16_t::mullo(rhs, lhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator*(const uint8_t &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::mullo(rhs, lhs);
 }
-constexpr inline uint32x16_t operator+(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
-	return uint32x16_t::add(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator+(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::add(lhs, rhs);
 }
-constexpr inline uint32x16_t operator-(const uint32x16_t &lhs, const uint32x16_t &rhs)noexcept {
-	return uint32x16_t::sub(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator-(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::sub(lhs, rhs);
 }
-constexpr inline uint32x16_t operator&(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
-	return uint32x16_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator&(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::and_(lhs, rhs);
 }
-constexpr inline uint32x16_t operator^(const uint32x16_t &lhs, const uint32x16_t &rhs)noexcept {
-	return uint32x16_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator^(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::xor_(lhs, rhs);
 }
-constexpr inline uint32x16_t operator|(const uint32x16_t &lhs, const uint32x16_t &rhs) noexcept{
-	return uint32x16_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator|(const Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	return Xint16x32_t<_unsigned>::or_(lhs, rhs);
 }
-constexpr inline uint32x16_t operator~(const uint32x16_t &lhs) noexcept {
-	return uint32x16_t::not_(lhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator~(const Xint16x32_t<_unsigned> &lhs) {
+	return Xint16x32_t<_unsigned>::not_(lhs);
 }
-constexpr inline uint32x16_t operator>> (const uint32x16_t& lhs, const uint32_t rhs) noexcept {
-	return uint32x16_t::srli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator>> (const Xint16x32_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint16x32_t<_unsigned>::srli(lhs, rhs);
 }
-constexpr inline uint32x16_t operator<< (const uint32x16_t& lhs, const uint32_t rhs) noexcept {
-	return uint32x16_t::slli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator<< (const Xint16x32_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint16x32_t<_unsigned>::slli(lhs, rhs);
 }
-constexpr inline uint32x16_t operator^=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
-	lhs = uint32x16_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator^=(Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept {
+	lhs = Xint16x32_t<_unsigned>::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x16_t operator&=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
-	lhs = uint32x16_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator&=(Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept{
+	lhs = Xint16x32_t<_unsigned>::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint32x16_t operator|=(uint32x16_t &lhs, const uint32x16_t &rhs) noexcept {
-	lhs = uint32x16_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint16x32_t<_unsigned> operator|=(Xint16x32_t<_unsigned> &lhs, const Xint16x32_t<_unsigned> &rhs) noexcept{
+	lhs = Xint16x32_t<_unsigned>::or_(lhs, rhs);
 	return lhs;
 }
 
 
 ///
-constexpr inline uint64x8_t operator*(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept {
-	return uint64x8_t::mullo(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator*(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint64x8_t operator*(const uint64x8_t &lhs, const uint8_t &rhs) noexcept{
-	return uint64x8_t::mullo(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator*(const Xint32x16_t<_unsigned> &lhs, const uint8_t &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::mullo(lhs, rhs);
 }
-constexpr inline uint64x8_t operator*(const uint8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::mullo(rhs, lhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator*(const uint8_t &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::mullo(rhs, lhs);
 }
-constexpr inline uint64x8_t operator+(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::add(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator+(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::add(lhs, rhs);
 }
-constexpr inline uint64x8_t operator-(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::sub(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator-(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs)noexcept {
+	return Xint32x16_t<_unsigned>::sub(lhs, rhs);
 }
-constexpr inline uint64x8_t operator&(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator&(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::and_(lhs, rhs);
 }
-constexpr inline uint64x8_t operator^(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator^(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs)noexcept {
+	return Xint32x16_t<_unsigned>::xor_(lhs, rhs);
 }
-constexpr inline uint64x8_t operator|(const uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	return uint64x8_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator|(const Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept{
+	return Xint32x16_t<_unsigned>::or_(lhs, rhs);
 }
-constexpr inline uint64x8_t operator~(const uint64x8_t &lhs) noexcept{
-	return uint64x8_t::not_(lhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator~(const Xint32x16_t<_unsigned> &lhs) noexcept {
+	return Xint32x16_t<_unsigned>::not_(lhs);
 }
-constexpr inline uint64x8_t operator>> (const uint64x8_t& lhs, const uint32_t rhs) noexcept {
-	return uint64x8_t::srli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator>> (const Xint32x16_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint32x16_t<_unsigned>::srli(lhs, rhs);
 }
-constexpr inline uint64x8_t operator<< (const uint64x8_t& lhs, const uint32_t rhs) noexcept {
-	return uint64x8_t::slli(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator<< (const Xint32x16_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint32x16_t<_unsigned>::slli(lhs, rhs);
 }
-constexpr inline uint64x8_t operator^=(uint64x8_t &lhs, const uint64x8_t &rhs)noexcept {
-	lhs = uint64x8_t::xor_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator^=(Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept {
+	lhs = Xint32x16_t<_unsigned>::xor_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x8_t operator&=(uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	lhs = uint64x8_t::and_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator&=(Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept {
+	lhs = Xint32x16_t<_unsigned>::and_(lhs, rhs);
 	return lhs;
 }
-constexpr inline uint64x8_t operator|=(uint64x8_t &lhs, const uint64x8_t &rhs) noexcept{
-	lhs = uint64x8_t::or_(lhs, rhs);
+template<const bool _unsigned>
+constexpr inline Xint32x16_t<_unsigned> operator|=(Xint32x16_t<_unsigned> &lhs, const Xint32x16_t<_unsigned> &rhs) noexcept {
+	lhs = Xint32x16_t<_unsigned>::or_(lhs, rhs);
+	return lhs;
+}
+
+
+///
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator*(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept {
+	return Xint64x8_t<_unsigned>::mullo(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator*(const Xint64x8_t<_unsigned> &lhs, const uint8_t &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::mullo(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator*(const uint8_t &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::mullo(rhs, lhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator+(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::add(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator-(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::sub(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator&(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::and_(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator^(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::xor_(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator|(const Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	return Xint64x8_t<_unsigned>::or_(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator~(const Xint64x8_t<_unsigned> &lhs) noexcept{
+	return Xint64x8_t<_unsigned>::not_(lhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator>> (const Xint64x8_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint64x8_t<_unsigned>::srli(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator<< (const Xint64x8_t<_unsigned>& lhs, const uint32_t rhs) noexcept {
+	return Xint64x8_t<_unsigned>::slli(lhs, rhs);
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator^=(Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs)noexcept {
+	lhs = Xint64x8_t<_unsigned>::xor_(lhs, rhs);
+	return lhs;
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator&=(Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	lhs = Xint64x8_t<_unsigned>::and_(lhs, rhs);
+	return lhs;
+}
+template<const bool _unsigned>
+constexpr inline Xint64x8_t<_unsigned> operator|=(Xint64x8_t<_unsigned> &lhs, const Xint64x8_t<_unsigned> &rhs) noexcept{
+	lhs = Xint64x8_t<_unsigned>::or_(lhs, rhs);
 	return lhs;
 }
 

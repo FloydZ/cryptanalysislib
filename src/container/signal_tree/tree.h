@@ -8,8 +8,15 @@
 #include <functional>
 #include <utility>
 
-// TODO: type rich
-using signal_index = std::uint64_t;
+/// index of a signal (leaf) within a signal tree
+struct signal_index {
+	std::uint64_t value = 0;
+
+	constexpr signal_index() noexcept = default;
+	constexpr explicit signal_index(const std::uint64_t v) noexcept : value(v) {}
+	[[nodiscard]] constexpr explicit operator std::uint64_t() const noexcept { return value; }
+	[[nodiscard]] constexpr bool operator==(const signal_index &) const noexcept = default;
+};
 static signal_index constexpr invalid_signal_index{~0ull};
 
 ///
@@ -65,7 +72,7 @@ struct default_selector {
         				   std::uint64_t nextBias = 0) const noexcept -> signal_index{
         if constexpr (total_counters == 1) {
             select_bias_hint |= nextBias;
-            return 0;
+            return signal_index{0};
         } else {
             static auto constexpr counters_per_half = (total_counters / 2);
             static auto constexpr bits_per_half = (counters_per_half * bits_per_counter);
@@ -79,7 +86,7 @@ struct default_selector {
             nextBias <<= 1;
             nextBias |= (rightCounters != 0);
             counters >>= (chooseRight) ? 0 : bits_per_half;
-            return ((chooseRight) ? counters_per_half : 0) + default_selector<counters_per_half, bits_per_counter, bias_bit / 2>()(biasFlags, counters & right_bit_mask, nextBias);
+            return signal_index{((chooseRight) ? counters_per_half : 0) + default_selector<counters_per_half, bits_per_counter, bias_bit / 2>()(biasFlags, counters & right_bit_mask, nextBias).value};
         }
     }
 };
@@ -210,13 +217,13 @@ public:
 	inline auto select( const bias_flags biasFlags) noexcept -> std::pair<signal_index, bool> {
 	    auto expected = value_.load();
 	    while (expected) {
-	        auto counterIndex = selector<number_of_counters, bits_per_counter, bias_bit>()(biasFlags, expected);
+	        const signal_index counterIndex = selector<number_of_counters, bits_per_counter, bias_bit>()(biasFlags, expected);
 	        if constexpr (non_leaf_node_traits<T>) {
-	            auto desired = expected - addend_[counterIndex];
+	            auto desired = expected - addend_[counterIndex.value];
 	            if (value_.compare_exchange_strong(expected, desired))
 	                return {counterIndex, (desired == 0)};
 	        }else {
-	            auto bit = 0x8000000000000000ull >> counterIndex;
+	            auto bit = 0x8000000000000000ull >> counterIndex.value;
 	            if (expected = value_.fetch_and(~bit); ((expected & bit) == bit))
 	                return {counterIndex, (expected == bit)};
 	        }
@@ -296,7 +303,7 @@ public:
 	        if (auto [_, success] = childLevel_.set(signalIndex); !success)
 	            return {false, false};
 	    }
-	    return nodes_[signalIndex / node_capacity].set(signalIndex % node_capacity);
+	    return nodes_[signalIndex.value / node_capacity].set(signalIndex.value % node_capacity);
 	}
 
 	/// return the index of a counter which is not zero (indicates that one of the leaf nodes
@@ -346,9 +353,8 @@ protected:
 	    } else {
 	        static auto constexpr bias_bits_consumed_to_select_child_counter = minimum_bit_count(child_level_type::counters_per_node) - 1;
 	        select_bias_hint <<= bias_bits_consumed_to_select_child_counter;
-	        auto [childSelectedCounter, _] = childLevel_. template select<select_function>(biasFlags, (nodeIndex * counters_per_node) + selectedCounter);
-	        selectedCounter *= counter_capacity;
-	        return {selectedCounter | childSelectedCounter, nodeIsZero};
+	        auto [childSelectedCounter, _] = childLevel_. template select<select_function>(biasFlags, (nodeIndex * counters_per_node) + selectedCounter.value);
+	        return {signal_index{(selectedCounter.value * counter_capacity) | childSelectedCounter.value}, nodeIsZero};
 	    }
 	}
 

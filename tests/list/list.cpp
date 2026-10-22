@@ -49,6 +49,10 @@ constexpr size_t LS = 1u<<8u;
 #undef Element
 #undef List
 
+// NOTE: the search tests assume pairwise distinct elements; with K=20 the
+// binary value space is only 2^20, so LS random values collide with ~3%.
+#undef K
+#define K 64u
 #define ListName binary_64
 #define MatrixT uint64_t
 #define Matrix 	FqMatrix<MatrixT, N, K, 2, true>
@@ -206,6 +210,42 @@ TEST(Keke, sort_level_target_constexpr) {
 	L.template sort_level<0, N>(rnd.label);
 	EXPECT_EQ(L.is_correct(m), true);
 	EXPECT_EQ(L.is_sorted(rnd.label, false, k_lower, k_higher), true);
+}
+
+/// `add_and_append(..., tid)` appends into the chunk `tid` of the list, a full
+/// chunk does not overwrite the other chunks
+TEST(ListName, add_and_append_tid) {
+	constexpr uint32_t threads = 2;
+	List L{LS, threads};
+	Matrix m;
+	m.random();
+	Element e1, e2, e;
+	e1.random(m); e2.random(m);
+	Element::add(e, e1, e2, 0, N, -1u);
+
+	// both overloads, both chunks
+	for (uint32_t tid = 0; tid < threads; ++tid) {
+		L.add_and_append(e1, e2, 0, N, -1u, false, tid);
+		L.template add_and_append<0, N, -1u, false>(e1, e2, tid);
+		EXPECT_EQ(L.load(tid), 2u) << tid;
+		for (size_t i = L.start_pos(tid); i < L.start_pos(tid) + L.load(tid); ++i) {
+			EXPECT_TRUE(L[i].label.is_equal(e.label)) << tid << " " << i;
+			EXPECT_TRUE(L[i].value.is_equal(e.value)) << tid << " " << i;
+		}
+	}
+
+	// fill chunk 1 (and more): chunk 0 is untouched
+	Element z;
+	z.zero();
+	for (size_t i = 0; i < L.size(1) + 3; ++i) {
+		L.add_and_append(z, z, 0, N, -1u, false, 1);
+	}
+	EXPECT_EQ(L.load(1), L.size(1));
+	EXPECT_EQ(L.load(0), 2u);
+	for (size_t i = L.start_pos(0); i < L.start_pos(0) + L.load(0); ++i) {
+		EXPECT_TRUE(L[i].label.is_equal(e.label)) << i;
+	}
+	EXPECT_EQ(L.size(), LS);
 }
 
 int main(int argc, char **argv) {

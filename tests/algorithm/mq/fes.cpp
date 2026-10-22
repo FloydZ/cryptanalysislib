@@ -97,6 +97,29 @@ bool check_solutions(const int size[m],
     return ret;
 }
 
+/// checks, that every lane found min(count, #solutions) solutions with at most
+/// `max_weight` bits set (0: any weight), all of them are in the brute force list
+void check_brute_force(const int size[m],
+                       const uint32_t *buffer,
+                       const uint32_t count,
+                       const uint32_t max_weight) {
+	// NOTE: all lanes contain the same system
+	std::vector<uint32_t> sols;
+	for (uint32_t y = 0; y < (1u << n); ++y) {
+		if ((max_weight > 0) && ((uint32_t)__builtin_popcount(y) > max_weight)) { continue; }
+		if (feslite_naive_evaluation(n, Fq_internal, Fl, m, y) == 0) { sols.push_back(y); }
+	}
+
+	const size_t expected = std::min<size_t>(count, sols.size());
+	for (uint32_t lane = 0; lane < m; lane++) {
+		EXPECT_EQ(size_t(size[lane]), expected) << lane;
+		for (int i = 0; i < size[lane]; i++) {
+			const uint32_t y = buffer[count * lane + i];
+			EXPECT_TRUE(std::find(sols.begin(), sols.end(), y) != sols.end()) << y;
+		}
+	}
+}
+
 #ifdef USE_AVX2
 TEST(mq, full) {
 	constexpr int count = 32;
@@ -107,30 +130,28 @@ TEST(mq, full) {
     feslite_avx2_enum_16x16(n, m, Fq_internal, Fl, count, buffer, size);
     const auto r = check_solutions(size, buffer, count);
     EXPECT_EQ(r, true);
+	check_brute_force(size, buffer, count, 0);
 }
 
-// TODO: `feslite_avx2_enum_16x16_w` is unfinished (see the TODOs in
-// 	`fes.h`: the derivative index `gamma` is not correct yet, and the
-// 	enumeration returns after two steps), so this test cannot pass yet.
-TEST(mq, DISABLED_weight) {
+TEST(mq, weight) {
 	/* run kernel with small solution limit */
 	const int count = 32;
 	uint32_t buffer[m * count];
 	int size[m];
 
 	const uint32_t x = (1<<10) ^ (1<<9);
-	//const uint32_t x = (1<<9);
 	create_equation_system(x);
-	//for (uint32_t x = 0; x < (1u << 10); x++) {
-	//	uint32_t y = feslite_naive_evaluation(n, Fq_internal, Fl, m, x);
-	//	if (y==0) {
-	//		std::cout << "solutions: " << x << std::endl;
-	//	}
-	//}
 
-	feslite_avx2_enum_16x16_w(n, m, w, Fq_internal, Fl, count, buffer, size);
+	EXPECT_EQ(feslite_avx2_enum_16x16_w(n, m, w, Fq_internal, Fl, count, buffer, size), 0);
     const auto r = check_solutions(size, buffer, count, x);
     EXPECT_EQ(r, true);
+	check_brute_force(size, buffer, count, w);
+
+	// other weights
+	for (const uint32_t w2 : {1u, 2u, 5u, 8u, 9u, 13u}) {
+		EXPECT_EQ(feslite_avx2_enum_16x16_w(n, m, w2, Fq_internal, Fl, count, buffer, size), 0);
+		check_brute_force(size, buffer, count, w2);
+	}
 }
 
 #endif

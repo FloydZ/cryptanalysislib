@@ -41,141 +41,6 @@ TEST(PCS, RhoFactorise) {
 
 	EXPECT_TRUE(rsa.run());
 }
-// TODO move to subesetsum folder
-// not correct right now: the runtime is unbounded (0.1s to >500s), a walk of
-// 	`walk_len`=8 steps only rarely ends in a golden collision.
-//TEST(PCS, RhoSubSetSum) {
-//	/// Simple example of how to use the PollardRho class
-//	/// to solve a subset sum problem.
-//	/// As a function distinguished we use the first bit of a number
-//	constexpr static uint32_t n = 16;
-//	constexpr static uint32_t p = 1u<<n;
-//	constexpr static size_t walk_len = 1u<<3u;
-//
-//	using T 		= uint64_t;
-//	using Label    	= kAry_Type_T<p>;
-//	using Value    	= BinaryVector<n>;
-//	using Matrix 	= FqVector<T, n, p, true>;
-//	using Element 	= Element_T<Value, Label, Matrix>;
-//
-//	// init values
-//	Label target(0);
-//	Element a,b;
-//	a.random(); b.random();
-//	Matrix instance; instance.random();
-//
-//	std::vector<uint32_t> sol;
-//	generate_subsetsum_instance(target, sol, instance, n);
-//
-//	struct SubSetSumCmp {
-//		/// simple comparison struct
-//		/// only a2 and b2 are compared for equality
-//		/// \param a1 predecessor of a2
-//		/// \param a2 value to be
-//		/// \param b1 predecessor of b2
-//		/// \param b2 value to be compared
-//		/// \return true if a2==b2, and a1!=b1;
-//		auto operator()(const Element &a1,
-//						const Element &a2,
-//						const Element &b1,
-//						const Element &b2) const noexcept {
-//			// get the lowest bit
-//			const uint32_t alb = a1.label.value() & 1;
-//			const uint32_t blb = b1.label.value() & 1;
-//
-//			// and make sure, that they are different
-//			if (alb == blb) {
-//				return false;
-//			}
-//
-//			return a2.label == b2.label;
-//		}
-//	};
-//
-//	auto f = [&instance,
-//			  &target = std::as_const(target)]
-//		(const Element &_in) {
-//		Label in = _in.label;
-//		const uint32_t n2 = n/2, n4 = n/4;
-//		static uint32_t weights[n2];
-//		// constexpr uint64_t mask = (1ull << (n/2)) - 1ull;
-//		int2weights<Label::LimbType>(weights, in.value(), n, n2, n2);
-//		Element ret;
-//
-//		// super simple distinguish function
-//		if (in.value() & 1u) {
-//			ret.label = target;
-//			for (uint32_t i = 0; i < n4; i++) {
-//				ret.label -= instance[0][weights[i + n4]];
-//				ret.value[weights[i + n4]] = true;
-//			}
-//		} else {
-//			for (uint32_t i = 0; i < n4; i++) {
-//				ret.label += instance[0][weights[i]];
-//				ret.value[weights[i]] = true;
-//			}
-//		}
-//
-//		assert(ret.value.popcnt() == n4);
-//		return ret;
-//	};
-//
-//	while(true) {
-//		/// restart every X runs
-//		const bool found = PollardRho<SubSetSumCmp, Element>::run
-//				(f, a, b, walk_len);
-//		if (found) {
-//			break;
-//		}
-//
-//		// resample the flavour
-//		a.label.random();
-//		b.label.random();
-//	}
-//
-//	a = f(a); b = f(b);
-//	Label c(0);
-//
-//	std::cout << "solution: ";
-//	for (const auto &s : sol) {
-//		std::cout << s << " ";
-//	}
-//	std::cout << std::endl;
-//	std::cout << a << ", a" << std::endl;
-//	std::cout << b << ", b" << std::endl;
-//
-//	// reconstruct the solution
-//	for (uint32_t i = 0; i < n; ++i) {
-//		if (a.value.get_bit_shifted(i)) {
-//			c += instance[0][i];
-//			std::cout << i << " ";
-//		}
-//		if (b.value.get_bit_shifted(i)) {
-//			c += instance[0][i];
-//			std::cout << i << " ";
-//		}
-//	}
-//	std::cout << std::endl;
-//
-//	Label c1(0);
-//	for (const auto &s : sol) {
-//		c1 += instance[0][s];
-//	}
-//
-//
-//	Label c2(0); Value v2;
-//	Value::add(v2, a.value, b.value);
-//	instance.mul(c2, v2);
-//	EXPECT_EQ(true, c1.is_equal(c2));
-//
-//	std::cout << c1 << std::endl;
-//	std::cout << c << std::endl;
-//	std::cout << target << std::endl;
-//	const bool correct = c == target;
-//	EXPECT_EQ(correct, true);
-//
-//}
-
 TEST(PCS, RhoSubSetSumTree) {
 	// example of a PCS computing trees within the function f
 	constexpr static uint32_t n = 16;
@@ -209,6 +74,14 @@ TEST(PCS, RhoSubSetSumTree) {
 	List L1{size}, L2{size}, out{size};
 	Tree t{1, A, 0};
 
+	// NOTE: the base lists are enumerated once, as the step function `f`
+	// 	must be deterministic. The elements will have weight n//4 on each halve.
+	en.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
+			  (&L1, &L2, n/4);
+
+	// full solutions found by the tree within `f`
+	size_t tree_solutions = 0;
+
 	struct SubSetSumCmp {
 		decltype(auto) operator()(const T &a1,
 								  const T &a2,
@@ -227,46 +100,51 @@ TEST(PCS, RhoSubSetSumTree) {
 		}
 	};
 
-	while(true) {
+	// NOTE: Floyd's cycle finding returns the collision (the predecessors of
+	// 	the cycle entry), or false if it is not golden (same lowest bits).
+	// 	A golden collision is a solution: target + S1 = S2, so it is rare and
+	// 	the number of walks is bounded.
+	constexpr static PollardRhoConfig rhoConfig{.brent = false};
+	const auto identity = [](const T &x) { return x; };
+	for (uint32_t tries = 0; tries < 256; ++tries) {
 		/// restart every X runs
-		const bool val = PollardRho<SubSetSumCmp, T>::run(
-		        [&A, &target, &L1, &L2, &out, &en, &t](const T &in) {
-			// reset the lists
-			L1.set_load(0); L2.set_load(0), out.set_load(0);
+		T a2, b2;
+		const bool val = PollardRho<SubSetSumCmp, T, rhoConfig>::run(
+		        [&A, &target, &L1, &L2, &out, &t, &tree_solutions](const T &in) {
+			// the intermediate target: `in` remapped to a binary string of
+			// weight n//4, plus the target if `in` is odd
+			static uint32_t weights[n/4];
+			int2weights<T::LimbType>(weights, in.value(), n, n/4, n/4);
 
-			// write random elements in the lists in a mitm split. The elements will have
-			// weight n//4 on each halve.
-			en.template run <std::nullptr_t, std::nullptr_t, std::nullptr_t>
-					  (&L1, &L2, n/4);
-
-			// merge the two base lists on the full length ([0, n)) on the target
-			t.join2lists(out, L1, L2, target, 0, n, false);
-
-			T ret = T(0);
-			for (size_t i = 0; i < out.load(); ++i) {
-				// TODO do something
-				// const auto el = out[i];
-
-				// remap each solution back to a binary string of weight n //4
-				static uint32_t weights[n/4];
-				int2weights<T::LimbType>(weights, in.value(), n, n/4, n/4);
-
-				// super simple distinguish function
-				if (in.value() & 1u) {
-					ret += target;
-				}
-
-				for (uint32_t j = 0; j < n/4; j++) {
-					ret += A[0][weights[j]];
-				}
-
+			T iT = T(0);
+			// super simple distinguish function
+			if (in.value() & 1u) {
+				iT += target;
 			}
 
-			// TODO return something
-			return ret;
-		}, a, b, 1u << 6);
+			for (uint32_t j = 0; j < n/4; j++) {
+				iT += A[0][weights[j]];
+			}
+
+			// merge the two base lists on the full length ([0, n)) on the
+			// intermediate target, every output with the target as label is
+			// a full solution
+			out.set_load(0);
+			t.join2lists(out, L1, L2, iT, 0, n, false);
+			for (size_t i = 0; i < out.load(); ++i) {
+				T recalc;
+				A.mul(recalc, out[i].value);
+				tree_solutions += (recalc == target);
+			}
+
+			// the next element of the walk
+			return iT;
+		}, identity, a, b, a2, b2, 1u << 12);
 
 		if (val) {
+			// a golden collision: different lowest bits, same image
+			EXPECT_NE(a.value() & 1u, b.value() & 1u);
+			EXPECT_TRUE(a2 == b2);
 			break;
 		}
 
@@ -301,8 +179,40 @@ static void check_rho_config() {
 
 constexpr static PollardRhoConfig brentConfig{.brent = true};
 constexpr static PollardRhoConfig floydConfig{.brent = false};
+constexpr static PollardRhoConfig gosperConfig{.gosper = true};
 TEST(PCS, RhoConfigBrent) { check_rho_config<brentConfig>(); }
 TEST(PCS, RhoConfigFloyd) { check_rho_config<floydConfig>(); }
+TEST(PCS, RhoConfigGosper) { check_rho_config<gosperConfig>(); }
+
+/// distinguished: the lowest 4 bits are zero
+struct ModSquareDistinguished {
+	bool operator()(const uint32_t &a) const noexcept {
+		return (a & 0xFu) == 0;
+	}
+};
+
+/// parallel collision search of f(x) = x^2 + 1 mod p, sequential and parallel
+TEST(PCS, ParallelCollisionSearch) {
+	constexpr uint32_t p = 1048573;
+	const auto f = [](const uint32_t &x) { return uint32_t((uint64_t(x) * x + 1u) % p); };
+	using S = PCS<ModSquareCmp, ModSquareDistinguished, uint32_t>;
+
+	for (const bool par : {false, true}) {
+		uint32_t x = 0, y = 0;
+		const bool found = S::run(par_if(par), f, x, y, 1u << 10u, 1u << 20u);
+		EXPECT_TRUE(found) << par;
+		EXPECT_NE(x, y) << par;
+		EXPECT_EQ(f(x), f(y)) << par;
+	}
+
+	// with a flavour: the collision is one of x -> f(x ^ 1)
+	const auto flavour = [](const uint32_t &x) { return x ^ 1u; };
+	uint32_t x = 0, y = 0;
+	const bool found = S::run(par_if(true), f, flavour, x, y, 1u << 10u, 1u << 20u);
+	EXPECT_TRUE(found);
+	EXPECT_NE(x, y);
+	EXPECT_EQ(f(flavour(x)), f(flavour(y)));
+}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

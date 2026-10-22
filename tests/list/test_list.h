@@ -39,6 +39,30 @@ TEST(ListName, base_random) {
 	}
 }
 
+TEST(ListName, recalculate_label_range) {
+	Matrix m;
+	m.random();
+
+	Element e;
+	e.random(m);
+	const Label correct = e.label;
+
+	constexpr uint32_t k_lower = N/4, k_upper = N/2;
+	Element e2 = e;
+	e2.label.zero();
+	e2.recalculate_label(m, k_lower, k_upper);
+	for (uint32_t i = 0; i < N; ++i) {
+		if ((i >= k_lower) && (i < k_upper)) {
+			EXPECT_EQ(e2.label.get(i), correct.get(i));
+		} else {
+			EXPECT_EQ(e2.label.get(i), 0u);
+		}
+	}
+
+	e2.recalculate_label(m, 0, N);
+	EXPECT_TRUE(e2.label.is_equal(correct));
+}
+
 TEST(ListName, sort_level) {
 	const uint32_t k_lower = 0, k_higher = N;
 	List L{LS, 1};

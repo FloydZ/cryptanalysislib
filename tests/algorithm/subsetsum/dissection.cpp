@@ -67,6 +67,47 @@ TEST(SubSetSum, dissection) {
 	}
 }
 
+TEST(SubSetSum, dissection_runtime_hashmap) {
+	Matrix AT; AT.random();
+
+	List out1{1<<n}, out2{1<<n}, out3{1<<n};
+	// NOTE: same instance as above
+	Label target; target.zero();
+	for (uint32_t qd = 0; qd < 4; ++qd) {
+		std::vector<uint32_t> idx(n/4);
+		for (uint32_t i = 0; i < n/4; ++i) { idx[i] = qd*(n/4) + i; }
+		for (uint32_t i = 0; i < n/8; ++i) {
+			const uint32_t j = i + (uint32_t)(rng() % (n/4 - i));
+			cryptanalysislib::swap(idx[i], idx[j]);
+			Label::add(target, target, AT[0][idx[i]]);
+		}
+	}
+
+	Tree::constexpr_dissection4<0, n/4, n>(out1, target, AT);
+	Tree::constexpr_dissection4_hashmap<0, n/4, n>(out2, target, AT);
+
+	// the runtime version with the same base lists
+	constexpr size_t baselist_size = sum_bc(n/4, n/8);
+	List L1{baselist_size}, L2{baselist_size}, L3{baselist_size}, L4{baselist_size};
+	using Enumerator = BinaryLexicographicEnumerator<List, n/4, n/8>;
+	Enumerator e{AT};
+	e.run(&L1, &L2, n/4);
+	e.run(&L3, &L4, n/4, n/2);
+	Tree::dissection4(out3, L1, L2, L3, L4, target, 0, n/4, n);
+
+	EXPECT_GE(out1.load(), 1);
+	EXPECT_EQ(out2.load(), out1.load());
+	EXPECT_EQ(out3.load(), out1.load());
+	for (const List *out : {&out1, &out2, &out3}) {
+		for (size_t i = 0; i < out->load(); ++i) {
+			Label tmp;
+			AT.mul(tmp, (*out)[i].value);
+			EXPECT_TRUE(target.is_equal(tmp));
+			EXPECT_TRUE(target.is_equal((*out)[i].label));
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

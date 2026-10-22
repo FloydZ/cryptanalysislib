@@ -85,6 +85,27 @@ TEST(kAryType, ostream) {
 	EXPECT_EQ(ss.str(), "1010 (5, 0x5)"); // lowest bit first
 }
 
+/// same arithmetic with a wider limb type
+TEST(kAryType, big) {
+	using K = kAry_Type_T<13>;
+	using B = kAry_Type_T_big<uint64_t, 13>;
+	static_assert(std::is_same_v<K::LimbType, uint8_t>);
+	static_assert(std::is_same_v<B::LimbType, uint64_t>);
+	for (uint64_t i = 0; i < 13; ++i) {
+		for (uint64_t j = 0; j < 13; ++j) {
+			const K a = i, b = j;
+			const B c = i, d = j;
+			EXPECT_EQ((a + b).value(), (c + d).value());
+			EXPECT_EQ((a - b).value(), (c - d).value());
+			EXPECT_EQ((a * b).value(), (c * d).value());
+		}
+	}
+
+	std::stringstream ss;
+	ss << B(5);
+	EXPECT_EQ(ss.str(), "1010 (5, 0x5)");
+}
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
 	ident();

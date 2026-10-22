@@ -61,8 +61,8 @@ TEST(sat, next_gray) {
 }
 
 /// SIMD version against a direct evaluation, random sets of 8 clauses
-TEST(sat, bruteforce_simd) {
-	constexpr uint32_t n = 6;
+template<const uint32_t n>
+static void check_bruteforce_simd() {
 	for (uint32_t r = 0; r < 200; ++r) {
 		uint32_t clauses[8];
 		for (auto &c : clauses) { c = uint32_t(rand()) & ((1u << n) - 1u); }
@@ -79,6 +79,13 @@ TEST(sat, bruteforce_simd) {
 		std::sort(sol.begin(), sol.end());
 		EXPECT_EQ(sol, e) << r;
 	}
+}
+
+// NOTE: n < 4: a single (partial) block, n > 4: several unrolled blocks
+TEST(sat, bruteforce_simd) {
+	check_bruteforce_simd<3>();
+	check_bruteforce_simd<6>();
+	check_bruteforce_simd<11>();
 }
 
 int main(int argc, char **argv) {

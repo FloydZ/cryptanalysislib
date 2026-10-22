@@ -62,6 +62,63 @@ TEST(set_intersection, iterators) {
 	}
 }
 
+/// sorted, duplicate free random T
+template<typename T>
+static std::vector<T> sorted_unique_T(const size_t n, const uint64_t mod) {
+	std::set<T> s;
+	while (s.size() < n) { s.insert(T(rng() % mod)); }
+	return {s.begin(), s.end()};
+}
+
+template<typename T>
+static void check_simd() {
+	for (const uint64_t mod : {64ull, 300ull, 2000ull, 1ull << 31u}) {
+		const uint64_t m = (sizeof(T) == 1) ? 256u : mod;
+		for (size_t n1 = 0; n1 <= 200; n1 += 13) {
+			for (size_t n2 = 0; n2 <= 200; n2 += 17) {
+				const auto a = sorted_unique_T<T>(std::min<size_t>(n1, m), m);
+				const auto b = sorted_unique_T<T>(std::min<size_t>(n2, m), m);
+				std::vector<T> e, o(std::min(a.size(), b.size()) + 1);
+				std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), std::back_inserter(e));
+				const size_t c = set_intersection_simd(a.data(), a.size(), b.data(), b.size(), o.data());
+				ASSERT_EQ(c, e.size()) << n1 << " " << n2 << " " << mod;
+				EXPECT_TRUE(std::equal(e.begin(), e.end(), o.begin())) << n1 << " " << n2 << " " << mod;
+			}
+		}
+	}
+}
+
+TEST(set_intersection, simd_u8)  { check_simd<uint8_t>(); }
+TEST(set_intersection, simd_u16) { check_simd<uint16_t>(); }
+TEST(set_intersection, simd_u32) { check_simd<uint32_t>(); }
+TEST(set_intersection, simd_u64) { check_simd<uint64_t>(); }
+
+/// the parallel version against std::set_intersection, also for multisets
+TEST(set_intersection, parallel) {
+	for (const uint32_t mod : {3u, 50u, 1000u, 1u << 20}) {
+		std::vector<uint32_t> a(1u << 16), b(1u << 15), o(1u << 16), e(1u << 16);
+		for (auto &x : a) { x = rng<uint32_t>() % mod; }
+		for (auto &x : b) { x = rng<uint32_t>() % mod; }
+		std::sort(a.begin(), a.end());
+		std::sort(b.begin(), b.end());
+		auto r1 = cryptanalysislib::set_intersection(par_if(true), a.begin(), a.end(), b.begin(), b.end(), o.begin());
+		auto r2 = std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), e.begin());
+		ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << mod;
+		EXPECT_TRUE(std::equal(o.begin(), r1, e.begin())) << mod;
+
+		std::vector<uint32_t> ra(a.rbegin(), a.rend()), rb(b.rbegin(), b.rend());
+		r1 = cryptanalysislib::set_intersection(par_if(true), ra.begin(), ra.end(), rb.begin(), rb.end(), o.begin(), std::greater<>());
+		r2 = std::set_intersection(ra.begin(), ra.end(), rb.begin(), rb.end(), e.begin(), std::greater<>());
+		ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << mod;
+		EXPECT_TRUE(std::equal(o.begin(), r1, e.begin())) << mod;
+
+		// sequential policy
+		r1 = cryptanalysislib::set_intersection(par_if(false), a.begin(), a.end(), b.begin(), b.end(), o.begin());
+		r2 = std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), e.begin());
+		ASSERT_EQ(r1 - o.begin(), r2 - e.begin()) << mod;
+	}
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

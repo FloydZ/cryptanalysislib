@@ -2759,6 +2759,14 @@ struct Xint8x32_t {
 	using limb_type = std::conditional_t<__unsigned, uint8_t, int8_t>;
 	using S = Xint8x32_t;
 
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**8)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S &in1) noexcept {
+		uint8_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) { ret = uint8_t(ret + uint8_t(in1.d[i])); }
+		return limb_type(ret);
+	}
+
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -3395,6 +3403,14 @@ struct Xint16x16_t {
 	using limb_type = std::conditional_t<__unsigned, uint16_t, int16_t>;
 	using S = Xint16x16_t;
 
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**16)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S &in1) noexcept {
+		uint16_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) { ret = uint16_t(ret + uint16_t(in1.d[i])); }
+		return limb_type(ret);
+	}
+
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
     using T32 = std::conditional<__unsigned, uint32_t, int32_t>::type;
@@ -3941,6 +3957,14 @@ struct Xint32x8_t {
 	constexpr static uint32_t LIMBS = 8;
 	using limb_type = std::conditional_t<__unsigned, uint32_t, int32_t>;
 	using S = Xint32x8_t;
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**32)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S &in1) noexcept {
+		uint32_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) { ret += uint32_t(in1.d[i]); }
+		return limb_type(ret);
+	}
 
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;
@@ -4573,6 +4597,14 @@ struct Xint64x4_t {
 	constexpr static uint32_t LIMBS = 4;
 	using limb_type = std::conditional_t<__unsigned, uint64_t, int64_t>;
 	using S = Xint64x4_t;
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**64)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S &in1) noexcept {
+		uint64_t ret = 0;
+		for (uint32_t i = 0; i < LIMBS; i++) { ret += uint64_t(in1.d[i]); }
+		return limb_type(ret);
+	}
     
     using T8  = std::conditional<__unsigned, uint8_t,   int8_t>::type;
     using T16 = std::conditional<__unsigned, uint16_t, int16_t>::type;

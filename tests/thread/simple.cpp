@@ -50,6 +50,31 @@ TEST(SimpleScheduler, child_task_at_destruction) {
 	EXPECT_TRUE(child_ran.load());
 }
 
+/// more tasks than the queue holds: the others run in the submitting thread
+TEST(SimpleScheduler, full_queue) {
+	using S = cryptanalysislib::SimpleScheduler<>;
+	S pool(1);
+	pool.pause();
+	std::atomic<size_t> ctr{0};
+	const size_t n = S::queue_size + 100;
+	for (size_t i = 0; i < n; i++) { pool.submit_detach([&] { ctr++; }); }
+	EXPECT_EQ(pool.get_num_queued_tasks(), S::queue_size);
+	EXPECT_EQ(ctr.load(), 100u);
+
+	pool.unpause();
+	pool.wait_for_tasks();
+	EXPECT_EQ(ctr.load(), n);
+
+	// futures of tasks executed in the calling thread are ready
+	pool.pause();
+	for (size_t i = 0; i < S::queue_size; i++) { pool.submit_detach([] {}); }
+	auto f = pool.submit([] { return 42; });
+	EXPECT_EQ(f.wait_for(0s), std::future_status::ready);
+	EXPECT_EQ(f.get(), 42);
+	pool.clear_tasks();
+	EXPECT_EQ(pool.get_num_queued_tasks(), 0u);
+}
+
 int main(int argc, char **argv) {
     InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

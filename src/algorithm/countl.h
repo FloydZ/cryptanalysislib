@@ -36,6 +36,20 @@ namespace cryptanalysislib {
 			return 64u + (uint32_t)__builtin_clzll((uint64_t)x);
 		}
 	}
+
+	/// the largest power of two not greater than `x`, i.e. only the most
+	/// significant set bit of `x` (same semantics as `std::bit_floor`)
+	/// \tparam T unsigned integer type (up to 128 bits)
+	/// \param x [in]:
+	/// \return [out]: `0` if `x == 0`
+	template<typename T>
+#if __cplusplus > 201709L
+		requires (std::is_unsigned_v<T> || std::is_same_v<T, unsigned __int128>)
+#endif
+	[[nodiscard]] constexpr inline T bit_floor(const T x) noexcept {
+		if (x == 0) { return 0; }
+		return T(T(1u) << (sizeof(T) * 8u - 1u - countl_zero(x)));
+	}
 } // namespace cryptanalysislib
 
 #endif

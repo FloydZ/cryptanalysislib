@@ -190,6 +190,20 @@ TEST(BTreeSet, iterator) {
 	}
 }
 
+/// explicit allocator (and a copy of the tree)
+TEST(BTreeSet, allocator) {
+	BTreeSet<long, bTreeSetConfig, cryptanalysislib::allocator<long>> b(5);
+	std::set<long> e;
+	for (int i = 0; i < 5000; ++i) {
+		const long v = long(randGen() % 3000);
+		if (randGen() % 4) { b.insert(v); e.insert(v); } else { b.erase(v); e.erase(v); }
+	}
+	const auto b2(b);
+	std::vector<long> got(b2.begin(), b2.end());
+	EXPECT_EQ(got, std::vector<long>(e.begin(), e.end()));
+	EXPECT_EQ(b2.size(), e.size());
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

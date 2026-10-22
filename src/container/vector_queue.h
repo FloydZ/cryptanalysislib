@@ -41,6 +41,11 @@ public:
         return __data[_front];
     }
 
+	/// \return the current element at the front, e.g. to move it out
+    [[nodiscard]] constexpr inline reference front() noexcept {
+        return __data[_front];
+    }
+
 	/// \return the last element in the back of the queue
     [[nodiscard]] constexpr inline const_reference back() const noexcept {
         return __data[pos(_size - 1u)];
@@ -86,13 +91,24 @@ public:
     }
 
     /// removes the front element. Does nothing if the queue is empty.
+    /// NOTE: the slot is reset to `T{}`, which frees the resources of `T`
     constexpr inline void pop() noexcept {
         if (_size == 0) {
             return;
         }
 
+        __data[_front] = T{};
         _front = next(_front);
         _size -= 1;
+    }
+
+    /// removes all elements
+    constexpr inline void clear() noexcept {
+        while (_size) {
+            pop();
+        }
+
+        _front = 0;
     }
 
     /// just some debugging

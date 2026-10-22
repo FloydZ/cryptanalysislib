@@ -27,8 +27,8 @@ B63_BASELINE(ListConstructor, nn) {
     (void)b63run;
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
-		DecodingList L(nn*lsize);
-		L.set_load(nn*lsize);
+		DecodingList L(lsize);
+		L.set_load(lsize);
 		res += L[0].label_ptr(0);
 	}
 
@@ -39,7 +39,7 @@ B63_BENCHMARK(ListMalloc, nn) {
     (void)b63run;
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
-		DecodingElement *L = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
+		DecodingElement *L = (DecodingElement *) malloc(lsize * sizeof(DecodingElement));
 		res += L[0].label_ptr(0);
 		free(L);
 	}
@@ -49,13 +49,13 @@ B63_BENCHMARK(ListMalloc, nn) {
 
 B63_BENCHMARK(CopyClass, nn) {
     (void)b63run;
-	DecodingList L1{nn*lsize};
-	DecodingList L2{nn*lsize};
+	DecodingList L1{lsize};
+	DecodingList L2{lsize};
 	uint32_t res = 0;
 
 	B63_SUSPEND {
-		L1.set_load(nn*lsize);
-		L2.set_load(nn*lsize);
+		L1.set_load(lsize);
+		L2.set_load(lsize);
 	}
 
 	for (uint64_t i = 0; i < nn; ++i) {
@@ -69,12 +69,12 @@ B63_BENCHMARK(CopyClass, nn) {
 
 B63_BENCHMARK(CopyMalloc, nn) {
     (void)b63run;
-	DecodingElement *L1 = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
-	DecodingElement *L2 = (DecodingElement *) malloc(nn*lsize * sizeof(DecodingElement));
+	DecodingElement *L1 = (DecodingElement *) malloc(lsize * sizeof(DecodingElement));
+	DecodingElement *L2 = (DecodingElement *) malloc(lsize * sizeof(DecodingElement));
 
 	uint32_t res = 0;
 	for (uint64_t i = 0; i < nn; ++i) {
-		cryptanalysislib::memcpy(L1, L2, nn*lsize);
+		cryptanalysislib::memcpy(L1, L2, lsize);
 		res += L1[0].label_ptr(0);
 		L1[0].label_ptr()[0] += rand();
 	}

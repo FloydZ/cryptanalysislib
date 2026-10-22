@@ -23,6 +23,10 @@ static_assert(select_tree_size((1ull << 27) + 1) == (1ull << 28));
 static_assert(select_tree_size(1ull << 30) == (1ull << 30));
 static_assert(select_tree_size((1ull << 30) + 5) == (1ull << 31));
 
+// no implicit conversions from/to plain integers
+static_assert(!std::is_convertible_v<std::uint64_t, signal_index>);
+static_assert(!std::is_convertible_v<signal_index, std::uint64_t>);
+
 template<std::size_t desired_signal_tree_capacity>
 int test_multi_threaded() {
 	try {
@@ -41,7 +45,7 @@ int test_multi_threaded() {
 		for (auto &thread: threads) {
 			thread = std::move(std::jthread([&, n = threadIndex]() mutable {
 				while (n < actual_signal_tree_capacity) {
-					auto [_, success] = signalTree->set(n);
+					auto [_, success] = signalTree->set(signal_index{n});
 					if (!success)
 						setErrorCount++;
 					n += num_threads;
@@ -61,7 +65,7 @@ int test_multi_threaded() {
 			thread = std::move(std::jthread([&, n = threadIndex]() mutable {
 				while (n < actual_signal_tree_capacity) {
 					auto [selectedId, _] = signalTree->select(n);
-					if (selectedId != n)
+					if (selectedId != signal_index{n})
 						selectErrorCount++;
 					n += num_threads;
 				}
@@ -79,7 +83,7 @@ int test_multi_threaded() {
 		if (!signalTree->empty())
 			throw std::runtime_error("signal tree expected to be empty after all signals selected");
 
-		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != ~0ull)
+		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != invalid_signal_index)
 			throw std::runtime_error("empty signal tree should return invalid signal id when select is called");
 		std::cout << "signal tree: empty tree correctly returns invalid signal id to select call\n";
 
@@ -115,7 +119,7 @@ int test_single_threaded() {
 		// return that the tree was NOT empty prior to that call to set.
 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
 			auto wasEmpty = signalTree->empty();
-			auto [transitionedToNonEmpty, success] = signalTree->set(i);
+			auto [transitionedToNonEmpty, success] = signalTree->set(signal_index{i});
 			if (wasEmpty != transitionedToNonEmpty)
 				throw std::runtime_error("empty test failure");
 
@@ -128,7 +132,7 @@ int test_single_threaded() {
 		// repeat above.  But since signals are all set, each call to set() should
 		// return 'not transitioned from empty' and 'failure to set'
 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
-			auto [transitionedToNonEmpty, success] = signalTree->set(i);
+			auto [transitionedToNonEmpty, success] = signalTree->set(signal_index{i});
 			if (transitionedToNonEmpty)
 				throw std::runtime_error("signal tree set returned transition state error");
 
@@ -147,16 +151,16 @@ int test_single_threaded() {
 		std::fill(selected.begin(), selected.end(), false);
 		for (auto i = 0ull; i < actual_signal_tree_capacity; ++i) {
 			auto [signalId, transitionedToEmpty] = signalTree->select(i);
-			if (signalId >= actual_signal_tree_capacity)
+			if (signalId.value >= actual_signal_tree_capacity)
 				throw std::runtime_error("selected invalid signal index");
 
 			// signal should not have been previously selected
-			if (selected[signalId] == true)
+			if (selected[signalId.value] == true)
 				throw std::runtime_error("signal selected twice without being set twice");
 
-			selected[signalId] = true;
+			selected[signalId.value] = true;
 			// signal selected should match the bias hint provided
-			if (signalId != i)
+			if (signalId != signal_index{i})
 				throw std::runtime_error("select returned wrong signal id");
 
 			if (signalTree->empty()) {
@@ -176,7 +180,7 @@ int test_single_threaded() {
 		if (!signalTree->empty())
 			throw std::runtime_error("signal tree expected to be empty after all signals selected");
 
-		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != ~0ull)
+		if (auto [signalId, transitionedToEmpty] = signalTree->select(0); signalId != invalid_signal_index)
 			throw std::runtime_error("empty signal tree should return invalid signal id when select is called");
 		std::cout << "signal tree: empty tree correctly returns invalid signal id to select call\n";
 

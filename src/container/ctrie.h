@@ -4,10 +4,10 @@
 /// implementation of http://aleksandar-prokopec.com/resources/docs/p137-prokopec.pdf
 /// see scala code: https://github.com/reactors-io/reactors/blob/master/reactors-common/jvm/src/main/scala/io/reactors/common/concurrent/CacheTrie.scala
 
-/// TODO/Ideas:
-/// debug funcitons schreiben, die den Ctrie plotten
-/// remove recursion
-/// add cache
+/// NOTE: `print_dot` writes the trie as a graphviz graph (debugging).
+/// NOTE: the cache (`CacheTrieConfig::useCache`) stores the array nodes of a
+/// 	single level of the trie (selected by sampling, see `sampleAndUpdateCache`),
+/// 	`fast_lookup`, `fast_insert` and `fast_remove` start there.
 
 
 #include <array>
@@ -23,6 +23,7 @@
 #include "container/hashmap.h"
 #include "helper.h"
 #include "math/math.h"
+#include "memory/memset.h"
 
 
 // zero is reserved for nullptr
@@ -35,6 +36,10 @@
 #define FNodeValue  0b0111
 #define FVNodeValue 0b1000
 #define FSNodeValue 0b1001
+// `SNode::txn` of a removed single node (helpers write `nullptr` into the slot)
+#define RNodeValue  0b1010
+// a cache array (see `createCacheArray`), only used to retire it
+#define CNodeValue  0b1011
 #define FullValue   0b1111
 #define NFullValue  (~FullValue)
 
@@ -48,6 +53,10 @@
 #define isXNode(ptr)  ((((uintptr_t)ptr) & FullValue) == XNodeValue)
 #define isFVNode(ptr) ((((uintptr_t)ptr) & FullValue) == FVNodeValue)
 #define isFSNode(ptr) ((((uintptr_t)ptr) & FullValue) == FSNodeValue)
+#define isRNode(ptr)  (((uintptr_t)ptr) == RNodeValue)
+#define isCNode(ptr)  ((((uintptr_t)ptr) & FullValue) == CNodeValue)
+// the value to write into the slot of a single node, whose txn is `txn`
+#define txnSlot(txn)  (isRNode(txn) ? nullptr : (txn))
 
 #define maskANode(ptr)  ((ptr) = (ANode *) ((uintptr_t)(ptr) ^ ANodeValue))
 #define maskANNode(ptr) ((ptr) = (ANNode *)((uintptr_t)(ptr) ^ ANNodeValue))
@@ -66,7 +75,7 @@
 
 /// Number of threads which access the ctrie concurrently:
 /// 	1: the CAS operations are plain (non atomic) writes,
-/// 	>1: atomic CAS; also sizes the cache miss counters.
+/// 	>1: atomic CAS.
 /// Can be set by the user (`-DNUMBER_CPUS=1` or before including this header).
 #ifndef NUMBER_CPUS
 #define NUMBER_CPUS 2
@@ -188,6 +197,8 @@ constexpr inline bool __CAS_AN_COUNT_(uint8_t *ptr,
 
 
 struct CacheTrieConfig : public AlignmentConfig {
+	// cache the array nodes of one level of the trie, see `CacheTrie`
+	const bool useCache = true;
 };
 constexpr static CacheTrieConfig cacheTrieConfig;
 
@@ -221,11 +232,10 @@ class CacheTrie {
 	constexpr static uint32_t lW = 4;
 	constexpr static uint32_t threads = 1;
 
-	// TODO enable
 	/// some flags to enable/disable features
-	constexpr static bool useCompression = false;
-	constexpr static bool useCounters = false;
-	constexpr static bool useCache = false;
+	constexpr static bool useCompression = true;
+	constexpr static bool useCounters = true;
+	constexpr static bool useCache = config.useCache;
 
 
 	class ANNode {
@@ -280,29 +290,28 @@ class CacheTrie {
 		}
 	};
 
+	/// position 0 of a cache array (see `createCacheArray`)
 	class CacheNode {
 	public:
-		CacheNode *parent = nullptr;
+		/// the cache array of the level above (`level - 4`), or nullptr
+		void *parent = nullptr;
+		/// the cache holds the array nodes at this level of the trie
 		uint32_t level = 0;
-		uint32_t missCounts[NUMBER_CPUS * 16] = {0};
+		/// NOTE: approximate, updated concurrently (relaxed)
+		uint32_t missCount = 0;
 		CacheNode() = delete;
-		CacheNode(CacheNode *parent, uint32_t level) : parent(parent), level(level) {}
+		CacheNode(void *parent, uint32_t level) : parent(parent), level(level) {}
 
-		constexpr uint32_t pos() {
-			const uint32_t tid = 0;
-			return (tid ^ (tid >> 16u)) & (level - 1u);
+		inline uint32_t approximateMissCount() noexcept {
+			return __atomic_load_n(&missCount, __ATOMIC_RELAXED);
 		}
 
-		constexpr inline uint32_t approximateMissCount() noexcept {
-			return missCounts[0];
+		inline void resetMissCount() noexcept {
+			STORE(&missCount, 0u);
 		}
 
-		constexpr inline uint32_t resetMissCount() noexcept {
-			return missCounts[0] = 0;
-		}
-
-		constexpr inline uint32_t bumpMissCount() noexcept {
-			return missCounts[0] += 1;
+		inline void bumpMissCount() noexcept {
+			FAA(&missCount, 1u);
 		}
 	};
 
@@ -366,8 +375,9 @@ class CacheTrie {
 	/////////////////////////////////////////////////////////////////////////////
 
 
+	/// the current cache array (see `createCacheArray`), or nullptr.
+	/// NOTE: read with `READ(&cache_ptr, 0)`, written with `CAS_CACHE`
 	void *cache_ptr = nullptr;
-	size_t cache_size = 0;
 	constexpr static size_t missCountMax = 2048;
 
 	/// +1, because we need to fake that the root is a `ANode`
@@ -433,6 +443,10 @@ class CacheTrie {
 			del((ENode *) raw);
 		} else if (isXNode(node)) {
 			del((XNode *) raw);
+		} else if (isCNode(node)) {
+			// a cache array, without the cached nodes
+			del((CacheNode *) ((void **) raw)[0]);
+			cryptanalysislib::aligned_free(raw);
 		}
 	}
 
@@ -504,8 +518,23 @@ class CacheTrie {
 
 	/////////////////////////////// ALLOC //////////////////////////////////
 
-	inline void* createCacheArray(const uint32_t level) noexcept {
-		return cryptanalysislib::aligned_alloc(alignment, sizeof(void *) * (1 + (1u << level)));
+	/// \param parent the cache array of the level above, or nullptr
+	/// \param level of the trie, whose array nodes are cached
+	/// \return the cache array: the `CacheNode` at position 0, followed by
+	/// 	`1 << level` empty entries. The entry `1 + (hash & ((1 << level) - 1))`
+	/// 	caches the array node at `level` on the path of `hash`.
+	inline void** createCacheArray(void *parent, const uint32_t level) noexcept {
+		const size_t len = 1ull + (1ull << level);
+		auto **ret = (void **)cryptanalysislib::aligned_alloc(alignment, sizeof(void *) * len);
+		cryptanalysislib::memset((uintptr_t *)ret, (uintptr_t)0, len);
+		ret[0] = new (std::align_val_t(alignment)) CacheNode{parent, level};
+		return ret;
+	}
+
+	/// \return the level of the trie, which is cached in `cache`
+	inline uint32_t cacheLevel(const void *cache) const noexcept {
+		assert(cache != nullptr);
+		return ((CacheNode *)READ(cache, 0))->level;
 	}
 
 	constexpr inline ANode* createWideArray() noexcept {
@@ -726,16 +755,79 @@ public:
 				  << " }" <<std::endl;
 	}
 
+	/// writes the trie as a graphviz graph (`dot -Tsvg`) to `out`: array
+	/// nodes as records with one field per slot, single and list nodes with
+	/// their hash, frozen/expansion/compression nodes with their targets.
+	/// NOTE: not thread safe, only for debugging
+	void print_dot(std::ostream &out) const noexcept {
+		out << "digraph ctrie {\n";
+		print_dot(out, rawRoot);
+		out << "}\n";
+	}
+
+private:
+	/// writes `node` (a tagged pointer) and all nodes below it
+	void print_dot(std::ostream &out, void *node) const noexcept {
+		const uintptr_t raw = accessNode(node);
+		if (raw == 0) {
+			return;
+		}
+
+		if (isAANode(node)) {
+			const uint32_t len = usedLength(node);
+			out << "  n" << raw << " [shape=record,label=\"" << (isANode(node) ? "A" : "AN");
+			for (uint32_t i = 0; i < len; i++) {
+				out << "|<s" << i << ">" << (isFVNode(((void **) raw)[i]) ? "FV" : "");
+			}
+			out << "\"];\n";
+
+			for (uint32_t i = 0; i < len; i++) {
+				void *child = ((void **) raw)[i];
+				if (accessNode(child) == 0) { continue; }
+				out << "  n" << raw << ":s" << i << " -> n" << accessNode(child) << ";\n";
+				print_dot(out, child);
+			}
+		} else if (isSNode(node)) {
+			const auto *sn = (SNode *) raw;
+			out << "  n" << raw << " [label=\"S " << std::hex << sn->hash << std::dec
+			    << (isFSNode(sn->txn) ? " (frozen)" : "") << "\"];\n";
+		} else if (isLNode(node)) {
+			const auto *ln = (LNode *) raw;
+			out << "  n" << raw << " [label=\"L " << std::hex << ln->hash << std::dec << "\"];\n";
+			if (accessNode(ln->next) != 0) {
+				out << "  n" << raw << " -> n" << accessNode(ln->next) << ";\n";
+				print_dot(out, ln->next);
+			}
+		} else if (isFNode(node)) {
+			const auto *fn = (FNode *) raw;
+			out << "  n" << raw << " [label=\"F\"];\n";
+			out << "  n" << raw << " -> n" << accessNode(fn->frozen) << ";\n";
+			print_dot(out, fn->frozen);
+		} else if (isENode(node)) {
+			const auto *en = (ENode *) raw;
+			out << "  n" << raw << " [label=\"E\"];\n";
+			out << "  n" << raw << " -> n" << accessNode(en->narrow) << " [label=\"narrow\"];\n";
+			print_dot(out, en->narrow);
+			if (accessNode(en->wide) != 0) {
+				out << "  n" << raw << " -> n" << accessNode(en->wide) << " [label=\"wide\"];\n";
+				print_dot(out, en->wide);
+			}
+		} else if (isXNode(node)) {
+			const auto *xn = (XNode *) raw;
+			out << "  n" << raw << " [label=\"X\"];\n";
+			out << "  n" << raw << " -> n" << accessNode(xn->stale) << " [label=\"stale\"];\n";
+			print_dot(out, xn->stale);
+		}
+	}
+
+public:
+
 	constexpr CacheTrie() noexcept {
 		// this is hideous: we need to mark the root node as an A node
 		rawRoot = (void *)root;
 		maskANode(rawRoot);
-
-		if constexpr (useCache) {
-			// cache_size = 1024;
-			// cache_ptr = (void *) aligned_alloc(alignment, (sizeof(CacheNode) * cache_size));
-			// memset(cache_ptr, 0, sizeof(void *) * cache_size);
-		}
+		// NOTE: the cache is created by the first expansion at level >= 12,
+		// 	see `inhabitCache`
 	}
 
 	/// NOTE: frees all nodes reachable from the root and all retired nodes
@@ -747,6 +839,11 @@ public:
 		std::unordered_map<uintptr_t, void *> nodes;
 		for (uint32_t i = 0; i < wayness; ++i) {
 			collect(root[i], nodes);
+		}
+
+		if (cache_ptr != nullptr) {
+			// the current cache and its parents
+			collect((void *)((uintptr_t)cache_ptr | CNodeValue), nodes);
 		}
 
 		RetireNode *r = retired.load(std::memory_order_acquire);
@@ -795,11 +892,26 @@ private:
 			collect(((ENode *) raw)->wide, nodes);
 		} else if (isXNode(node)) {
 			collect(((XNode *) raw)->stale, nodes);
+		} else if (isCNode(node)) {
+			// NOTE: not the cached nodes, they are in the trie or retired
+			void *parent = ((CacheNode *) ((void **) raw)[0])->parent;
+			if (parent != nullptr) {
+				collect((void *)((uintptr_t)parent | CNodeValue), nodes);
+			}
 		}
 	}
 
 public:
+	/// \return the level of the trie, whose array nodes are cached, or -1
+	/// 	if there is no cache (yet)
+	[[nodiscard]] int32_t cache_level() const noexcept {
+		const void *cache = READ(&cache_ptr, 0);
+		return (cache == nullptr) ? -1 : (int32_t)cacheLevel(cache);
+	}
 
+	/// writes `nv` (an array node at `cacheeLevel`, or a single node in an
+	/// array at `cacheeLevel - 4`) into `cache`, if `cache` caches this level.
+	/// If there is no cache, it is created at level 8.
 	void inhabitCache (void *cache, void *nv, const uint64_t hash, const uint32_t cacheeLevel) {
 		if constexpr (!useCache) {
 			return;
@@ -810,19 +922,23 @@ public:
 			// since the expectation on the number of elements is ~80.
 			// This means that we can afford to create a cache with 256 entries.
 			if (cacheeLevel >= 12) {
-				auto **cn = (CacheNode **)createCacheArray(8);
-				cn[0] = new (std::align_val_t(alignment)) CacheNode{nullptr, 8};
+				void **cn = createCacheArray(nullptr, 8);
 				void *np = nullptr;
-				(void)CAS_CACHE(cache_ptr, &np, cn);
-				void * newCache = cache_ptr;
-				inhabitCache(newCache, nv, hash, cacheeLevel);
+				if (!CAS_CACHE(cache_ptr, &np, cn)) {
+					// NOTE: somebody else created the cache, ours was never published
+					release((void *)((uintptr_t)cn | CNodeValue));
+				}
+
+				void *newCache = READ(&cache_ptr, 0);
+				if (newCache != nullptr) {
+					inhabitCache(newCache, nv, hash, cacheeLevel);
+				}
 			}
 		} else {
-			const uint32_t len = cache_size;
-			const uint32_t cacheLevel = __builtin_ctz(len - 1);
-			if (cacheeLevel == cacheLevel) {
-				const uint64_t mask = len - 1 - 1;
-				const uint32_t pos = 1 + (hash & mask);
+			const uint32_t cachelevel = cacheLevel(cache);
+			if (cacheeLevel == cachelevel) {
+				const uint64_t mask = (1ull << cachelevel) - 1ull;
+				const uint64_t pos = 1ull + (hash & mask);
 				WRITE(cache, pos, nv);
 			}   // else {
 				// We have a cache level miss -- update statistics, and rebuild if necessary.
@@ -831,25 +947,131 @@ public:
 		}
 	}
 
-	void sampleAndUpdateCache(void *cache, void *stats) {
-		(void)cache;
-		(void)stats;
-		assert(false);
+	/// \return the level (+ 4) of the first single, list or expansion node
+	/// 	found below `node_`, searching from the slot of `pos` on, or -1
+	int32_t sampleKey(void *node_, const uint32_t level, const uint64_t pos) noexcept {
+		void *node = (void *) accessNode(node_);
+		const uint32_t len = usedLength(node_);
+		const uint64_t mask = len - 1u;
+		const uint64_t sample = (pos >> level) & mask;
+		for (uint32_t j = 0; j < len; j++) {
+			void *ov = READ(node, (sample + j) & mask);
+			if (isSNode(ov) || isLNode(ov) || isENode(ov)) {
+				return level + 4;
+			}
+
+			if (isAANode(ov)) {
+				const int32_t result = sampleKey(ov, level + lW, pos);
+				if (result != -1) {
+					return result;
+				}
+			}
+		}
+
+		return -1;
 	}
 
-	void recordCacheMiss() {
+	/// samples the levels of the keys in the trie, and moves the cache to
+	/// the two consecutive levels holding most of the keys (one level
+	/// per CAS, a failed CAS stops: somebody else repairs the cache)
+	/// \param cache the current cache array
+	/// \param stats its `CacheNode`
+	void sampleAndUpdateCache(void *cache, CacheNode *stats) noexcept {
+		// histogram of the sampled levels: 8 bit per bucket of 4 levels,
+		// so at most 255 samples
+		uint64_t histogram = 0, samples = 0;
+
+		// NOTE: the stack address differs per thread
+		uint64_t seed = (uintptr_t)this;
+		seed ^= (uintptr_t)&seed;
+		constexpr uint64_t sampleSize = 128, trials = 32;
+		uint64_t i = 0;
+		while ((samples < sampleSize) && (i < trials)) {
+			seed = (seed * 0x5DEECE66Dull + 0xBull) & ((1ull << 48u) - 1ull);
+			const uint64_t hash = seed >> 16u;
+			const int32_t level = sampleKey(rawRoot, 0, hash);
+			if (level == -1) {
+				i += 1;
+			} else {
+				// NOTE: levels >= 28 share the last bucket
+				const uint32_t bucket = ((uint32_t)level >> 2u) < 8u ? ((uint32_t)level >> 2u) : 7u;
+				histogram += 1ull << (bucket << 3u);
+				samples += 1;
+			}
+		}
+
+		// Find two consecutive levels with most elements.
+		// Additionally, record the number of elements at the current cache level.
+		const uint32_t oldCacheLevel = stats->level;
+		uint64_t cacheCount = 0;
+		uint32_t bestLevel = 0;
+		uint64_t bestCount = (histogram & 0xffu) + ((histogram >> 8u) & 0xffu);
+		for (uint32_t level = 8; level < 64; level += 8) {
+			const uint64_t next = (level + 8u < 64u) ? ((histogram >> (level + 8u)) & 0xffu) : 0u;
+			const uint64_t c = ((histogram >> level) & 0xffu) + next;
+			if (c > bestCount) {
+				bestCount = c;
+				bestLevel = level >> 1u;
+			}
+
+			if ((level >> 1u) == oldCacheLevel) {
+				cacheCount += c;
+			}
+		}
+
+		// Decide whether to change the cache levels.
+		constexpr double repairThreshold = 1.40;
+		if (!((double)cacheCount * repairThreshold < (double)bestCount)) {
+			return;
+		}
+
+		void *currCache = cache;
+		CacheNode *currStats = stats;
+		while (currStats->level > bestLevel) {
+			// Drop cache level.
+			void *parentCache = currStats->parent;
+			void *expected = currCache;
+			if (!CAS_CACHE(cache_ptr, &expected, parentCache)) {
+				// Bail out immediately -- cache will be repaired by someone else eventually.
+				return;
+			}
+
+			// NOTE: concurrent operations may still read the dropped cache
+			retire((void *)((uintptr_t)currCache | CNodeValue));
+			if (parentCache == nullptr) {
+				return;
+			}
+
+			currCache = parentCache;
+			currStats = (CacheNode *)READ(currCache, 0);
+		}
+
+		while (currStats->level < bestLevel) {
+			// Add cache level.
+			const uint32_t nextLevel = currStats->level + 4u;
+			void **nextCache = createCacheArray(currCache, nextLevel);
+			void *expected = currCache;
+			if (!CAS_CACHE(cache_ptr, &expected, nextCache)) {
+				// NOTE: never published
+				release((void *)((uintptr_t)nextCache | CNodeValue));
+				// Bail out immediately -- cache will be repaired by someone else eventually.
+				return;
+			}
+
+			currCache = nextCache;
+			currStats = (CacheNode *)READ(currCache, 0);
+		}
+	}
+
+	void recordCacheMiss() noexcept {
 		if constexpr (!useCache) {
 			return;
 		}
 
-		if (cache_ptr == nullptr) {
-			return ;
-		}
-
-		void *cache = cache_ptr;
-		if (cache == nullptr) {
+		void *cache = READ(&cache_ptr, 0);
+		if (cache != nullptr) {
 			auto *stats = ((CacheNode *)READ(cache, 0));
-			 if (stats->approximateMissCount() > missCountMax) {
+			if (stats->approximateMissCount() > missCountMax) {
 				// We must again check if the cache level is obsolete.
 				// Reset the miss count.
 				stats->resetMissCount();
@@ -888,13 +1110,16 @@ public:
 		}
 	}
 
-	bool isCompressible(void *current) {
+	bool isCompressible(void *current_) {
 		if constexpr (!useCompression) {
 			return false;
 		}
 
+		// NOTE: `current_` is a tagged pointer, the slots are read through
+		// 	the raw one (atomics on a misaligned address fault on arm64)
+		void *current = (void *) accessNode(current_);
 		if constexpr (useCounters) {
-			const uint32_t len = isANode(current) ? wayness : ceil_log2(wayness);
+			const uint32_t len = isANode(current_) ? wayness : ceil_log2(wayness);
 			const auto count = (uint64_t)READ(current, len);
 			if (count > 1) {
 				return false;
@@ -904,7 +1129,7 @@ public:
 		void *found = nullptr;
 		uint32_t i = 0;
 
-		while(i < usedLength(current)) {
+		while(i < usedLength(current_)) {
 			void *old = READ(current, i);
 			if (old != nullptr) {
 				if ((found == nullptr) && (isSNode(old))) {
@@ -942,9 +1167,11 @@ public:
 		// maskXNode(xn);
 		auto *xn = createXNode(parent, parentPos, current, hash, level);
 
-		if (CAS_(parent, parentPos, (uintptr_t)&current, xn)) {
+		if (CAS_(accessNode(parent), parentPos, (uintptr_t)&current, xn)) {
 			return completeCompression(cache, xn);
 		} else {
+			// NOTE: the compression node was never published
+			release(xn);
 			return false;
 		}
 	}
@@ -974,7 +1201,7 @@ public:
 		// Dive into the cache starting from the root for the given hash,
 		// and compress as much as possible.
 		const uint64_t pos = (hash >> level) & (usedLength(current) - 1u);
-		void *old = READ(current, pos);
+		void *old = READ(accessNode(current), pos);
 		if (isANode(old)){
 			if (!compressDescend(old, current, hash, level + 4)) {
 				return false;
@@ -984,7 +1211,7 @@ public:
 		// We do not care about maintaining the cache in the slow compression path,
 		// so we just use the top-level cache.
 		if (parent != nullptr) {
-			return compressingSingleLevel(cache_ptr, current, parent, hash, level);
+			return compressingSingleLevel(READ(&cache_ptr, 0), current, parent, hash, level);
 		}
 
 		return false;
@@ -1030,9 +1257,6 @@ public:
 	}
 
 	void completeExpansion(void *cache, ENode *enode_){
-		/// TODO here is some problem:
-		///  if I remove all the assert this function generates a wrongfull state in which some nodes are not correctly moved
-		///  this results is segfault in `sequentialTransfer`. THe errors are probably generated in `freeze`
 		assert(isNode(enode_));
 		auto *enode = (ENode *) accessNode(enode_);
 		assert(isNode(enode->parent));
@@ -1097,13 +1321,20 @@ public:
 
 		// Then, replace with the compressed version in the parent.
 		void *compressed = compressFrozen(stale, level);
-		if (CAS_(parent, parentPos, (uintptr_t)&xn_, compressed)) {
+		// NOTE: `expected`, a failed CAS overwrites it
+		void *expected = xn_;
+		if (CAS_(parent, parentPos, (uintptr_t)&expected, compressed)) {
+			// the compression node and the frozen subtree are unreachable
+			retire(xn_);
 			if (compressed == nullptr) {
 				decrementCount(parent_);
 			}
 
 			return (compressed == nullptr) || isSNode(compressed);
 		}
+
+		// NOTE: somebody else committed, our compressed node was never published
+		retire(compressed);
 		return false;
 	}
 
@@ -1111,174 +1342,97 @@ public:
 		assert(isNode(current_));
 
 		const ANode *current = (ANode *) accessNode(current_);
+		const uint32_t len = usedLength(current_);
 		uint32_t i = 0;
-		const void *np = nullptr;
-		// TODO jump list
-		while (i < usedLength(current_)) {
-			void *node = READ(current, i);
-			assert(isNode(node));
-			if (node == nullptr) {
-				//  Freeze null.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then reinspect the current slot.
-				if (!CAS_(current, i, (uintptr_t)&node, FVNodeValue)) { i -= 1; }
-			} else if (isSNode(node)) {
-				auto *sn = (SNode *) accessNode(node);
-				void *txn = READ_TXN(sn);
-				if (txn == nullptr) {
-					// Freeze single node.
-					// If it fails, then either someone helped or another txn is in progress.
-					// If another txn is in progress, then we must reinspect the current slot.
-					if (!CAS_TXN(sn, (uintptr_t)&np, FSNodeValue)) { i -= 1; }
-				} else if (isFSNode(txn)) {
-					// We can skip, another thread previously froze this node.
-				} else {
-					// Another thread is trying to replace the single node.
-					// In this case, we help and retry.
-					void *expected = node;
-					if (CAS_(current, i, (uintptr_t)&expected, txn)) { retire(node); }
-					i -= 1;
-				}
-			} else if (isLNode(node)) {
-				// Freeze list node.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then we must reinspect the current slot.
-				auto *fnode_ = createFNode(node);
-				// NOTE: on failure the frozen node was never published. Only the
-				// 	`FNode` itself is freed, `node` is still in use.
-				if (!CAS_(current, i, (uintptr_t)&node, fnode_)) { release(fnode_); }
-				i -= 1;
-			} else if (isAANode(node)) {
-				// Freeze the array node.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then reinspect the current slot.
-				auto *fnode_ = createFNode(node);
-				if (!CAS_(current, i, (uintptr_t)&node, fnode_)) { release(fnode_); }
-				i -= 1;
-			} else if (isFrozenL(node)) {
-				// We can skip, another thread previously helped with freezing this node.
-			} else if (isFNode(node)) {
-				// We still need to freeze the subtree recursively.
-				const FNode *fnode = (FNode *) accessNode(node);
-				void *subnode = fnode->frozen;
-				assert(isNode(subnode));
-				freeze(cache, subnode);
-			} else if (isFVNode(node)) {
-				// We can continue, another thread already froze this slot.
-			} else if (isENode(node)) {
-				// If some other txn is in progress, help complete it,
-				// then restart from the current position.
-				completeExpansion(cache, (ENode *)node);
-				i -= 1;
-			} else  if (isXNode(node)) {
-				// It some other txn is in progress, help complete it,
-				// then restart from the current position.
-				completeCompression(cache, (XNode *)node);
-				i -= 1;
-			} else {
-				assert(false);
-			}
+		void *node, *txn, *fnode_, *expected;
+		SNode *sn;
 
-			i += 1u;
-		}
-	}
+		// dispatch on the type of the slot (see `accessType`), as in `insert`.
+		// NOTE: `FSNodeValue` is only stored in `SNode::txn`, never in a slot.
+		void *freeze_jump_table[] = {
+		        &&freeze_nullptr, &&freeze_aanode, &&freeze_aanode,
+		        &&freeze_snode, &&freeze_lnode, &&freeze_xnode, &&freeze_enode,
+		        &&freeze_fnode, &&freeze_fvnode};
 
-	void* freezeAndCompress(void *cache, void *current, const uint32_t level) noexcept {
-		assert(isNode(current));
-		assert(false); // currently not working as current is referenced directly
-		void *single = nullptr;
-		uint32_t i = 0;
-		while (i < usedLength(current)) {
-			void *node = READ(current, i);
-			if (node == nullptr) {
-				// Freeze null.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then reinspect the current slot.
-				if (!CAS_(current, i, (uintptr_t)&node, FVNodeValue))  {
-					i -= 1;
-				}
-			} else if (isSNode(node)) {
-				auto *sn = (SNode *)accessNode(node);
-				void *txn = READ_TXN(sn);
-				if (txn == nullptr) {
-					const void *ptr = nullptr;
-					// Freeze single node.
-					// If it fails, then either someone helped or another txn is in progress.
-					// If another txn is in progress, then we must reinspect the current slot.
-					if (!CAS_TXN(sn, (uintptr_t)&ptr, FSNodeValue)) { i -= 1; }
-					else {
-						if (single == nullptr) {
-							single = sn;
-						} else {
-							single = current;
-						}
-					}
-				} else if (isFSNode(txn)) {
-					// We can skip, another thread previously froze this node.
-					single = current;
-				} else  {
-					// Another thread is trying to replace the single node.
-					// In this case, we help and retry.
-					single = current;
-					(void)CAS_(current, i, (uintptr_t)&node, txn);
-					i -= 1;
-				}
-			} else if (isLNode(node)) {
-				// Freeze list node.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then we must reinspect the current slot.
-				single = current;
-				auto *fnode = createFNode(node);
-				(void)CAS_(current, i, (uintptr_t)&node, fnode);
-				i -= 1;
-			} else if (isANode(node)) {
-				// Freeze the array node.
-				// If it fails, then either someone helped or another txn is in progress.
-				// If another txn is in progress, then reinspect the current slot.
-				single = current;
-				auto *fnode = createFNode(node);
-				(void)CAS_(current, i, (uintptr_t)&node, fnode);
-				i -= 1;
-			} else if (isFrozenL(node)) {
-				// We can skip, another thread previously helped with freezing this node.
-				single = current;
-			} else if (isFNode(node)) {
-				// We still need to freeze the subtree recursively.
-				single = current;
-				auto *a = (FNode *)accessNode(node);
-				void *subnode = a->frozen;
-				freeze(cache, subnode);
-			} else if (isFVNode(node)) {
-				// We can continue, another thread already froze this slot.
-				single = current;
-			} else if (isENode(node)) {
-				// If some other txn is in progress, help complete it,
-				// then restart from the current position.
-				single = current;
-				completeExpansion(cache, node);
-				i -= 1;
-			} else if (isXNode(node)) {
-				// It some other txn is in progress, help complete it,
-				// then restart from the current position.
-				single = current;
-				completeCompression(cache, node);
-				i -= 1;
-			} else {
-				assert(false);
-			}
+		// every case either jumps to `freeze_next` (the next slot) or to
+		// `freeze_slot` (reinspect the current slot)
+	freeze_slot:
+		if (i >= len) { return; }
+		node = READ(current, i);
+		assert(isNode(node));
+		assert(accessType(node) < 9);
+		goto *freeze_jump_table[accessType(node)];
 
-			i += 1;
+	freeze_nullptr:
+		// Freeze null.
+		// If it fails, then either someone helped or another txn is in progress.
+		// If another txn is in progress, then reinspect the current slot.
+		if (!CAS_(current, i, (uintptr_t)&node, FVNodeValue)) { goto freeze_slot; }
+		goto freeze_next;
+
+	freeze_snode:
+		sn = (SNode *) accessNode(node);
+		txn = READ_TXN(sn);
+		if (txn == nullptr) {
+			// Freeze single node.
+			// If it fails, then either someone helped or another txn is in progress.
+			// If another txn is in progress, then we must reinspect the current slot.
+			expected = nullptr;
+			if (!CAS_TXN(sn, (uintptr_t)&expected, FSNodeValue)) { goto freeze_slot; }
+			goto freeze_next;
 		}
 
-		if (isSNode(single)) {
-			return createSNode((SNode *)single);
-		} 
+		if (isFSNode(txn)) {
+			// We can skip, another thread previously froze this node.
+			goto freeze_next;
+		}
 
-		 if (single != nullptr) {
-			return compressFrozen(current, level);
-		} 
-		
-		return single;
+		// Another thread is trying to replace (or remove) the single node.
+		// In this case, we help and retry.
+		expected = node;
+		if (CAS_(current, i, (uintptr_t)&expected, txnSlot(txn))) { retire(node); }
+		goto freeze_slot;
+
+	freeze_lnode:
+	freeze_aanode:
+		// Freeze the list node or array node.
+		// If it fails, then either someone helped or another txn is in progress.
+		// In both cases the current slot is reinspected.
+		fnode_ = createFNode(node);
+		// NOTE: on failure the frozen node was never published. Only the
+		// 	`FNode` itself is freed, `node` is still in use.
+		if (!CAS_(current, i, (uintptr_t)&node, fnode_)) { release(fnode_); }
+		goto freeze_slot;
+
+	freeze_fnode:
+		if (!isFrozenL(node)) {
+			// We still need to freeze the subtree recursively.
+			// (a frozen list: another thread previously helped with freezing it)
+			const FNode *fnode = (FNode *) accessNode(node);
+			assert(isNode(fnode->frozen));
+			freeze(cache, fnode->frozen);
+		}
+		goto freeze_next;
+
+	freeze_fvnode:
+		// We can continue, another thread already froze this slot.
+		goto freeze_next;
+
+	freeze_enode:
+		// If some other txn is in progress, help complete it,
+		// then restart from the current position.
+		completeExpansion(cache, (ENode *)node);
+		goto freeze_slot;
+
+	freeze_xnode:
+		// It some other txn is in progress, help complete it,
+		// then restart from the current position.
+		completeCompression(cache, (XNode *)node);
+		goto freeze_slot;
+
+	freeze_next:
+		i += 1u;
+		goto freeze_slot;
 	}
 
 	void sequentialInsert(SNode *sn_, void *wide, const uint32_t level) {
@@ -1591,30 +1745,30 @@ public:
 	}
 
 	V fast_lookup(const K key) noexcept {
-		const uint64_t hash = (key);
+		const uint64_t hash = hash_key(key);
 		auto t = fast_lookup(key, hash);
 
 		return t.first;
 	}
 
 	std::pair<V, bool> fast_lookup(const K key, const uint64_t hash) noexcept {
+		void *cache = READ(&cache_ptr, 0);
 		if constexpr (!useCache) {
-			return lookup(key, hash, 0, rawRoot, cache_ptr);
+			return lookup(key, hash, 0, rawRoot, cache);
 		}
 
-		if (cache_ptr == nullptr) {
+		if (cache == nullptr) {
 			return lookup(key, hash, 0, rawRoot, nullptr);
 		}
 
-		const uint32_t len = cache_size;
-		const uint32_t mask = len - 1u - 1u;
-		const uint32_t pos = 1u + (hash & mask);
-		void *cachee = READ(cache_ptr, pos);
-		const uint32_t level = 31u - __builtin_clz(len - 1);
+		const uint32_t level = cacheLevel(cache);
+		const uint64_t mask = (1ull << level) - 1ull;
+		const uint64_t pos = 1ull + (hash & mask);
+		void *cachee = READ(cache, pos);
 
 		if (cachee == nullptr) {
 			// nothing is cached at this location, do slow lookup
-			return lookup(key, hash, 0, rawRoot, cache_ptr);
+			return lookup(key, hash, 0, rawRoot, cache);
 		} else if (isSNode(cachee)) {
 			auto *oldsn = (SNode *) accessNode(cachee);
 			void *txn = READ_TXN(oldsn);
@@ -1626,17 +1780,17 @@ public:
 				}
 			} else {
 				// The single node is either frozen or scheduled for modification
-				return lookup(key, hash, 0, rawRoot, cache_ptr);
+				return lookup(key, hash, 0, rawRoot, cache);
 			}
 		} else if (isAANode(cachee)){
 			auto *an = (ANode *) (accessNode(cachee));
-			const uint32_t pos_ = (hash >> level) & mask;
+			const uint64_t pos_ = (hash >> level) & (usedLength(cachee) - 1u);
 			void *old = READ(an, pos_);
 			if (old == nullptr) {
 				// the key is not present in the cache trie
 				return std::make_pair<V, bool>(V{}, false);
-			} else if (isSNode(cachee)) {
-				auto *oldsn = (SNode *) accessNode(cachee);
+			} else if (isSNode(old)) {
+				auto *oldsn = (SNode *) accessNode(old);
 				void *txn = READ_TXN(oldsn);
 				if (txn == nullptr) {
 					// The single node is up-to-date.
@@ -1648,35 +1802,34 @@ public:
 					}
 				} else {
 					// The single node is either frozen or scheduled for modification
-					return lookup(key, hash, 0, rawRoot, cache_ptr);
+					return lookup(key, hash, 0, rawRoot, cache);
 				}
 			} else {
 				// resume slow lookup from a specific level
-				if (isANode(old)) {
-					return lookup(key, hash, level + 4, (void *)old, cache_ptr);
+				if (isAANode(old)) {
+					return lookup(key, hash, level + lW, old, cache);
 				} else if (isLNode(old)) {
 					// Check if the key is contained in the list node.
 					auto *tail = (LNode *)accessNode(old);
 					while (tail != nullptr) {
 						if ((tail->hash == hash) && (key_equal{}(tail->key, key))) {
-							return std::pair<V, bool>(tail->value, false);
+							return std::pair<V, bool>(tail->value, true);
 						}
 
-						tail = tail->next;
+						tail = (LNode *)accessNode(tail->next);
 					}
 
 					return std::make_pair<V, bool>(V{}, false);
 				} else if (isFNode(old) || isFVNode(old)) {
 					// Array node contains a frozen node, so it is obsolete -- do slow lookup.
-					return lookup(key, hash, 0, rawRoot, cache_ptr);
+					return lookup(key, hash, 0, rawRoot, cache);
 				} else if (isENode(old)) {
-					auto *en = (ENode *) accessNode(old);
-					completeExpansion(cache_ptr, en);
+					// Help complete the transaction.
+					completeExpansion(cache, (ENode *)old);
 					return fast_lookup(key, hash);
 				} else if (isXNode(old)) {
 					// Help complete the transaction.
-					auto *xn = (XNode *) accessNode(old);
-					completeCompression(cache_ptr, xn);
+					completeCompression(cache, (XNode *)old);
 					return fast_lookup(key, hash);
 				} else {
 					// error
@@ -1692,8 +1845,10 @@ public:
 	std::pair<V, bool> lookup(const K key, const uint64_t hash, uint64_t level, void *cur_, void *cache= nullptr) noexcept {
 		assert(cur_ != nullptr);
 		assert(isNode(cur_));
+		// NOTE: 0 if there is no cache
+		const uint32_t cachelevel = (cache == nullptr) ? 0 : cacheLevel(cache);
 		if constexpr (useCache) {
-			if ((cache != nullptr) && ((1u << level) == (cache_size - 1u))) {
+			if ((cache != nullptr) && (level == cachelevel)) {
 				inhabitCache(cache, cur_, hash, level);
 			}
 		}
@@ -1708,14 +1863,16 @@ public:
 		// ANode *tcur = (ANode *) accessNode(cur);
 
 		void *ptr, *frozen;
-		const uint32_t cachelevel = (cache == nullptr) ? 0 : 32 - __builtin_clz(1);
 		void *lookup_jump_table[] = {
 				&&lookup_nullptr, &&lookup_anode, &&lookup_aanode,
 				&&lookup_snode, &&lookup_lnode, &&lookup_xnode,
-		        &&lookup_enode, &&lookup_fnode
+		        &&lookup_enode, &&lookup_fnode,
+		        // a frozen empty slot (`FVNodeValue`), during an expansion
+		        &&lookup_nullptr
 		};
 
 		assert(isNode(old));
+		assert(accessType(old) < 9);
 		goto *lookup_jump_table[accessType(old)];
 
 
@@ -1732,8 +1889,7 @@ public:
 			}
 
 			ptr = (void *) accessNode(old);
-		    if (cache != nullptr && ((1u << (level + 4u)) == (cache_size - 1u))) {
-			    // println(s"about to inhabit for single node -- ${level + 4} vs $cacheLevel")
+		    if ((cache != nullptr) && ((level + 4u) == cachelevel)) {
 			    inhabitCache(cache, old, hash, level + 4u);
 		    }
 
@@ -1792,29 +1948,30 @@ public:
 
 					return std::make_pair<V, bool>(V{}, false);
 				}
-			} else if (isANode(frozen)) {
-				lookup(key, hash, level + 4, frozen, cache);
-			} else {
-				assert(false);
 			}
-			return lookup(key, hash, level + lW, ((FNode *)ptr)->frozen);
+
+			// a frozen narrow or wide array
+			assert(isAANode(frozen));
+			return lookup(key, hash, level + lW, frozen, cache);
 
 		assert(false);
 		return std::make_pair<V, bool>(V{}, false);
 	}
 
 	V lookup(const K key) noexcept {
-		auto t = lookup(key, hash_key(key), 0, rawRoot, cache_ptr);
+		auto t = lookup(key, hash_key(key), 0, rawRoot, READ(&cache_ptr, 0));
 		return t.first;
 	}
 
-	///
+	/// inserts `key` starting from the cache (see `useCache`), else as `insert`
 	void fast_insert(const K key, const V value, const std::size_t hash) {
-		fast_insert(key, value, hash, cache_ptr, cache_ptr);
+		void *cache = READ(&cache_ptr, 0);
+		fast_insert(key, value, hash, cache, cache);
 	}
 
 	void fast_insert(const K key, const V value, const std::size_t hash, void *cache, void *prevCache) {
 		if constexpr(!useCache) {
+			(void)hash; (void)cache; (void)prevCache;
 			return insert(key, value);
 		}
 
@@ -1822,100 +1979,106 @@ public:
 			return insert(key, value);
 		}
 
-		const uint32_t len = cache_size;
-		const uint32_t mask = len - 1u - 1u;
-		const uint32_t pos = 1u + (hash & mask);
+		const uint32_t level = cacheLevel(cache);
+		const uint64_t mask = (1ull << level) - 1ull;
+		const uint64_t pos = 1ull + (hash & mask);
 		void *cachee = READ(cache, pos);
-		const uint32_t level = 31u - __builtin_clz(len - 1);
 
 		auto *stats = (CacheNode *)READ(cache, 0);
-		auto *parentCache = stats->parent;
+		void *parentCache = stats->parent;
 
-		const void *np = nullptr;
-		void *fast_insert_jump_table[] = {
-				&&fast_insert_nullptr, &&fast_insert_anode, &&fast_insert_aanode, &&fast_insert_snode,
-		};
-		goto *fast_insert_jump_table[accessType(cachee)];
-
-		fast_insert_nullptr:
+		if (cachee == nullptr) {
 			// Inconclusive -- retry one cache layer above.
-		    return fast_insert(key, value, hash, parentCache, cache);
+			return fast_insert(key, value, hash, parentCache, cache);
+		}
 
-	    fast_insert_snode:
+		if (isSNode(cachee)) {
 			// Need a reference to the parent array node -- retry one cache level above.
 			return fast_insert(key, value, hash, parentCache, cache);
-
-		fast_insert_anode:
-		fast_insert_aanode:
-			// Read from the array node.
-			void *an = (void *) accessNode(cachee);
-			const uint64_t mask_ = usedLength(cachee) - 1u;
-			const uint32_t pos_ = (hash >> level) & mask_;
-			void *old = READ(an, pos_);
-			if (old == nullptr) {
-				// Try to write the single node directly.
-			    auto *sn = createSNode(hash, key, value, nullptr);
-				if (CAS_(an, pos_, old, sn)) {
-					incrementCount(an);
-					return;
-				} else {
-					fast_insert(key, value, hash, cache, prevCache);
-				}
-			} else if (isAANode(old)) {
-				// Continue search recursively.
-				const V res = insert(key, value, hash, level + 4, old, an, prevCache);
-				if (res == 0) {
-					fast_insert(key, value, hash, cache, prevCache);
-				}
-			} else if (isSNode(old)) {
-				auto *oldsn = (SNode *) accessNode(old);
-				void *txn = READ_TXN(oldsn);
-				if (txn == nullptr) {
-					// No other transaction in progress.
-					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
-						// Replace this key in the parent.
-						auto *sn = createSNode(hash, key, value, nullptr);
-						if (CAS_TXN(oldsn, &np, sn)) {
-							(void)CAS_(an, pos_, old, sn);
-							// Note: must not increment the count here.
-						} else {
-							return fast_insert(key, value, hash, cache, prevCache);
-						}
-					} else if (usedLength(an) == 4) {
-						// Must expand, but cannot do so without the parent.
-						// Retry one cache level above.
-						return fast_insert(key, value, hash, parentCache, cache);
-					} else {
-						// Create an array node at the next level and replace the single node.
-						auto *nnode = newNarrowOrWideNode(oldsn->hash, oldsn->key, oldsn->value, hash, key, value, level + 4);
-						void *np = nullptr;
-						if (CAS_TXN(oldsn, &np, nnode)) {
-							(void)CAS_(an, pos_, old, nnode);
-						} else {
-							return fast_insert(key, value, hash, cache, prevCache);
-						}
-					}
-				} else if (isFSNode(txn)) {
-					// Must restart from the root, to find the transaction node, and help.
-					return insert(key, value);
-				} else {
-					// Complete the current transaction, and retry.
-					(void)CAS_(an, pos, old, txn);
-				    return fast_insert(key, value, hash, cache, prevCache);
-				}
-			} else {
-				// Must restart from the root, to find the transaction node, and help.
-				return insert(key, value);
-			}
+		}
 
 		// sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
-		assert(false);
+		assert(isAANode(cachee));
+
+		// Read from the array node.
+		void *an = (void *) accessNode(cachee);
+		const uint64_t pos_ = (hash >> level) & (usedLength(cachee) - 1u);
+		void *old = READ(an, pos_);
+		if (old == nullptr) {
+			// Try to write the single node directly.
+			auto *sn = createSNode(hash, key, value, nullptr);
+			if (CAS_(an, pos_, (uintptr_t)&old, sn)) {
+				incrementCount(cachee);
+				return;
+			}
+
+			// NOTE: never published
+			release(sn);
+			return fast_insert(key, value, hash, cache, prevCache);
+		} else if (isAANode(old)) {
+			// Continue search recursively.
+			if (!insert(key, value, hash, level + lW, old, cachee, prevCache)) {
+				// Restart from the root.
+				insert(key, value);
+			}
+			return;
+		} else if (isSNode(old)) {
+			auto *oldsn = (SNode *) accessNode(old);
+			void *txn = READ_TXN(oldsn);
+			if (txn == nullptr) {
+				// No other transaction in progress.
+				void *np = nullptr;
+				if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
+					// Replace this key in the parent.
+					auto *sn = createSNode(hash, key, value, nullptr);
+					if (CAS_TXN(oldsn, &np, sn)) {
+						void *expected = old;
+						if (CAS_(an, pos_, (uintptr_t)&expected, sn)) { retire(old); }
+						// Note: must not increment the count here.
+						return;
+					}
+
+					// NOTE: never published
+					release(sn);
+					return fast_insert(key, value, hash, cache, prevCache);
+				} else if (usedLength(cachee) == 4) {
+					// Must expand, but cannot do so without the parent.
+					// Retry one cache level above.
+					return fast_insert(key, value, hash, parentCache, cache);
+				} else {
+					// Create an array node at the next level and replace the single node.
+					auto *nnode = newNarrowOrWideNode(oldsn->hash, oldsn->key, oldsn->value, hash, key, value, level + lW);
+					if (CAS_TXN(oldsn, &np, nnode)) {
+						void *expected = old;
+						if (CAS_(an, pos_, (uintptr_t)&expected, nnode)) { retire(old); }
+						return;
+					}
+
+					// NOTE: never published (a fresh array with fresh nodes)
+					retire(nnode);
+					return fast_insert(key, value, hash, cache, prevCache);
+				}
+			} else if (isFSNode(txn)) {
+				// Must restart from the root, to find the transaction node, and help.
+				return insert(key, value);
+			} else {
+				// Complete the current transaction, and retry.
+				void *expected = old;
+				if (CAS_(an, pos_, (uintptr_t)&expected, txnSlot(txn))) { retire(old); }
+				return fast_insert(key, value, hash, cache, prevCache);
+			}
+		}
+
+		// Must restart from the root, to find the transaction node, and help.
+		return insert(key, value);
 	}
 
 	bool insert(const K key, const V value, const uint64_t hash,
 	            const uint64_t level, void *cur_, void *prev_,
 	            void *cache= nullptr) {
-		if ((cache != nullptr) && ((uint64_t)(1ul << level) == (uint64_t)(cache_size - 1ul))) {
+		// NOTE: 0 if there is no cache
+		const uint32_t cachelevel = (cache == nullptr) ? 0 : cacheLevel(cache);
+		if ((cache != nullptr) && (level == cachelevel)) {
 			inhabitCache(cache, cur_, hash, level);
 		}
 
@@ -1936,7 +2099,6 @@ public:
 
 		void *tmp = nullptr;
 		SNode *o = nullptr;
-		const uint32_t cacheLevel = cache == nullptr ? 0 : __builtin_clz(cache_size - 1u);
 
 		void *insert_jump_table[] = {
 		        &&insert_nullptr, &&insert_anode, &&insert_aanode,
@@ -1950,7 +2112,7 @@ public:
 
 		insert_nullptr:
 			// Fast-path -- CAS the node into the empty position.
-			if (level < cacheLevel || level >= cacheLevel + 8) {
+			if (level < cachelevel || level >= cachelevel + 8) {
 				recordCacheMiss();
 			}
 
@@ -1985,7 +2147,7 @@ public:
 
 					// NOTE: never published
 					release(sn_);
-					return insert(key, value, hash, level, cur_, prev_);
+					return insert(key, value, hash, level, cur_, prev_, cache);
 				} else if (isANNode(cur_)) { // if narrow node
 					assert(level);
 
@@ -2030,10 +2192,10 @@ public:
 				// We must restart from the top, find the transaction node and help.
 				return false; // restart
 			} else {
-				// The single node had been scheduled for replacement by some thread.
-				// We need to help, then retry.
+				// The single node had been scheduled for replacement (or
+				// removal) by some thread. We need to help, then retry.
 				void *expected = old;
-				if (CAS_(cur, pos, (uintptr_t)&expected, tmp)) { retire(old); }
+				if (CAS_(cur, pos, (uintptr_t)&expected, txnSlot(tmp))) { retire(old); }
 				return insert(key, value, hash, level, cur_, prev_, cache);
 			}
 			assert(false);
@@ -2065,9 +2227,9 @@ public:
 
 	void insert(const K key, const V value) {
 		// NOTE: hash the key (as `lookup`/`remove` do), not the value
-		if (!insert(key, value, hash_key(key), 0, rawRoot, nullptr)) {
-			insert(key, value);
-		}
+		const std::size_t hash = hash_key(key);
+		// restart from the root, until the insert succeeded
+		while (!insert(key, value, hash, 0, rawRoot, nullptr, READ(&cache_ptr, 0))) {}
 	}
 
 	void* remove(const K key,
@@ -2088,7 +2250,7 @@ public:
 			// 	fell through to `assert(false)`), `current_` is the masked parent
 			return remove(key, hash, level + lW, old, current_, cache);
 		} else if (isSNode(old)) {
-			const uint32_t cachelevel = cache == nullptr ? 0 : 31 - __builtin_clz(cache_size - 1u);
+			const uint32_t cachelevel = cache == nullptr ? 0 : cacheLevel(cache);
 			if ((level < cachelevel) || level >= cachelevel + 8) { recordCacheMiss(); }
 
 			auto *oldsn = (SNode *) accessNode(old);
@@ -2096,9 +2258,10 @@ public:
 			if (txn == nullptr) {
 				// There is no other transaction in progress.
 				if ((oldsn->hash == hash) && (key_equal {}(oldsn->key, key))) {
-					// The same key, remove it.
+					// The same key, remove it: mark the single node as removed
+					// (concurrent replacements of it fail), then clear the slot.
 					const uintptr_t *ptr = nullptr;
-					if (CAS_TXN(oldsn, &ptr, nullptr)) {
+					if (CAS_TXN(oldsn, &ptr, RNodeValue)) {
 						// NOTE: the slot holds the masked pointer `old`, not
 						// 	`oldsn`, so the CAS never succeeded before
 						void *expected = old;
@@ -2121,10 +2284,10 @@ public:
 				// We must restart from the top, find the transaction node and help.
 				return remove(key, hash, 0, rawRoot, nullptr, cache);
 			} else {
-				// The single node had been scheduled for replacement by some thread.
-				// We need to help and retry.
+				// The single node had been scheduled for replacement (or
+				// removal) by some thread. We need to help and retry.
 				void *expected = old;
-				if (CAS_(current, pos, (uintptr_t)&expected, txn)) { retire(old); }
+				if (CAS_(current, pos, (uintptr_t)&expected, txnSlot(txn))) { retire(old); }
 				return remove(key, hash, level, current_, parent_, cache);
 			}
 		} else if (isLNode(old)) {
@@ -2155,104 +2318,106 @@ public:
 	}
 
 	V* remove(const K key) {
-		return (V *)remove(key, hash_key(key), 0, rawRoot, nullptr, cache_ptr);
+		return (V *)remove(key, hash_key(key), 0, rawRoot, nullptr, READ(&cache_ptr, 0));
 	}
 
+	/// removes `key` starting from the cache (see `useCache`), else as `remove`
+	V* fast_remove(const K key) {
+		void *cache = READ(&cache_ptr, 0);
+		return fast_remove(key, hash_key(key), cache, cache, 0);
+	}
+
+	/// removes `key` starting from the cache (see `useCache`), else as `remove`
+	/// \return pointer to the removed value (stays valid until the trie is
+	/// 	destroyed, the node is retired), or nullptr if `key` does not exist
 	V* fast_remove(const K key, const uint64_t hash, void *cache, void *prevCache, const uint64_t ascends) {
 		if constexpr (!useCache) {
+			(void)hash; (void)cache; (void)prevCache; (void)ascends;
 			return remove(key);
-		}
+		} else {
+			if (cache == nullptr) {
+				return remove(key);
+			}
 
-		if (cache == nullptr) {
-			return remove(key);
-		}
-
-
-		const size_t len = usedLength(cache_size);
-		const uint64_t mask = len - 1u - 1u;
-		const uint32_t pos = 1 + (hash & mask);
-		void *cachee = READ(cache, pos);
-		const uint32_t level = 31u - __builtin_clz(len - 1);
-		if (cachee == nullptr) {
-			// Inconclusive -- must retry one cache level above.
-			auto *stats = (CacheNode *)READ(cache, 0);
-			void *parentCache = stats->parent;
-			return fast_remove(key, hash, parentCache, cache, ascends + 1u);
-		} else if (isAANode(cachee)) {
-			// Read from an array node.
-			auto *an = (ANode *)cachee;
-			uint64_t mask = usedLength(an) - 1;
-			uint32_t pos = (hash >> level) & mask;
-			void *old = READ(an, pos);
-			if (old == nullptr) {
-				// The key does not exist.
-				if (ascends > 1) {
-					recordCacheMiss();
-				}
-				return nullptr;
-			} else if (isAANode(old)) {
-				// Continue searching recursively.
-				auto *oldan = (ANode *)old;
-				void *res = slowRemove(key, hash, level + 4, oldan, an, prevCache);
-				if (res == nullptr) {
-					fastRemove(key, hash, cache, prevCache, ascends);
-				} else {
-					return res;
-				}
-			} else if (isSNode(old)) {
-				auto *oldsn = (SNode *) accessNode(old);
-				void *txn = READ_TXN(oldsn);
-				if (txn == nullptr) {
-					// No other transaction in progress.
-					if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
-						// Remove the key.
-						void *np = nullptr;
-						if (CAS_TXN(oldsn, &np, nullptr)) {
-							(void)CAS_(an, pos, oldsn, nullptr);
-							decrementCount(an);
-							if (ascends > 1) {
-								recordCacheMiss();
+			const uint32_t level = cacheLevel(cache);
+			const uint64_t mask = (1ull << level) - 1ull;
+			const uint64_t pos = 1ull + (hash & mask);
+			void *cachee = READ(cache, pos);
+			if (cachee == nullptr) {
+				// Inconclusive -- must retry one cache level above.
+				auto *stats = (CacheNode *)READ(cache, 0);
+				void *parentCache = stats->parent;
+				return fast_remove(key, hash, parentCache, cache, ascends + 1u);
+			} else if (isAANode(cachee)) {
+				// Read from an array node.
+				auto *an = (ANode *) accessNode(cachee);
+				const uint64_t amask = usedLength(cachee) - 1;
+				const uint32_t apos = (hash >> level) & amask;
+				void *old = READ(an, apos);
+				if (old == nullptr) {
+					// The key does not exist.
+					if (ascends > 1) {
+						recordCacheMiss();
+					}
+					return nullptr;
+				} else if (isAANode(old)) {
+					// Continue searching recursively (the slow path retries itself).
+					return (V *)remove(key, hash, level + lW, old, cachee, prevCache);
+				} else if (isSNode(old)) {
+					auto *oldsn = (SNode *) accessNode(old);
+					void *txn = READ_TXN(oldsn);
+					if (txn == nullptr) {
+						// No other transaction in progress.
+						if ((oldsn->hash == hash) && (key_equal{}(oldsn->key, key))) {
+							// Remove the key: mark the single node as removed, then
+							// clear the slot (as in `remove`).
+							void *np = nullptr;
+							if (CAS_TXN(oldsn, &np, RNodeValue)) {
+								void *expected = old;
+								if (CAS_(an, apos, (uintptr_t)&expected, nullptr)) { retire(old); }
+								decrementCount(cachee);
+								if (ascends > 1) {
+									recordCacheMiss();
+								}
+								if (isCompressible(cachee)) {
+									compressDescend(rawRoot, nullptr, hash, 0);
+								}
+								// NOTE: retired, so this stays valid
+								return &oldsn->value;
 							}
-							if (isCompressible(an)) {
-								compressDescend(rawRoot, nullptr, hash, 0);
-							}
-							// TODO wie löschen
-							return oldsn->value;
-						} else {
-							fast_remove(key, hash, cache, prevCache, ascends);
+
+							return fast_remove(key, hash, cache, prevCache, ascends);
 						}
-					} else {
+
 						// The key does not exist.
 						if (ascends > 1) {
 							recordCacheMiss();
 						}
 						return nullptr;
+					} else if (isFSNode(txn)) {
+						// Must restart from the root, to find the transaction node, and help.
+						return remove(key);
+					} else {
+						// Complete the current transaction, and retry.
+						void *expected = old;
+						if (CAS_(an, apos, (uintptr_t)&expected, txnSlot(txn))) { retire(old); }
+						return fast_remove(key, hash, cache, prevCache, ascends);
 					}
-					// TODO == FSNOde
-				} else if (txn == nullptr) {
-					// Must restart from the root, to find the transaction node, and help.
-					return remove(key, hash);
 				} else {
-					// Complete the current transaction, and retry.
-					(void)CAS_(an, pos, oldsn, txn);
-					return fast_remove(key, hash, cache, prevCache, ascends);
+					// Must restart from the root, to find the transaction node, and help.
+					return remove(key);
 				}
-			} else {
-				// Must restart from the root, to find the transaction node, and help.
-				slowRemove(key, hash);
+			} else if (isSNode(cachee)) {
+				// Need parent array node -- retry one cache level above.
+				auto *stats = (CacheNode *)READ(cache, 0);
+				void *parentCache = stats->parent;
+				return fast_remove(key, hash, parentCache, cache, ascends + 1);
 			}
-		} else if (isSNode(cachee)) {
-			// Need parent array node -- retry one cache level above.
-			auto *stats = (CacheNode *)READ(cache, 0);
-			void *parentCache = stats->parent;
-			return fast_remove(key, hash, parentCache, cache, ascends + 1);
-		} else {
+
 			// "Unexpected case -- $cachee is not supposed to be cached."
 			assert(false);
+			return nullptr;
 		}
-
-		assert(false);
-		return nullptr;
 	}
 };
 
@@ -2260,6 +2425,9 @@ public:
 
 #undef CTRIE_CAS
 #undef isNode
+#undef isRNode
+#undef isCNode
+#undef txnSlot
 #undef isFVNode
 #undef isSNode
 #undef isENode

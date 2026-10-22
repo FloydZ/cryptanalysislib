@@ -9,6 +9,7 @@
 #include <queue>
 #include <thread>
 
+#include "container/vector_queue.h"
 #include "performance.h"
 
 
@@ -79,13 +80,24 @@ namespace cryptanalysislib {
         }
 
         /// Submit a zero-argument Callable for the pool to execute.
-        /// \param func The Callable to execute. Can be a function, a lambda, 
+        /// NOTE: if `queue_size` tasks are queued, `func` is executed in the
+        ///     calling thread (also if the pool is paused). Waiting for a free
+        ///     slot could deadlock, if all workers submit (child) tasks.
+        /// \param func The Callable to execute. Can be a function, a lambda,
         /// std::packaged_task, std::function, etc.
         template <typename F>
         void submit_detach(F&& func) {
-            const std::lock_guard<std::mutex> tasks_lock(task_mutex);
-            tasks.emplace(std::forward<F>(func));
-            task_cv.notify_one();
+            std::packaged_task<void()> task(std::forward<F>(func));
+            {
+                const std::lock_guard<std::mutex> tasks_lock(task_mutex);
+                // NOTE: `push` does not move from `task` if the queue is full
+                if (tasks.push(std::move(task))) {
+                    task_cv.notify_one();
+                    return;
+                }
+            }
+
+            task();
         }
 
         /// Submit a Callable with arguments for the pool to execute.
@@ -93,9 +105,7 @@ namespace cryptanalysislib {
         /// std::packaged_task, std::function, etc.
         template <typename F, typename... A>
         void submit_detach(F&& func, A&&... args) {
-            const std::lock_guard<std::mutex> tasks_lock(task_mutex);
-            tasks.emplace(std::bind(std::forward<F>(func), std::forward<A>(args)...));
-            task_cv.notify_one();
+            submit_detach(std::bind(std::forward<F>(func), std::forward<A>(args)...));
         }
 
         /// Block until the task queue is empty.
@@ -137,7 +147,7 @@ namespace cryptanalysislib {
         /// Tasks already in progress continue executing.
         void clear_tasks() noexcept {
             const std::lock_guard<std::mutex> tasks_lock(task_mutex);
-            tasks = {};
+            tasks.clear();
             // NOTE: the queue is empty now. Before, `wait_for_queued_tasks()`
             // 	was not woken up (forever, if no task was running).
             task_finished_cv.notify_all();
@@ -290,9 +300,13 @@ namespace cryptanalysislib {
          */
         mutable std::recursive_mutex thread_mutex;
 
-        /// TODO: replace with `ConstVectorQueue`
+    public:
+        /// maximal number of queued tasks, see `submit_detach`
+        constexpr static size_t queue_size = 4096;
+
+    protected:
         /// tasks: Access protected by task_mutex.
-        std::queue<std::packaged_task<void()>> tasks = {};
+        ConstVectorQueue<std::packaged_task<void()>, queue_size> tasks;
 
         /**
          * A mutex for all variables related to tasks.

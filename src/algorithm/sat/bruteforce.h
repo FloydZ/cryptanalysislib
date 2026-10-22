@@ -2,6 +2,8 @@
 #include <vector>
 
 #include "math/math.h"
+#include "helper.h"
+#include "algorithm/countr.h"
 #include "print/print.h"
 #include "simd/simd.h"
 #include "combination/grey.h"
@@ -48,22 +50,45 @@ std::vector<T> sat_bruteforce(const T *clauses,
     const S c = S::load(clauses) & mm;
     const S nc = S::not_(c) & mm;
     const S zero = S::set1(0);
-    for (size_t i = 0; i < size; i++) {
-        // TODO write python script which unrolls everything
-        const T x_ = to_gray(T(i));
-        const S x = S::set1(x_);
-        const S invx = S::not_(x) & mm;
 
-        const S t3 = (c & x) | (nc & invx);
-        // one bit per lane: clause satisfied
-        const uint64_t t = uint64_t(t3 > zero) & lanes;
-        if (t == lanes) {
-            // found a solution
-            solutions.push_back(x_);
-            if constexpr (print) {
-                print_binary(x_, n);
-            }
+    // the current assignment `x_ = to_gray(i)`, broadcasted and negated
+    T x_ = 0;
+    S x = zero, invx = mm;
+
+    // NOTE: the Gray code is enumerated in blocks of `B` assignments: within
+    // 	a block the flipped variables (ctz(k)) are compile time constants, so
+    // 	every block is fully unrolled. Only the first flip of a block
+    // 	depends on the block index.
+    constexpr uint32_t lb = n < 4u ? n : 4u;
+    constexpr size_t B = 1ull << lb;
+    for (size_t i = 0; i < size; i += B) {
+        if (i) {
+            const S f = S::set1(T(1) << cryptanalysislib::countr_zero(i));
+            x_ ^= T(1) << cryptanalysislib::countr_zero(i);
+            x = x ^ f;
+            invx = invx ^ f;
         }
+
+        constexpr_for<size_t(0), B, size_t(1)>([&](const auto k) {
+            if constexpr (k > 0) {
+                constexpr T flip = T(1) << cryptanalysislib::countr_zero(size_t(k));
+                const S f = S::set1(flip);
+                x_ ^= flip;
+                x = x ^ f;
+                invx = invx ^ f;
+            }
+
+            const S t3 = (c & x) | (nc & invx);
+            // one bit per lane: clause satisfied
+            const uint64_t t = uint64_t(t3 > zero) & lanes;
+            if (t == lanes) {
+                // found a solution
+                solutions.push_back(x_);
+                if constexpr (print) {
+                    print_binary(x_, n);
+                }
+            }
+        });
     }
     return solutions;
 }

@@ -16,8 +16,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::UnitTest;
 
-// TODO: simplify the enumerator interface to only need the lists as inputs and not the offset.
-
 // NOTE: random enumeration of the values
 // NOTE: only two baselists are used
 TEST(SubSetSum, n32_d2_baselists2) {
@@ -73,6 +71,140 @@ TEST(SubSetSum, n32_d2_rho) {
 	S s(A, target);
 	s.run();
 }
+
+// not correct right now: the runtime is unbounded (0.1s to >500s), a walk of
+// 	`walk_len`=8 steps only rarely ends in a golden collision.
+//TEST(PCS, RhoSubSetSum) {
+//	/// Simple example of how to use the PollardRho class
+//	/// to solve a subset sum problem.
+//	/// As a function distinguished we use the first bit of a number
+//	constexpr static uint32_t n = 16;
+//	constexpr static uint32_t p = 1u<<n;
+//	constexpr static size_t walk_len = 1u<<3u;
+//
+//	using T 		= uint64_t;
+//	using Label    	= kAry_Type_T<p>;
+//	using Value    	= BinaryVector<n>;
+//	using Matrix 	= FqVector<T, n, p, true>;
+//	using Element 	= Element_T<Value, Label, Matrix>;
+//
+//	// init values
+//	Label target(0);
+//	Element a,b;
+//	a.random(); b.random();
+//	Matrix instance; instance.random();
+//
+//	std::vector<uint32_t> sol;
+//	generate_subsetsum_instance(target, sol, instance, n);
+//
+//	struct SubSetSumCmp {
+//		/// simple comparison struct
+//		/// only a2 and b2 are compared for equality
+//		/// \param a1 predecessor of a2
+//		/// \param a2 value to be
+//		/// \param b1 predecessor of b2
+//		/// \param b2 value to be compared
+//		/// \return true if a2==b2, and a1!=b1;
+//		auto operator()(const Element &a1,
+//						const Element &a2,
+//						const Element &b1,
+//						const Element &b2) const noexcept {
+//			// get the lowest bit
+//			const uint32_t alb = a1.label.value() & 1;
+//			const uint32_t blb = b1.label.value() & 1;
+//
+//			// and make sure, that they are different
+//			if (alb == blb) {
+//				return false;
+//			}
+//
+//			return a2.label == b2.label;
+//		}
+//	};
+//
+//	auto f = [&instance,
+//			  &target = std::as_const(target)]
+//		(const Element &_in) {
+//		Label in = _in.label;
+//		const uint32_t n2 = n/2, n4 = n/4;
+//		static uint32_t weights[n2];
+//		// constexpr uint64_t mask = (1ull << (n/2)) - 1ull;
+//		int2weights<Label::LimbType>(weights, in.value(), n, n2, n2);
+//		Element ret;
+//
+//		// super simple distinguish function
+//		if (in.value() & 1u) {
+//			ret.label = target;
+//			for (uint32_t i = 0; i < n4; i++) {
+//				ret.label -= instance[0][weights[i + n4]];
+//				ret.value[weights[i + n4]] = true;
+//			}
+//		} else {
+//			for (uint32_t i = 0; i < n4; i++) {
+//				ret.label += instance[0][weights[i]];
+//				ret.value[weights[i]] = true;
+//			}
+//		}
+//
+//		assert(ret.value.popcnt() == n4);
+//		return ret;
+//	};
+//
+//	while(true) {
+//		/// restart every X runs
+//		const bool found = PollardRho<SubSetSumCmp, Element>::run
+//				(f, a, b, walk_len);
+//		if (found) {
+//			break;
+//		}
+//
+//		// resample the flavour
+//		a.label.random();
+//		b.label.random();
+//	}
+//
+//	a = f(a); b = f(b);
+//	Label c(0);
+//
+//	std::cout << "solution: ";
+//	for (const auto &s : sol) {
+//		std::cout << s << " ";
+//	}
+//	std::cout << std::endl;
+//	std::cout << a << ", a" << std::endl;
+//	std::cout << b << ", b" << std::endl;
+//
+//	// reconstruct the solution
+//	for (uint32_t i = 0; i < n; ++i) {
+//		if (a.value.get_bit_shifted(i)) {
+//			c += instance[0][i];
+//			std::cout << i << " ";
+//		}
+//		if (b.value.get_bit_shifted(i)) {
+//			c += instance[0][i];
+//			std::cout << i << " ";
+//		}
+//	}
+//	std::cout << std::endl;
+//
+//	Label c1(0);
+//	for (const auto &s : sol) {
+//		c1 += instance[0][s];
+//	}
+//
+//
+//	Label c2(0); Value v2;
+//	Value::add(v2, a.value, b.value);
+//	instance.mul(c2, v2);
+//	EXPECT_EQ(true, c1.is_equal(c2));
+//
+//	std::cout << c1 << std::endl;
+//	std::cout << c << std::endl;
+//	std::cout << target << std::endl;
+//	const bool correct = c == target;
+//	EXPECT_EQ(correct, true);
+//
+//}
 
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);

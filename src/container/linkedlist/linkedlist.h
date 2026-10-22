@@ -26,21 +26,23 @@
 /// \tparam T
 /// \tparam Allocator node allocator (STL interface, assumed stateless and
 /// 	thread safe), instantiated with the internal node type
+/// \tparam Atomic atomic type (interface of `std::atomic`), used for the
+/// 	pointers and counters
 template<typename T,
-         template<class N> class Allocator = cryptanalysislib::allocator>
-#if __cplusplus > 201709L 
+         template<class N> class Allocator = cryptanalysislib::allocator,
+         template<class A> class Atomic = std::atomic>
+#if __cplusplus > 201709L
     requires std::copyable<T> && std::three_way_comparable<T>
 #endif
 struct FreeList {
 private:
 	/// internal struct
-    // TODO something like this template<template<typename> typename A=std::atomic>
 	struct Node {
 		Node() : next(nullptr), prev(nullptr) {}
 		Node(const T data) : next(nullptr), prev(nullptr), data(data) {}
 
-		std::atomic<Node *> next;
-		std::atomic<Node *> prev;
+		Atomic<Node *> next;
+		Atomic<Node *> prev;
 		Node *free;
 		T data;
 	};
@@ -89,11 +91,11 @@ private:
 	     *tail = nullptr;  // end of the linked list
 	// start of a second linked list of removed (but not freed) elements
 	// NOTE: atomic, `remove` pushes from several threads
-	std::atomic<Node *> __free = nullptr;
+	Atomic<Node *> __free = nullptr;
 	// NOTE: only a hint where to start searching. Before, `pos()` returned
 	// 	its result through the shared members `pred`/`curr`, which other
 	// 	threads overwrote in between.
-	std::atomic<Node *> hint = nullptr;
+	Atomic<Node *> hint = nullptr;
 	// whether the sentinels were allocated by the constructor
 	bool own_head = false, own_tail = false;
 
@@ -117,7 +119,7 @@ private:
 	// 	nodes, also with `USE_BUFFER == false`.
 	Node __internal_array[USE_BUFFER ? LEN : 1];
 	// NOTE: per list. Was a `static` in `insert`, i.e. shared by all lists.
-	std::atomic<size_t> __buffer_ctr = 0;
+	Atomic<size_t> __buffer_ctr = 0;
 
 	using NodeAllocator = Allocator<Node>;
 	using NodeTraits = std::allocator_traits<NodeAllocator>;
@@ -148,7 +150,7 @@ private:
 	}
 
 	/// keep track of the size of the linked list
-	std::atomic<size_t> __size = 0;
+	Atomic<size_t> __size = 0;
 
 	/// finds the position of `data` within the linked list
 	/// internal function, dont use it.

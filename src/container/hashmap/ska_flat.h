@@ -163,25 +163,24 @@ struct sherwood_v3_entry {
 	};
 };
 
-/// TODO simplify
-/// \tparam T
-/// \tparam KeySelect
-/// \tparam ValueSelect
-/// \tparam ArgumentHash
-/// \tparam Hasher
-/// \tparam ArgumentEqual
-/// \tparam Equal
-/// \tparam ArgumentAlloc
-/// \tparam EntryAlloc
+/// \tparam T value type
+/// \tparam KeySelect returns the key of a `T`
+/// \tparam ValueSelect returns the mapped value of a `T`
+/// \tparam ArgumentHash hash of the key
+/// \tparam ArgumentEqual equality of the key
+/// \tparam ArgumentAlloc allocator of `T`
+/// \tparam GrowthPolicy maps a hash to a bucket, any policy of `growth_policy.h`
+/// \tparam Hasher, Equal, EntryAlloc: derived from the above, do not set
 template<typename T,
          typename KeySelect,
          typename ValueSelect,
          typename ArgumentHash,
-         typename Hasher,
          typename ArgumentEqual,
-         typename Equal,
          typename ArgumentAlloc,
-         typename EntryAlloc>
+         typename GrowthPolicy = cryptanalysislib::hh::fibonacci_growth_policy,
+         typename Hasher = KeyOrValueHasher<typename KeySelect::key_type, T, ArgumentHash>,
+         typename Equal = KeyOrValueEquality<typename KeySelect::key_type, T, ArgumentEqual>,
+         typename EntryAlloc = typename std::allocator_traits<ArgumentAlloc>::template rebind_alloc<sherwood_v3_entry<T>>>
 class sherwood_v3_table : private EntryAlloc, private Hasher, private Equal {
 	using Entry = sherwood_v3_entry<T>;
 	using AllocatorTraits = std::allocator_traits<EntryAlloc>;
@@ -560,7 +559,8 @@ public:
 			return;
 		}
 
-		auto new_prime_index = hash_policy.next_size_over(num_buckets);
+		// rounds `num_buckets` up to a bucket count of the policy
+		const GrowthPolicy new_policy(num_buckets);
 		if (num_buckets == bucket_count())
 			return;
 		int8_t new_max_lookups = compute_max_lookups(num_buckets);
@@ -574,7 +574,7 @@ public:
 		std::swap(entries, new_buckets);
 		std::swap(num_slots_minus_one, num_buckets);
 		--num_slots_minus_one;
-		hash_policy.commit(new_prime_index);
+		hash_policy = new_policy;
 		int8_t old_max_lookups = max_lookups;
 		max_lookups = new_max_lookups;
 		num_elements = 0;
@@ -717,9 +717,7 @@ public:
 private:
 	EntryPointer entries = Entry::empty_default_table();
 	size_t num_slots_minus_one = 0;
-	// TODO generic
-
-	cryptanalysislib::hh::fibonacci_growth_policy hash_policy;
+	GrowthPolicy hash_policy;
 	int8_t max_lookups = min_lookups - 1;
 	float _max_load_factor = 0.5f;
 	size_t num_elements = 0;
@@ -799,7 +797,7 @@ private:
 		deallocate_data(entries, num_slots_minus_one, max_lookups);
 		entries = Entry::empty_default_table();
 		num_slots_minus_one = 0;
-		hash_policy.reset();
+		hash_policy.clear();
 		max_lookups = min_lookups - 1;
 	}
 

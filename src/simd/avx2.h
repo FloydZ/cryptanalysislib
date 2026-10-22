@@ -3245,6 +3245,15 @@ struct Xint8x32_t {
 		return limb_type(uint8_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
 	}
 
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**8)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		// the sum of the 8 bytes of each 64 bit lane, then of the 4 lanes
+		const __m256i t = _mm256_sad_epu8(in1.v256, _mm256_setzero_si256());
+		const __m128i u = _mm_add_epi64(_mm256_castsi256_si128(t), _mm256_extracti128_si256(t, 1));
+		return limb_type(uint8_t(_mm_cvtsi128_si32(_mm_add_epi64(u, _mm_unpackhi_epi64(u, u)))));
+	}
+
 	/// \param a[in]:
 	/// \param b[in]:
 	/// \return
@@ -4030,6 +4039,17 @@ struct Xint16x16_t {
 		const __m128i t = _mm_min_epu16(_mm_xor_si128(_mm256_castsi256_si128(in1.v256), f),
 		                                _mm_xor_si128(_mm256_extracti128_si256(in1.v256, 1), f));
 		return limb_type(uint16_t(_mm_cvtsi128_si32(_mm_minpos_epu16(t))) ^ flip);
+	}
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**16)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		// pairs of 16 bit lanes -> 32 bit sums (signed, the low 16 bits are the same)
+		const __m256i t = _mm256_madd_epi16(in1.v256, _mm256_set1_epi16(1));
+		__m128i u = _mm_add_epi32(_mm256_castsi256_si128(t), _mm256_extracti128_si256(t, 1));
+		u = _mm_add_epi32(u, _mm_shuffle_epi32(u, 0b01001110));
+		u = _mm_add_epi32(u, _mm_shuffle_epi32(u, 0b10110001));
+		return limb_type(uint16_t(_mm_cvtsi128_si32(u)));
 	}
 
 	/// \param a
@@ -4937,6 +4957,15 @@ struct Xint32x8_t {
 		return limb_type(_mm_cvtsi128_si32(t));
 	}
 
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**32)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		__m128i t = _mm_add_epi32(_mm256_castsi256_si128(in1.v256), _mm256_extracti128_si256(in1.v256, 1));
+		t = _mm_add_epi32(t, _mm_shuffle_epi32(t, 0b01001110));
+		t = _mm_add_epi32(t, _mm_shuffle_epi32(t, 0b10110001));
+		return limb_type(_mm_cvtsi128_si32(t));
+	}
+
 	/// \param a
 	/// \param b
 	/// \return
@@ -5833,6 +5862,14 @@ struct Xint64x4_t {
 		const __m128i u = _mm_unpackhi_epi64(t, t);
 		t = _mm_xor_si128(_mm_blendv_epi8(t, u, _mm_cmpgt_epi64(u, t)), f);
 #endif
+		return limb_type(_mm_cvtsi128_si64(t));
+	}
+
+	/// \param in1[in]:
+	/// \return the sum of all lanes (modulo 2**64)
+	[[nodiscard]] constexpr static inline limb_type reduce_add(const S in1) noexcept {
+		__m128i t = _mm_add_epi64(_mm256_castsi256_si128(in1.v256), _mm256_extracti128_si256(in1.v256, 1));
+		t = _mm_add_epi64(t, _mm_unpackhi_epi64(t, t));
 		return limb_type(_mm_cvtsi128_si64(t));
 	}
 

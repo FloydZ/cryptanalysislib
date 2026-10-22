@@ -27,6 +27,7 @@ static void check() {
 	auto cmp = [](const T x) {
 		EXPECT_EQ(cryptanalysislib::countr_zero(x), (uint32_t)std::countr_zero(x)) << (uint64_t)x;
 		EXPECT_EQ(cryptanalysislib::countl_zero(x), (uint32_t)std::countl_zero(x)) << (uint64_t)x;
+		EXPECT_EQ(cryptanalysislib::bit_floor(x), std::bit_floor(x)) << (uint64_t)x;
 	};
 
 	cmp(T(0));

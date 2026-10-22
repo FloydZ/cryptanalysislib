@@ -1376,6 +1376,25 @@ uint32_t x1 = 2, y1 = 2, x2, y2;
 const bool found = PollardRho<Cmp, uint32_t>::run(f, flavour, x1, y1, x2, y2);
 ```
 
-The parallel collision search (`PCS`) is not finished yet.
+The cycle finding of the flavoured `run` is chosen by `PollardRhoConfig`:
+Brent (default), Floyd (`.brent = false`) or Gosper (`.gosper = true`).
+
+The parallel collision search `PCS<Compare, Distinguished, T>` (van Oorschot,
+Wiener) walks from random starting points until a distinguished point
+(`Distinguished{}(x) == true`) is reached, with all threads of the pool of the
+execution policy. Two walks ending in the same distinguished point are
+reconstructed to the collision:
+```c++
+// distinguished: the lowest 4 bits are zero
+struct D {
+	bool operator()(const uint32_t &a) const noexcept { return (a & 0xFu) == 0; }
+};
+
+uint32_t x, y;
+// walks without a distinguished point after 1024 steps are discarded
+const bool found = PCS<Cmp, D, uint32_t>::run(par, f, x, y, 1024);
+// x != y, f(x) == f(y)
+```
+
 More examples: `tests/algorithm/pcs.cpp` (factoring via `src/algorithm/rsa.h`)
 and `src/algorithm/subsetsum.h` (subset sum).

@@ -87,6 +87,52 @@ TEST(reduce, TxN_t) {
 	check_reduce<TxN_t<uint64_t, 16>>();
 }
 
+/// `reduce_add` against the scalar sum (modulo 2**limb_bits)
+template<class S>
+static void check_reduce_add() {
+	constexpr uint32_t n = S::LIMBS;
+	for (uint32_t it = 0; it < 10000; ++it) {
+		S a = S::set1(0);
+		using L = std::remove_cvref_t<decltype(a[0])>;
+		L e = 0;
+		for (uint32_t i = 0; i < n; ++i) {
+			// small values, the maximum, or random values
+			const uint32_t k = rng() % 3;
+			const L v = k == 0 ? L(rng() % 4) : (k == 1 ? L(~L(0)) : L(rng()));
+			a[i] = v;
+			e = L(e + v);
+		}
+		ASSERT_EQ(S::reduce_add(a), e) << it;
+	}
+}
+
+TEST(reduce_add, uint8x32_t) { check_reduce_add<uint8x32_t>(); }
+TEST(reduce_add, uint16x16_t) { check_reduce_add<uint16x16_t>(); }
+TEST(reduce_add, uint32x8_t) { check_reduce_add<uint32x8_t>(); }
+TEST(reduce_add, uint64x4_t) { check_reduce_add<uint64x4_t>(); }
+TEST(reduce_add, int8x32_t) { check_reduce_add<int8x32_t>(); }
+TEST(reduce_add, int16x16_t) { check_reduce_add<int16x16_t>(); }
+TEST(reduce_add, int32x8_t) { check_reduce_add<int32x8_t>(); }
+TEST(reduce_add, int64x4_t) { check_reduce_add<int64x4_t>(); }
+
+#ifdef USE_AVX512F
+TEST(reduce_add, uint8x64_t) { check_reduce_add<uint8x64_t>(); }
+TEST(reduce_add, uint16x32_t) { check_reduce_add<uint16x32_t>(); }
+TEST(reduce_add, uint32x16_t) { check_reduce_add<uint32x16_t>(); }
+TEST(reduce_add, uint64x8_t) { check_reduce_add<uint64x8_t>(); }
+#endif
+
+TEST(reduce_add, TxN_t) {
+	check_reduce_add<TxN_t<uint32_t, 8>>();
+	check_reduce_add<TxN_t<uint64_t, 4>>();
+	check_reduce_add<TxN_t<uint8_t, 3>>();
+	check_reduce_add<TxN_t<uint32_t, 5>>();
+	check_reduce_add<TxN_t<uint16_t, 40>>();
+	check_reduce_add<TxN_t<uint8_t, 64>>();
+	check_reduce_add<TxN_t<uint8_t, 100>>();
+	check_reduce_add<TxN_t<uint64_t, 16>>();
+}
+
 int main(int argc, char **argv) {
 	InitGoogleTest(&argc, argv);
 	rng_seed(time(NULL));

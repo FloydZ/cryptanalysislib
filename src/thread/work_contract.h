@@ -211,7 +211,7 @@ namespace cryptanalysislib::work_contract {
 				std::uint64_t,
 				std::uint64_t counters) const noexcept -> signal_index {
 				if constexpr (bits_per_counter == 1) {
-					return (counters > 0) ? std::countl_zero(counters) : ~0ull;
+					return (counters > 0) ? signal_index{uint64_t(std::countl_zero(counters))} : invalid_signal_index;
 				} else {
 					// this routine is only called to select new contract ids.  but we could improve speed here
 					// with a expression fold as total counters is never more than 8 and often 4 or 2.
@@ -225,7 +225,7 @@ namespace cryptanalysislib::work_contract {
 						}
 						counters >>= bits_per_counter;
 					}
-					return (total_counters - selected - 1);
+					return signal_index{total_counters - selected - 1};
 				}
 			}
 		};
@@ -253,7 +253,7 @@ namespace cryptanalysislib::work_contract {
 		    releaseToken_(subTreeCount_ * signal_tree_type::capacity) {
 			for (auto & subtree : available_) {
 				for (auto i = 0ull; i < signal_tree_type::capacity; ++i) {
-					subtree.set(i);
+					subtree.set(signal_index{i});
 				}
 			}
 		}
@@ -341,7 +341,7 @@ namespace cryptanalysislib::work_contract {
 					}
 
 					work_contract_id workContractId(subTreeIndex * signal_tree_capacity);
-					workContractId |= signalIndex;
+					workContractId |= signalIndex.value;
 					// countr_zero(0) == 64 and `1 << 64` is UB; x86-64 and ARM64 shift by
 					// (64 mod 64) == 0, so keep that behaviour explicitly
 					const std::uint64_t biasDiff = select_bias_hint ^ biasFlags;
@@ -354,7 +354,7 @@ namespace cryptanalysislib::work_contract {
 						biasFlags &= ~(b - 1);
 					}
 					process_contract(workContractId);
-					return signalIndex;
+					return signalIndex.value;
 				}
 				biasFlags = (++subTreeIndex * signal_tree_type::capacity);
 			}
@@ -481,15 +481,11 @@ namespace cryptanalysislib::work_contract {
 				return;
 			}
 
-			/// TODO remove
 			// the expected case. invoke the work function
+			// NOTE: work functions must not throw
 			auto_clear_execute_flag autoClearExecuteFlag(contractId, *this);
-			try {
-				work_contract_token workContractToken(contractId, *this);
-				contract.work_(workContractToken);
-			} catch (...) {
-				process_exception(contractId, std::current_exception());
-			}
+			work_contract_token workContractToken(contractId, *this);
+			contract.work_(workContractToken);
 		}
 
 		/// invoke the contract's release function.  use auto class to ensure
@@ -545,9 +541,9 @@ namespace cryptanalysislib::work_contract {
 			for (auto i = 0ull; i < available_.size(); ++i) {
 				auto subTreeIndex (nextAvailableTreeIndex_++ & subTreeMask_);
 				if (!available_[subTreeIndex].empty()) {
-					if (auto [signalIndex, _] = available_[subTreeIndex].select<largest_child_selector>(0); signalIndex != ~0ull) {
+					if (auto [signalIndex, _] = available_[subTreeIndex].select<largest_child_selector>(0); signalIndex != invalid_signal_index) {
 						work_contract_id workContractId(subTreeIndex * signal_tree_capacity);
-						workContractId += signalIndex;
+						workContractId += signalIndex.value;
 						return workContractId;
 					}
 				}
@@ -558,8 +554,8 @@ namespace cryptanalysislib::work_contract {
 
 		/// \param workContractId
 		/// \return
-		std::tuple<std::uint64_t, std::uint64_t> get_tree_and_signal_index(work_contract_id workContractId) const {
-			return {workContractId / signal_tree_capacity, workContractId % signal_tree_capacity};
+		std::tuple<std::uint64_t, signal_index> get_tree_and_signal_index(work_contract_id workContractId) const {
+			return {workContractId / signal_tree_capacity, signal_index{workContractId % signal_tree_capacity}};
 		}
 
 

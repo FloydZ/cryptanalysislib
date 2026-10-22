@@ -42,11 +42,15 @@ public:
                   "the limb type should be atleast of the size of prime");
 	
     constexpr static uint32_t bits_per_number = (uint32_t) ceil_log2(q);
-	
-	// Number of Limbs needed to represent `length` numbers of size log(MOD) +1
-	constexpr static uint16_t internal_limbs = (n + bits_per_number - 1) / bits_per_number;
+	constexpr static uint32_t limb_bits = sizeof(T) * 8u;
+	constexpr static T number_mask = (bits_per_number == limb_bits) ? T(-1ull) : T((T(1u) << bits_per_number) - 1u);
+
+	// Number of Limbs needed to represent `length` numbers of `bits_per_number`
+	// bits. NOTE: the numbers are packed densely, so a number can be split
+	// over two limbs.
+	constexpr static uint16_t internal_limbs = (n * bits_per_number + limb_bits - 1u) / limb_bits;
     // true if we need every bit of the last limb
-	constexpr static bool is_full = (n%bits_per_number) == 0;
+	constexpr static bool is_full = ((n * bits_per_number) % limb_bits) == 0;
 
 	//
 	constexpr static bool activate_simd = config.activate_simd;
@@ -70,27 +74,50 @@ public:
 	constexpr FqPackedVectorMeta_v2(const FqPackedVectorMeta_v2 &a) noexcept = default;
 
 	/// just a wrapper, for testing single elements and not arrays
-	constexpr FqPackedVectorMeta_v2(const DataType a) noexcept {
-		DataType t = a;
-		if constexpr (!__unsigned) {
-			while (t < 0) { t += q; }
+	constexpr FqPackedVectorMeta_v2(const DataType a) noexcept : __data() {
+		set(a, 0);
+	}
+
+	/// \param b[in]: first bit
+	/// \param len[in]: number of bits, <= 64
+	/// \return the bits [b, b+len) of the vector, shifted down
+	[[nodiscard]] constexpr inline uint64_t get_bits(const uint32_t b,
+	                                                 const uint32_t len) const noexcept {
+		assert(len <= 64u);
+		assert(b + len <= internal_limbs * limb_bits);
+		uint64_t ret = 0;
+		uint32_t done = 0;
+		while (done < len) {
+			const uint32_t p = b + done;
+			const uint32_t off = p / limb_bits, sh = p % limb_bits;
+			const uint32_t take = ((limb_bits - sh) < (len - done)) ? (limb_bits - sh) : (len - done);
+			const uint64_t m = (take >= 64u) ? uint64_t(-1ull) : ((1ull << take) - 1ull);
+			ret |= ((uint64_t(__data[off]) >> sh) & m) << done;
+			done += take;
 		}
-		t = t%q;
-		__data[0] = t;
+		return ret;
 	}
 
     /// \tparam l[in]: lower bound (inclusive)
     /// \tparam h[in]: upper bound (exclusive)
-	template<const uint32_t l, 
+	/// \return the numbers [l, h), as a bit string
+	template<const uint32_t l,
              const uint32_t h>
-	[[nodiscard]] constexpr inline auto hash() const noexcept {
-        // TODO 
-        return 0;
+	[[nodiscard]] constexpr inline uint64_t hash() const noexcept {
+		static_assert(l < h);
+		static_assert(h <= n);
+		static_assert(is_hashable<l, h>());
+		return get_bits(l * bits_per_number, (h - l) * bits_per_number);
     }
 
-	[[nodiscard]] constexpr inline auto hash(const uint32_t l,
-	                                         const uint32_t h) const noexcept {
-        return 0; // TODO
+	/// \param l[in]: lower bound (inclusive)
+	/// \param h[in]: upper bound (exclusive)
+	/// \return the numbers [l, h), as a bit string
+	[[nodiscard]] constexpr inline uint64_t hash(const uint32_t l,
+	                                             const uint32_t h) const noexcept {
+		assert(l < h);
+		assert(h <= n);
+		return get_bits(l * bits_per_number, (h - l) * bits_per_number);
     }
 
 	// simple hash function
@@ -115,27 +142,51 @@ public:
 
 	/// access the i-th coordinate/number/elemen
 	/// \param i coordinate to access.
-	/// \return the number you wanted to access, shifted down to the lowest bits.
+	/// \return the number you wanted to access, shifted down to the lowest
+	/// 	bits. If not `__unsigned`: in [-q/2, q/2]
 	[[nodiscard]] constexpr inline DataType get(const uint32_t i) const noexcept {
         assert(i < length);
-        const uint32_t a1 = (i +              0) * internal_limbs;
-        const uint32_t a2 = (i + internal_limbs) * internal_limbs;        
-        const uint32_t off1 = a1 / (sizeof(T) * 8u);
-        const uint32_t off2 = a2 / (sizeof(T) * 8u);
-    
-        const uint32_t shift1 = a1 % (sizeof(T) * 8);
-        const uint32_t shift2 = (sizeof(T) * 8) - (a1 % (sizeof(T) * 8));
+		const uint32_t p = i * bits_per_number;
+		const uint32_t off = p / limb_bits, sh = p % limb_bits;
+		T t = __data[off] >> sh;
+		// the number is split over two limbs
+		if ((sh + bits_per_number) > limb_bits) {
+			t |= __data[off + 1u] << (limb_bits - sh);
+		}
+		t &= number_mask;
 
-        const T m1 = (off1 != off2) * T(-1ull);
-        const T t1 = __data[off1] >> shift1;
-        const T t2 = (__data[off2] << shift2) & m1;
-
-        const T ret = t1 | t2;
-        return ret;
+		if constexpr (!__unsigned) {
+			if (t > (q / 2u)) {
+				return DataType(int64_t(t) - int64_t(q));
+			}
+		}
+		return DataType(t);
     }
-	
+
+	/// sets the i-th coordinate to `data` mod q
+	/// \param data[in]: number to set
+	/// \param i[in]: coordinate
     constexpr inline void set(const DataType data,
 	                          const uint32_t i) noexcept {
+		assert(i < length);
+		T v;
+		if constexpr (!__unsigned) {
+			int64_t d = int64_t(data) % int64_t(q);
+			if (d < 0) { d += int64_t(q); }
+			v = T(d);
+		} else {
+			v = T(uint64_t(data) % q);
+		}
+
+		const uint32_t p = i * bits_per_number;
+		const uint32_t off = p / limb_bits, sh = p % limb_bits;
+		__data[off] = (__data[off] & ~T(number_mask << sh)) | T(v << sh);
+		// the number is split over two limbs
+		if ((sh + bits_per_number) > limb_bits) {
+			const uint32_t s = limb_bits - sh;
+			const T m = number_mask >> s;
+			__data[off + 1u] = (__data[off + 1u] & ~m) | T(v >> s);
+		}
     }
 
 private:

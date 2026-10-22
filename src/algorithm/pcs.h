@@ -1,14 +1,18 @@
 #ifndef SMALLSECRETLWE_ALGORITHM_PCS_H
 #define SMALLSECRETLWE_ALGORITHM_PCS_H
 
+#include <atomic>
 #include <cstddef>
+#include <future>
+#include <map>
+#include <mutex>
+#include <vector>
 
 #include "random.h"
 #include "thread/thread.h"
+#include "algorithm/countr.h"
 
 /// NOTE: README + usage example: `src/algorithm/README.md` (Pollard rho section)
-/// TODO multithreading and then pcs
-/// TODO gospers cycle finding
 
 
 static size_t walk_len = 0;
@@ -41,6 +45,10 @@ concept PCSDistinguishAble = requires(C c) {
 struct PollardRhoConfig {
 	/// cycle finding of the flavoured `run`: Brent (true) or Floyd (false)
 	const bool brent = true;
+
+	/// if true: Gosper's cycle finding (HAKMEM 132) is used by the flavoured
+	/// `run`, regardless of `brent`
+	const bool gosper = false;
 };
 constexpr static PollardRhoConfig pollardRhoConfig{};
 
@@ -63,6 +71,7 @@ class PollardRho {
 private:
 
 	constexpr static bool brent = config.brent;
+	constexpr static bool gosper = config.gosper;
 
 public:
 	constexpr PollardRho() noexcept {};
@@ -134,7 +143,55 @@ public:
 
 		const auto sp = x1;
 		size_t i = 0;
-		if constexpr (brent) {
+		if constexpr (gosper) {
+			// Gosper (HAKMEM 132): the table slot `k` holds the last element
+			// x_j (and j) with ctz(j) == k, i.e. only O(log(n)) elements. Every
+			// new element is compared against all of them. A match x_n = x_j
+			// means that n-j is a multiple of the cycle length.
+			T tv[64];
+			size_t tj[64];
+			uint64_t valid = 1;
+			tv[0] = sp; tj[0] = 0;
+
+			T prev = sp, cur = sp;
+			size_t n = 0, d = 0;
+			while ((i < max_iters) && (d == 0)) {
+				prev = cur;
+				cur = f(flavour(prev));
+				n += 1; i += 1; walk_len += 1;
+				for (uint32_t k = 0; k < 64; ++k) {
+					if (((valid >> k) & 1u) && cmp(sp, tv[k], prev, cur)) {
+						d = n - tj[k];
+						break;
+					}
+				}
+
+				const uint32_t k = cryptanalysislib::countr_zero(n);
+				tv[k] = cur; tj[k] = n;
+				valid |= 1ull << k;
+			}
+
+			// early exit, no collision found
+			if (d == 0) { return false; }
+
+			// phase 2 (as Floyd): `sp` and `f^d(sp)` step together, they meet
+			// at the cycle entry, their predecessors are the collision. At most
+			// `n` steps: else `sp` is on the cycle.
+			T a = sp, b = sp;
+			for (size_t k = 0; k < d; ++k) { b = f(flavour(b)); }
+			for (size_t k = 0; k <= n; ++k) {
+				walk_len += 1;
+				const T an = f(flavour(a));
+				const T bn = f(flavour(b));
+				if (cmp(a, an, b, bn)) {
+					x1 = a; y1 = b;
+					x2 = an; y2 = bn;
+					return true;
+				}
+				a = an; b = bn;
+			}
+			return false;
+		} else if constexpr (brent) {
 			x2 = x1;
 			y2 = f(flavour(x1));
 			uint32_t power = 1, lam = 1;
@@ -216,6 +273,17 @@ public:
 };
 
 
+/// Parallel collision search (van Oorschot, Wiener): every thread walks
+/// `x -> f(flavour(x))` from random starting points until a distinguished
+/// point is reached. All distinguished points are stored together with the
+/// start and the length of their walk. If two walks end in the same
+/// distinguished point, they are reconstructed to find the collision
+/// `a != b, f(flavour(a)) == f(flavour(b))`.
+/// \tparam Compare golden collision check `cmp(a, f(a), b, f(b))`, see `PollardRho`.
+/// 	Collisions for which it returns false are ignored.
+/// \tparam Distinguished `d(x)` returns true if x is a distinguished point
+/// \tparam T element type. NOTE: must be constructible from an `uint64_t`
+/// 	(random starting points), comparable with `==` and `<`.
 template<class Compare,
          class Distinguished,
 		 class T>
@@ -229,92 +297,132 @@ private:
 public:
 	constexpr PCS() noexcept {};
 
-
-	/// NOTE: the inputs col1 and col2 are also outputs
-	/// \tparam F
-	/// \tparam C type of the check function, which checks if a global solution 
-    ///         is found
+	/// \tparam F step function
+	/// \tparam Flavour flavour function, applied before every step
 	/// \tparam ExecPolicy threading policy
-    /// \param policy
-	/// \param f lambda function to execute a single step.
-    /// \param c
-	/// \param col1 input/output the starting value will be set onto this value,
-	/// 		and if a collision is found in will be written into this value
-	///			NOTE: the element before the collision will be return
-	/// \param col2 input/output
-	/// \param walk_len: maximal iterations until to exit the algorithm
-	/// \return true/false if a solution/collision was found
+	/// \param policy if parallel: all threads of its pool are walking
+	/// \param f step function
+	/// \param flavour
+	/// \param col1 output: first preimage of the collision
+	/// \param col2 output: second preimage of the collision
+	/// \param max_walk_len walks without a distinguished point after
+	/// 		`max_walk_len` steps are discarded (they are probably in a cycle)
+	/// \param max_walks maximal number of walks (all threads together)
+	/// \return true/false if a (golden) collision was found
 	template<class F,
-             class C,
+             class Flavour,
              class ExecPolicy>
 	[[nodiscard]] static bool run(ExecPolicy &&policy,
 								  F &&f,
-								  C &&c,
+								  Flavour &&flavour,
 								  T &col1, T &col2,
-								  const size_t walk_len) noexcept {
-		Compare cmp;
-        Distinguished d;
-        
-        // TODO probaly also safe the length of the walk within the distinguished point data set
-        std::vector<T> distinguished_points;
+								  const size_t max_walk_len,
+								  const size_t max_walks = size_t(-1ull)) noexcept {
+		// distinguished point -> (start of the walk, length of the walk)
+		std::map<T, std::pair<T, size_t>> table;
+		std::mutex m;
+		std::atomic<bool> found = false;
+		size_t walks = 0;
 
-        bool found = false;
-        auto walk_f = [&]() __ATTRIBUTE__(always_inline) noexcept {
-            while (!found) {
-                // TODO: flavour
-                T v = cryptanalysislib::rng();
-                for (size_t i = 0; i < walk_len; i++) {
-                    if (d(v)) {
-                        if (c(distinguished_points, v) && !found) {
-                            found = true;
-							col1 = v;
-							col2 = v;
-                            goto finish;
-                        }
+		auto walk_f = [&]() -> bool {
+			Compare cmp;
+			Distinguished d;
+			while (!found.load(std::memory_order_relaxed)) {
+				T start;
+				{
+					// NOTE: the rng is not thread safe
+					std::lock_guard<std::mutex> guard(m);
+					if (walks >= max_walks) { return false; }
+					walks += 1;
+					start = T(cryptanalysislib::rng());
+				}
 
-                        distinguished_points.push_back(v);
-                    }
+				T v = start;
+				size_t len = 0;
+				while (!d(v) && (len < max_walk_len)) {
+					v = f(flavour(v));
+					len += 1;
+				}
 
-                    v = f(v);
-                }
-            }
+				if (!d(v)) { continue; }
 
-        finish:
-            return true;
-        };
-        
-        if (policy ){
-        }
+				T start2;
+				size_t len2;
+				{
+					std::lock_guard<std::mutex> guard(m);
+					const auto it = table.find(v);
+					if (it == table.end()) {
+						table.emplace(v, std::pair<T, size_t>{start, len});
+						continue;
+					}
+					start2 = it->second.first;
+					len2 = it->second.second;
+				}
 
-        constexpr static uint32_t nthreads = 2; // TODO
-        std::vector<std::future<bool>> futures;
-        for (uint32_t i = 0; i < nthreads; i++) {
-            futures.emplace_back(walk_f);
-        }
+				// reconstruction: the longer walk goes ahead, then both step
+				// together until they merge
+				T a = start, b = start2;
+				for (; len > len2; --len) { a = f(flavour(a)); }
+				for (; len2 > len; --len2) { b = f(flavour(b)); }
+				// one start lies on the other walk: no collision
+				if (a == b) { continue; }
 
-        for (uint32_t i = 0; i < nthreads; i++) {
-            futures[i].wait();
-        }
+				T an = f(flavour(a)), bn = f(flavour(b));
+				while (!(an == bn)) {
+					a = an; b = bn;
+					an = f(flavour(a));
+					bn = f(flavour(b));
+				}
 
-        // TODO reconstruct or whatever
-        return true;
+				if (!cmp(a, an, b, bn)) { continue; }
+
+				std::lock_guard<std::mutex> guard(m);
+				if (!found.load()) {
+					col1 = a; col2 = b;
+					found.store(true);
+				}
+				return true;
+			}
+			return false;
+		};
+
+		if (is_seq<ExecPolicy>(policy)) {
+			return walk_f();
+		}
+
+		auto &task_pool = *policy.pool();
+		const uint32_t nthreads = task_pool.get_num_threads();
+		std::vector<std::future<bool>> futures;
+		for (uint32_t i = 0; i < nthreads; i++) {
+			futures.emplace_back(task_pool.submit(walk_f));
+		}
+
+		for (uint32_t i = 0; i < nthreads; i++) {
+			futures[i].wait();
+		}
+
+		return found.load();
 	}
 
-	/// \tparam F
-    /// \tparam C
-    /// \param f
-    /// \param c
-    /// \param col1
-    /// \param col2
-    /// \param walk_len
-    /// \return
+	/// same as above, without flavour
 	template<class F,
-             class C>
+             class ExecPolicy>
+	[[nodiscard]] static bool run(ExecPolicy &&policy,
+								  F &&f,
+								  T &col1, T &col2,
+								  const size_t max_walk_len,
+								  const size_t max_walks = size_t(-1ull)) noexcept {
+		return PCS::run(policy, f, [](const T &x) { return x; },
+		                col1, col2, max_walk_len, max_walks);
+	}
+
+	/// same as above, with all threads of the default pool
+	template<class F>
 	[[nodiscard]] static bool run(F &&f,
-                                  C &&c,
 						          T &col1, T &col2,
-						          const size_t walk_len) noexcept {
-        return PCS::run(cryptanalysislib::par_if(true), f, c, col1, col2, walk_len);
+						          const size_t max_walk_len,
+						          const size_t max_walks = size_t(-1ull)) noexcept {
+        return PCS::run(cryptanalysislib::par_if(true), f, col1, col2, max_walk_len, max_walks);
     }
 };
 #endif

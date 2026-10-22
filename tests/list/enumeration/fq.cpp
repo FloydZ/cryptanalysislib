@@ -464,6 +464,58 @@ TEST(ListEnumerateMultiDisjointBlock, simple_nohashmap) {
 		EXPECT_EQ(L3.data_value(i).popcnt(), mitm_w + noreps_w);
 		EXPECT_EQ(L4.data_value(i).popcnt(), mitm_w + noreps_w);
 	}
+
+	// every coordinate of the noreps part [split, n) is enumerated
+	std::vector<bool> covered(n, false);
+	for (const List *L : {&L1, &L2, &L3, &L4}) {
+		for (size_t i = 0; i < list_size; ++i) {
+			for (uint32_t j = split; j < n; ++j) {
+				if (L->data_value(i)[j]) { covered[j] = true; }
+			}
+		}
+	}
+	for (uint32_t j = split; j < n; ++j) { EXPECT_TRUE(covered[j]) << j; }
+}
+
+/// L1 is hashed into `hm`, L3 into `hm3`, each with the label of its list entry
+/// (index = position in the list)
+TEST(ListEnumerateMultiDisjointBlock, hashmap) {
+	constexpr uint32_t mitm_w = 2;
+	constexpr uint32_t noreps_w = 1;
+	constexpr uint32_t split = n / 2;
+	using Enumerator = ListEnumerateMultiDisjointBlock<List, n, q, mitm_w, noreps_w, split>;
+	constexpr size_t list_size = Enumerator::LIST_SIZE;
+
+	using HK = uint64_t;
+	constexpr static SimpleHashMapConfig cfg{32, 1u << l, 1};
+	using HM = SimpleHashMap<HK, V, cfg, Hash<HK, 0, l, 2>>;
+	auto extractor = [](const Label label) -> HK {
+		constexpr uint64_t mask = (1ull << l) - 1ull;
+		return (uint64_t(label.ptr()[0]) | (uint64_t(label.ptr()[1]) << 8u)) & mask;
+	};
+
+	List L1(list_size), L2(list_size), L3(list_size), L4(list_size);
+	auto *hm = new HM{}, *hm3 = new HM{};
+	Matrix HT;
+	HT.random();
+	Enumerator enumerator{HT};
+	enumerator.template run<HM, decltype(extractor)>(L1, L2, L3, L4, 0, hm, &extractor, hm3);
+
+	auto contains = [&](const HM *h, const List &L, const size_t i) {
+		typename HM::load_type load = 0;
+		const auto pos = h->find(extractor(L.data_label(i)), load);
+		for (size_t j = 0; j < load; ++j) {
+			if (h->ptr(pos + j)[0] == i) { return true; }
+		}
+		return false;
+	};
+
+	for (size_t i = 0; i < list_size; ++i) {
+		EXPECT_TRUE(contains(hm, L1, i));
+		EXPECT_TRUE(contains(hm3, L3, i));
+	}
+
+	delete hm; delete hm3;
 }
 
 
