@@ -1110,13 +1110,16 @@ public:
 		}
 	}
 
-	bool isCompressible(void *current) {
+	bool isCompressible(void *current_) {
 		if constexpr (!useCompression) {
 			return false;
 		}
 
+		// NOTE: `current_` is a tagged pointer, the slots are read through
+		// 	the raw one (atomics on a misaligned address fault on arm64)
+		void *current = (void *) accessNode(current_);
 		if constexpr (useCounters) {
-			const uint32_t len = isANode(current) ? wayness : ceil_log2(wayness);
+			const uint32_t len = isANode(current_) ? wayness : ceil_log2(wayness);
 			const auto count = (uint64_t)READ(current, len);
 			if (count > 1) {
 				return false;
@@ -1126,7 +1129,7 @@ public:
 		void *found = nullptr;
 		uint32_t i = 0;
 
-		while(i < usedLength(current)) {
+		while(i < usedLength(current_)) {
 			void *old = READ(current, i);
 			if (old != nullptr) {
 				if ((found == nullptr) && (isSNode(old))) {
@@ -1164,7 +1167,7 @@ public:
 		// maskXNode(xn);
 		auto *xn = createXNode(parent, parentPos, current, hash, level);
 
-		if (CAS_(parent, parentPos, (uintptr_t)&current, xn)) {
+		if (CAS_(accessNode(parent), parentPos, (uintptr_t)&current, xn)) {
 			return completeCompression(cache, xn);
 		} else {
 			// NOTE: the compression node was never published
@@ -1198,7 +1201,7 @@ public:
 		// Dive into the cache starting from the root for the given hash,
 		// and compress as much as possible.
 		const uint64_t pos = (hash >> level) & (usedLength(current) - 1u);
-		void *old = READ(current, pos);
+		void *old = READ(accessNode(current), pos);
 		if (isANode(old)){
 			if (!compressDescend(old, current, hash, level + 4)) {
 				return false;
