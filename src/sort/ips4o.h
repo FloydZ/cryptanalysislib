@@ -112,11 +112,11 @@ namespace ips4o {
 			constexpr static int logBuckets(const ptrdiff_t n) noexcept {
 				if (n <= kSingleLevelThreshold) {
 					// Only one more level until the base case, reduce the number of buckets
-					return std::max(1ul, floor_log2(n / kBaseCaseSize));
+					return std::max<uint64_t>(1ul, floor_log2(n / kBaseCaseSize));
 				} else if (n <= kTwoLevelThreshold) {
 					// Only two more levels until we reach the base case, split the buckets
 					// evenly
-					return std::max(1ul, (floor_log2(n / kBaseCaseSize) + 1) / 2);
+					return std::max<uint64_t>(1ul, (floor_log2(n / kBaseCaseSize) + 1) / 2);
 				} else {
 					// Use the maximum number of buckets
 					return kLogBuckets;

@@ -49,6 +49,10 @@ constexpr size_t LS = 1u<<8u;
 #undef Element
 #undef List
 
+// NOTE: the search tests assume pairwise distinct elements; with K=20 the
+// binary value space is only 2^20, so LS random values collide with ~3%.
+#undef K
+#define K 64u
 #define ListName binary_64
 #define MatrixT uint64_t
 #define Matrix 	FqMatrix<MatrixT, N, K, 2, true>
