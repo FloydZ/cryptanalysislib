@@ -19,12 +19,17 @@
 /// 128 bits are accumulated into the same C. Hence one `bmma_sync` compares
 /// 64 pairs on 128 bits.
 ///
-/// Three variants are implemented:
+/// Four variants are implemented:
 /// 	- `tensor_bruteforce`        (C): bmmaBitOpXOR, the distance directly.
 /// 	- `tensor_bruteforce_and`    (D): bmmaBitOpAND, the distance is recovered
 /// 	                                  from the weights of the elements.
 /// 	- `tensor_bruteforce_hybrid` (F): D, plus warps which compute on the CUDA
 /// 	                                  cores (__popc) in parallel.
+/// 	- `tensor_bruteforce_mxf4`   (G): sm_120a only: the `kind::mxf4` MMA
+/// 	                                  (e2m1 nibbles) in 64 bit steps, 3-4x
+/// 	                                  faster than F on a RTX 5090 and for any
+/// 	                                  multiple of 32 bits. See the end of this
+/// 	                                  file.
 /// Each kernel has a host side launcher `launch_*`, which chooses the grid.
 ///
 /// Common structure of all variants:
@@ -255,6 +260,20 @@ __device__ __forceinline__ void load_chunk(uint4 *Rs, const uint4 *R4,
 /// chunks are processed. Then all accumulator elements <= d are reported.
 /// See the top of this file for the overall structure.
 ///
+///   per warp and 8-column tile t of the R chunk (B = Rs[b] + 8t):
+///
+///     A[i][0] (8 rows, bits 0..127)   x   B[0]  -->  acc[i] = popc(a ^ b)   i < TM
+///                                                      |
+///                       any lane: acc[i][s] <= d ? ----+---- no (~always): next t
+///                                                      | yes
+///     A[i][1] x B[1], A[i][2] x B[2], ...  accumulate, stop as soon as
+///                                          no element is <= d any more
+///                                                      |
+///     report all (row, col) with acc <= d, row < e1, col < e2
+///
+/// The early abort costs one bmma per 64 pairs (plus the B fragment load,
+/// shared by the TM tiles) instead of K.
+///
 /// \tparam T base limb type of the lists, e.g. uint32_t or uint64_t. Only
 /// 		used to compute the element size; the kernel internally reads the
 /// 		lists as 128 bit words, so the limb type does not change the bit
@@ -301,6 +320,17 @@ __device__ __forceinline__ void load_chunk(uint4 *Rs, const uint4 *R4,
 /// 		`launch_tensor_bruteforce` to choose the grid.
 /// NOTE: shared memory: (WARPS*TM*8 + 2*RC) * K * 16 bytes + 256 bytes, which
 /// 		must not exceed 48 KiB (checked at compile time).
+///
+/// grid/block: blockDim.x = WARPS*32 (asserted), grid = (ceil(e1 / CTA_ROWS),
+/// parts of R), see `tensor_grid`. E.g. n = 256 bit elements as 8 uint32_t
+/// limbs, d = 20, default tuning (CTA_ROWS = 2*8*8 = 128, RC = 128):
+///
+///   size_t *f1, *f2;                       // device memory
+///   cudaMemset(f1, 0xff, sizeof(size_t));  // -1: no solution yet
+///   cudaMemset(f2, 0xff, sizeof(size_t));
+///   tensor_bruteforce<uint32_t, 8, 20>
+///       <<<tensor_grid(e1, e2, 128, 128), 8 * 32>>>(L, R, e1, e2, f1, f2);
+///   // or: launch_tensor_bruteforce<uint32_t, 8, 20>(L, R, e1, e2, f1, f2);
 template<typename T, const uint32_t nr_limbs, const uint32_t d,
 		 const uint32_t TM=2, const uint32_t WARPS=8, const uint32_t RC=128>
 __global__ void __launch_bounds__(WARPS*32)
@@ -458,6 +488,20 @@ tensor_bruteforce(const T *L, const T *R,
 /// weights of the first 128 bits are stored as well, see `weights`.
 /// In contrast to variant C, the early abort only checks the first 128 bits:
 /// a candidate tile is directly multiplied on all remaining chunks.
+///
+///   per CTA and R chunk (stage b):
+///
+///     Ls (packed, k-planar)  Lw[row] = wt_128 | wt_full << 16      once per super-tile
+///     Rs[b]                  Rw[col] = wt_128 | wt_full << 16      once per chunk
+///                                  |
+///     tensor warp, tile t:   acc[i] = popc(A[i][0] & B[0])         1 bmma per 64 pairs
+///                            cand   = 2 acc - wt_128(col) >= wt_128(row) - d
+///                            any lane cand? -- no --> next tile
+///                              | yes: acc += popc(A[i][k] & B[k]), k = 1..K-1
+///                            report 2 acc - wt(col) >= wt(row) - d
+///
+///     popc warps (F only):   rows of L in registers, columns RC-RC_POPC .. RC-1
+///                            w = popc(a ^ b) on the first 128 bits, rest only if w <= d
 ///
 /// Variant F (POPC_WARPS > 0): additionally `POPC_WARPS` warps compute on the
 /// CUDA cores (`__popc` of the XOR) in parallel to the `WARPS` tensor core
@@ -737,6 +781,14 @@ __device__ void dtensor_bruteforce_and(const T *L, const T *R,
 /// \param f1 output: position of the solution in L, must be init with -1
 /// \param f2 output: position of the solution in R, must be init with -1
 /// See `dtensor_bruteforce_and` for the details of all parameters.
+///
+/// grid/block: blockDim.x = WARPS*32 (asserted), grid = (ceil(e1 / CTA_ROWS),
+/// parts of R), see `tensor_grid`. E.g. n = 128 bit elements as 4 uint32_t
+/// limbs, d = 20, default tuning (CTA_ROWS = 128, RC = 128):
+///
+///   tensor_bruteforce_and<uint32_t, 4, 20>
+///       <<<tensor_grid(e1, e2, 128, 128), 8 * 32>>>(L, R, e1, e2, f1, f2);
+///   // or: launch_tensor_bruteforce_and<uint32_t, 4, 20>(L, R, e1, e2, f1, f2);
 template<typename T, const uint32_t nr_limbs, const uint32_t d,
 		 const uint32_t TM=2, const uint32_t WARPS=8, const uint32_t RC=128>
 __global__ void __launch_bounds__(WARPS*32)
@@ -773,6 +825,15 @@ tensor_bruteforce_and(const T *L, const T *R,
 /// \param f2 output: position of the solution in R, must be init with -1
 /// NOTE: `blockDim.x` must be (WARPS + POPC_WARPS)*32.
 /// See `dtensor_bruteforce_and` for the details of all parameters.
+///
+/// grid/block: blockDim.x = (WARPS + POPC_WARPS)*32 (asserted), grid =
+/// (ceil(e1 / CTA_ROWS), parts of R), see `tensor_grid`. E.g. n = 128 bit
+/// elements as 4 uint32_t limbs, d = 20, default tuning (CTA_ROWS = 128,
+/// RC = 256, 8 + 4 warps):
+///
+///   tensor_bruteforce_hybrid<uint32_t, 4, 20>
+///       <<<tensor_grid(e1, e2, 128, 256), (8 + 4) * 32>>>(L, R, e1, e2, f1, f2);
+///   // or: launch_tensor_bruteforce_hybrid<uint32_t, 4, 20>(L, R, e1, e2, f1, f2);
 template<typename T, const uint32_t nr_limbs, const uint32_t d,
 		 const uint32_t TM=2, const uint32_t WARPS=8, const uint32_t RC=256,
 		 const uint32_t POPC_WARPS=4, const uint32_t RC_POPC=112>
@@ -945,6 +1006,554 @@ void launch_tensor_bruteforce_hybrid(const T *L, const T *R,
 	tensor_bruteforce_hybrid
 		<T, nr_limbs, d, TM, WARPS, RC, POPC_WARPS, RC_POPC>
 		<<<tensor_grid(e1, e2, WARPS * TM * WMMA_M, RC), (WARPS + POPC_WARPS) * 32u, 0, stream>>>
+		(L, R, e1, e2, f1, f2);
+	checkCudaErrors(cudaGetLastError());
+}
+
+/* ///////////////////////// Variant G: mxf4 (sm_120a) \\\\\\\\\\\\\\\\\\\\\\\\\ */
+
+#if defined(__CUDA_ARCH_FEAT_SM120_ALL) || defined(__CUDA_ARCH_FEAT_SM121_ALL)
+#define NN_TENSOR_MXF4 1
+#endif
+
+/// \return Pr[Bin(n, 1/2) <= d], i.e. the probability that `n` random bits
+/// 		have weight <= d. n <= 1024.
+__host__ __device__ constexpr double binomial_tail(const uint32_t n, const uint32_t d) {
+	// c = binom(n, k) / 2^n, starting with k = 0
+	double c = 1.;
+	for (uint32_t i = 0; i < n; i++) { c *= 0.5; }
+	double p = 0.;
+	for (uint32_t k = 0; (k <= d) && (k <= n); k++) {
+		p += c;
+		c = c * double(n - k) / double(k + 1u);
+	}
+	return p > 1. ? 1. : p;
+}
+
+/// \return the number of 64 bit steps `tensor_bruteforce_mxf4` multiplies
+/// 		before its early abort check: the s in [1, S] with the minimal
+/// 		expected cost per tile in mma, s + p * (S - s + `rare`), where p is
+/// 		the probability that one of the `pairs` random pairs the check
+/// 		covers has weight <= d on the first 64*s bits, and `rare` the
+/// 		overhead of the candidate path in mma (measured: ~5 on a RTX 5090,
+/// 		it is a dependent chain of loads, mma and compares the other
+/// 		warps do not hide). E.g. n = 128, d = 20: 2 (no early abort),
+/// 		n = 256, d = 50: 3, n = 512, d = 100: 4.
+__host__ __device__ constexpr uint32_t first_steps(const uint32_t d, const uint32_t S,
+                                                   const uint32_t pairs = 128u,
+                                                   const double rare = 5.) {
+	uint32_t best = S;
+	double best_cost = double(S);
+	for (uint32_t s = 1; s < S; s++) {
+		// Pr[any of the pairs] = 1 - (1 - p)^pairs, without underflow
+		const double p = binomial_tail(64u * s, d);
+		double none = 1.;
+		for (uint32_t i = 0; (i < pairs) && (none > 1e-30); i++) { none *= 1. - p; }
+		const double cost = double(s) + (1. - none) * (double(S - s) + rare);
+		if (cost < best_cost) {
+			best = s;
+			best_cost = cost;
+		}
+	}
+	return best;
+}
+
+/// \return the default number of 16-row L tiles per warp of
+/// 		`tensor_bruteforce_mxf4` for `S` steps per element: as many as fit
+/// 		into the 128 registers (A: 4*S per tile) of 2 CTAs of 8 warps per
+/// 		SM, see `DISABLED_tune_mxf4` in tests/nn/tensor.cu
+__host__ __device__ constexpr uint32_t mxf4_tiles(const uint32_t S) {
+	return S <= 1u ? 8u : S <= 4u ? 4u : 2u;
+}
+
+/// \return the row stride (in 32 bit words) of the R stages of
+/// 		`tensor_bruteforce_mxf4`: W rounded up to even (one uint2 per
+/// 		step), plus 2 if that is a multiple of 8, so that the 8 columns
+/// 		of a tile start in 8 different bank pairs.
+__host__ __device__ constexpr uint32_t mxf4_row_stride(const uint32_t W) {
+	const uint32_t ws = (W + 1u) & ~1u;
+	return ((ws % 8u) == 0) ? ws + 2u : ws;
+}
+
+/// dst = A * B + c on a 16x8x64 e2m1 tile with the block scales 4 (A) and 2
+/// (B): with the nibbles {0, 0.5} (`0x1`) every common bit adds
+/// 0.5 * 0.5 * 4 * 2 = 2 to the accumulator. `c` is the C operand of the MMA,
+/// so no instructions are needed to initialize the accumulator.
+/// Fragment layout (lane = 4g + q), identical for A and B: register r of
+/// step s holds the bits 4i + q (i = 0..7) of the word 2s + r/2 ... see
+/// `tensor_bruteforce_mxf4`.
+/// \param c0 C for the row g of the tile (accumulator elements 0, 1)
+/// \param c1 C for the row g+8 of the tile (accumulator elements 2, 3)
+__device__ __forceinline__ void mma_mxf4_init(float (&dst)[4], const float c0, const float c1,
+                                              const uint32_t a0, const uint32_t a1,
+                                              const uint32_t a2, const uint32_t a3,
+                                              const uint32_t b0, const uint32_t b1) {
+#if defined(NN_TENSOR_MXF4)
+	asm("mma.sync.aligned.m16n8k64.row.col.kind::mxf4.block_scale.scale_vec::2X.f32.e2m1.e2m1.f32.ue8m0 "
+	    "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%10,%10,%11,%11}, %12, {%14,%14}, %13, {%14,%14};\n"
+	    : "=f"(dst[0]), "=f"(dst[1]), "=f"(dst[2]), "=f"(dst[3])
+	    : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1),
+	      "f"(c0), "f"(c1),
+	      "r"(0x81818181u), "r"(0x80808080u), "h"((uint16_t)0));
+#else
+	(void)a0; (void)a1; (void)a2; (void)a3; (void)b0; (void)b1;
+	dst[0] = c0; dst[1] = c0; dst[2] = c1; dst[3] = c1;
+#endif
+}
+
+/// acc += A * B, see `mma_mxf4_init`
+__device__ __forceinline__ void mma_mxf4_acc(float (&acc)[4],
+                                             const uint32_t a0, const uint32_t a1,
+                                             const uint32_t a2, const uint32_t a3,
+                                             const uint32_t b0, const uint32_t b1) {
+#if defined(NN_TENSOR_MXF4)
+	asm("mma.sync.aligned.m16n8k64.row.col.kind::mxf4.block_scale.scale_vec::2X.f32.e2m1.e2m1.f32.ue8m0 "
+	    "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3}, %10, {%12,%12}, %11, {%12,%12};\n"
+	    : "+f"(acc[0]), "+f"(acc[1]), "+f"(acc[2]), "+f"(acc[3])
+	    : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1),
+	      "r"(0x81818181u), "r"(0x80808080u), "h"((uint16_t)0));
+#else
+	(void)acc; (void)a0; (void)a1; (void)a2; (void)a3; (void)b0; (void)b1;
+#endif
+}
+
+/// \return the words 2s, 2s+1 of element `row` of `X` (W words per element),
+/// 		zero beyond W (odd W: the last step has a single word)
+template<const uint32_t W>
+__device__ __forceinline__ uint2 load_step(const uint32_t *X, const size_t row, const uint32_t s) {
+	const uint32_t *p = X + row * W + 2u * s;
+	if constexpr ((W % 2u) == 0) {
+		return __ldg((const uint2 *)p);
+	} else {
+		uint2 v;
+		v.x = __ldg(p);
+		v.y = (2u * s + 1u < W) ? __ldg(p + 1u) : 0u;
+		return v;
+	}
+}
+
+/// copies the R chunk `c` (`RC` elements of W words) into the stage `Rs` of
+/// `tensor_bruteforce_mxf4` via `cp.async`: row e at Rs[e*WS], words >= W
+/// and elements >= e2 are zero. 8 byte copies if W is even. Commits one
+/// batch, wait for it with `__pipeline_wait_prior` + `__syncthreads`.
+/// NOTE: must be called by all threads of the CTA.
+template<const uint32_t W, const uint32_t WS, const uint32_t RC>
+__device__ __forceinline__ void load_chunk_mxf4(uint32_t *Rs, const uint32_t *R32,
+                                                const size_t c, const size_t e2) {
+	if constexpr ((W % 2u) == 0) {
+		constexpr uint32_t P = WS / 2u;
+		for (uint32_t p = threadIdx.x; p < RC * P; p += blockDim.x) {
+			const uint32_t e = p / P, j = p % P;
+			const size_t g = c * RC + e;
+			uint2 *dst = (uint2 *)(Rs + e * WS + 2u * j);
+			if ((j < W / 2u) && (g < e2)) {
+				__pipeline_memcpy_async(dst, R32 + g * W + 2u * j, sizeof(uint2));
+			} else {
+				*dst = make_uint2(0, 0);
+			}
+		}
+	} else {
+		for (uint32_t p = threadIdx.x; p < RC * WS; p += blockDim.x) {
+			const uint32_t e = p / WS, w = p % WS;
+			const size_t g = c * RC + e;
+			uint32_t *dst = Rs + e * WS + w;
+			if ((w < W) && (g < e2)) {
+				__pipeline_memcpy_async(dst, R32 + g * W + w, sizeof(uint32_t));
+			} else {
+				*dst = 0u;
+			}
+		}
+	}
+	__pipeline_commit();
+}
+
+/// Variant G: searches a pair (i, j), i < e1, j < e2 with wt(L[i] ^ R[j]) <= d
+/// with the `kind::mxf4` MMA (m16n8k64, e2m1 x e2m1 -> f32) of sm_120a, which
+/// runs at ~3x the rate of the (emulated) b1 bmma on these GPUs, see the top
+/// of this file. Elements of n = 32*W bits are processed in S = ceil(W/2)
+/// steps of 64 bits, so every multiple of 32 bits is supported without
+/// padding to 128 bits (n = 32, 64, 96: 1, 1, 2 steps; 128, 192, 256, 512:
+/// 2, 3, 4, 8 steps). One mma compares 16 x 8 = 128 pairs on 64 bits.
+///
+/// Bits as e2m1 nibbles (lane = 4g + q): in step s thread q holds the bits
+/// 4i + q (i = 0..7) of the words 2s and 2s+1 of its rows (A: rows g and g+8
+/// of the 16 row tile) and of its column (B: column g of the 8 column tile),
+/// as the nibbles (w >> q) & 0x11111111, i.e. 0 or 0.5. With the block
+/// scales 4 (A) and 2 (B) every common bit adds 2 to the accumulator:
+///
+///   D = C + 2 popc(a & b),  C := d + 1 - wt(a)   (the C operand of the mma)
+///   wt(a ^ b) = wt(a) + wt(b) - 2 popc(a & b) <= d   <=>   D > wt(b)
+///
+/// with all weights taken on the bits of the multiplied steps. Early abort:
+/// first only the steps 0 .. S0-1 are multiplied, the remaining ones only for
+/// the 16x8 tiles in which a lane sees D > wt_first(b) (for random elements
+/// a tile has such a candidate with probability 1 - (1 - Pr[Bin(64 S0, 1/2)
+/// <= d])^128, `first_steps` picks S0). The candidate path is a dependent
+/// chain the other warps hide badly, so `first_steps` charges it ~5 mma: for
+/// n = 128, d = 20 both steps are always multiplied (no early abort).
+///
+///   per warp and TN 8-column tiles t.. of the R chunk:
+///
+///     b[j][s] <- Rs[col][2s, 2s+1]  (uint2, 2 LOP/SHF per register), s < S0
+///     j < TN, i < TM:  D[j][i] = C[i] + 2 popc(A[i][0..S0) & b[j][0..S0))   TN*TM*S0 mma
+///                      bit (j, i) of cands = any D[j][i] > wt_first(col)     (2 FMNMX, 2 FSETP)
+///     cands = OR over the warp (one __reduce_or_sync)
+///     for each set bit (j, i) (uniform branch):   D[j][i] += 2 popc(A[i][S0..S) & b[j][S0..S))
+///                                                 hits = D[j][i] > wt(col) + wt_rest(row)
+///                                                 hits != 0 (a solution): report (row, col)
+///
+/// Shared memory: the R chunks (two stages, double buffered via cp.async) as
+/// packed words with a padded row stride of WS words (`mxf4_row_stride`:
+/// conflict free uint2 fragment loads), and per chunk the weights
+/// (wt_first, wt_full) of its columns. The L super-tile is read directly
+/// from global memory into registers (A: TM*S*4 registers per thread), with
+/// the thresholds C and wt_rest of the rows.
+///
+/// \tparam T base limb type, e.g. uint32_t or uint64_t
+/// \tparam nr_limbs limbs per element: n = nr_limbs*sizeof(T)*8 bits, any
+/// 		multiple of 32
+/// \tparam d maximal hamming distance of a solution, d < n
+/// \tparam TM number of 16-row L tiles per warp (A: TM*S*4 registers), each
+/// 		B fragment is used for TM mma. 0 (default): `mxf4_tiles(S)`, i.e.
+/// 		8 for n <= 64, 4 for n <= 256, else 2.
+/// \tparam WARPS warps per CTA, `blockDim.x` = WARPS*32; CTA_ROWS =
+/// 		WARPS*TM*16 rows of L per CTA (default 8, i.e. 512 rows for
+/// 		n = 128)
+/// \tparam RC elements of R per shared memory stage, multiple of 8*TN
+/// 		(default 256; shared memory: 2*RC*WS*4 + RC*8 bytes)
+/// \tparam S0 steps (64 bit each) multiplied before the early abort check,
+/// 		1..S; 0 (default): `first_steps(d, S)`
+/// \tparam TN R tiles per iteration: TN*TM independent mma before the check
+/// 		(default 2)
+/// \param L first list: `e1` elements of n bits, stored contiguously, 8 byte
+/// 		aligned (16 for even W) in global memory
+/// \param R second list, same layout, `e2` elements
+/// \param e1, e2 number of elements of L, R to search
+/// \param f1, f2 output: positions of the solution in L, R, must be init
+/// 		with -1. Only the first solution found is written.
+/// NOTE: needs sm_120a (`__CUDA_ARCH_FEAT_SM120_ALL`, CUDA 12.8+, e.g.
+/// 		`-arch=sm_120a`). Compiled for any other architecture the kernel
+/// 		falls back to a plain __popc loop over global memory (correct,
+/// 		slow); the lists must then be readable as 32 bit words only.
+/// NOTE: RTX 5090, |L| = |R| = 2^17, Gpairs/s (hybrid variant F / plain
+/// 		__popc `bruteforce` of nn.cuh in brackets):
+/// 		n=32 d=3: 8860 (- / 2410), n=64 d=8: 9300 (- / 1600),
+/// 		n=96 d=12: 8120 (- / 1180), n=128 d=20: 5330 (1215 / 930),
+/// 		n=192 d=30: 5090 (- / 720), n=256 d=20: 4750 (1210 / 573),
+/// 		n=256 d=50: 3690 (822 / 573), n=512 d=100: 2220 (260 / 310);
+/// 		i.e. 70-80 G mma/s = 60-70% of the mxf4 peak. See `DISABLED_bench`,
+/// 		`DISABLED_bench_sizes` and `DISABLED_tune_mxf4` in tests/nn/tensor.cu.
+/// NOTE: must be called by all threads of the CTA, `blockDim.x` = WARPS*32.
+/// 		`gridDim.x` is a grid-stride over the L super-tiles, `gridDim.y`
+/// 		splits R, as in `tensor_bruteforce`. Use `tensor_bruteforce_mxf4`.
+template<typename T, const uint32_t nr_limbs, const uint32_t d,
+		 const uint32_t TM_, const uint32_t WARPS, const uint32_t RC,
+		 const uint32_t S0_, const uint32_t TN>
+__device__ void dtensor_bruteforce_mxf4(const T *L, const T *R,
+                                        const size_t e1, const size_t e2,
+                                        size_t *f1, size_t *f2) {
+	static_assert(sizeof(size_t) == sizeof(unsigned long long));
+	static_assert((nr_limbs * sizeof(T)) % 4u == 0, "element size must be a multiple of 32 bit");
+	constexpr uint32_t W = nr_limbs * sizeof(T) / 4u;
+	constexpr uint32_t S = (W + 1u) / 2u;
+	constexpr uint32_t TM = TM_ ? TM_ : mxf4_tiles(S);
+	constexpr uint32_t S0 = S0_ ? S0_ : first_steps(d, S, 128u);
+	static_assert((S0 >= 1u) && (S0 <= S));
+	static_assert(d < 32u * W);
+	static_assert((RC % 8u == 0) && ((RC / 8u) % TN == 0));
+	static_assert(TM * TN <= 32u, "the candidate mask has 32 bits");
+	constexpr uint32_t WS = mxf4_row_stride(W);
+	constexpr uint32_t CTA_ROWS = WARPS * TM * 16u;
+	static_assert(2u * RC * WS * sizeof(uint32_t) + RC * sizeof(float2) <= 48u * 1024u,
+	              "too much static shared memory");
+	constexpr uint32_t NIBBLES = 0x11111111u;
+
+	assert(blockDim.x == WARPS * 32u);
+	const uint32_t tid = threadIdx.x;
+	const uint32_t *L32 = (const uint32_t *)L;
+	const uint32_t *R32 = (const uint32_t *)R;
+
+#if !defined(NN_TENSOR_MXF4)
+	// fallback without the mxf4 MMA: CUDA cores, one row of L per thread,
+	// gridDim.y parts of R
+	const size_t r_begin = (e2 * blockIdx.y) / gridDim.y;
+	const size_t r_end = (e2 * (blockIdx.y + 1u)) / gridDim.y;
+	for (size_t i = size_t(blockIdx.x) * blockDim.x + tid; i < e1; i += size_t(gridDim.x) * blockDim.x) {
+		uint32_t x[W];
+		#pragma unroll
+		for (uint32_t w = 0; w < W; w++) { x[w] = __ldg(L32 + i * W + w); }
+		for (size_t j = r_begin; j < r_end; j++) {
+			uint32_t wt = 0;
+			#pragma unroll
+			for (uint32_t w = 0; w < W; w++) { wt += __popc(x[w] ^ __ldg(R32 + j * W + w)); }
+			if (wt <= d) { report_solution(i, j, f1, f2); }
+		}
+	}
+	return;
+#else
+	__shared__ alignas(16) uint32_t Rs[2][RC * WS];
+	/// (wt_first(2j), wt_first(2j+1)) and (wt_full(2j), wt_full(2j+1)) of the columns
+	__shared__ alignas(16) float2 Rw[RC / 2u];
+	__shared__ alignas(16) float2 Rwf[RC / 2u];
+
+	const uint32_t warp = tid / 32u, lane = tid % 32u;
+	const uint32_t g = lane / 4u, q = lane % 4u;
+
+	// the part of R this CTA works on, in chunks of RC elements
+	const size_t nr_chunks = (e2 + RC - 1u) / RC;
+	const size_t c_begin = (nr_chunks * blockIdx.y) / gridDim.y;
+	const size_t c_end = (nr_chunks * (blockIdx.y + 1u)) / gridDim.y;
+	if (c_begin == c_end) {
+		return;
+	}
+
+	for (size_t lt = blockIdx.x; lt * CTA_ROWS < e1; lt += gridDim.x) {
+		const size_t l_base = lt * CTA_ROWS;
+
+		// all warps must be finished with the previous R stages
+		__syncthreads();
+		load_chunk_mxf4<W, WS, RC>(Rs[0], R32, c_begin, e2);
+
+		// A fragments of this thread: a[i][s] = {row g word 2s, row g+8 word 2s,
+		// row g word 2s+1, row g+8 word 2s+1}, and the thresholds of the rows
+		const size_t w_base = l_base + warp * TM * 16u;
+		// warp uniform: warps without any valid row only help with the copies
+		const bool active = w_base < e1;
+		uint32_t a[TM][S][4];
+		// C operand: d + 1 - wt_first(row) for the rows g, g+8
+		float ca[TM][2];
+		(void)lane;
+		// wt_rest(row) of the rows g, g+8
+		float wr[TM][2];
+		#pragma unroll
+		for (uint32_t i = 0; i < TM; i++) {
+			#pragma unroll
+			for (uint32_t h = 0; h < 2u; h++) {
+				const size_t row = w_base + i * 16u + h * 8u + g;
+				const bool valid = row < e1;
+				uint32_t wf = 0, wa = 0;
+				#pragma unroll
+				for (uint32_t s = 0; s < S; s++) {
+					const uint2 v = valid ? load_step<W>(L32, row, s) : make_uint2(0, 0);
+					a[i][s][h] = (v.x >> q) & NIBBLES;
+					a[i][s][2u + h] = (v.y >> q) & NIBBLES;
+					const uint32_t pw = __popc(v.x) + __popc(v.y);
+					if (s < S0) { wf += pw; } else { wa += pw; }
+				}
+				// padding rows never become candidates
+				ca[i][h] = valid ? float(int(d) + 1 - int(wf)) : -1e30f;
+				wr[i][h] = float(wa);
+			}
+		}
+
+		for (size_t c = c_begin; c < c_end; c++) {
+			const uint32_t b = (c - c_begin) & 1u;
+			// chunk `c` was issued in the previous iteration (or above)
+			__pipeline_wait_prior(0);
+			// all warps are finished with the previous chunk, i.e. stage b^1
+			__syncthreads();
+			if (c + 1u < c_end) {
+				load_chunk_mxf4<W, WS, RC>(Rs[b ^ 1u], R32, c + 1u, e2);
+			}
+
+			// weights of the columns of this chunk
+			for (uint32_t e = tid; e < RC; e += blockDim.x) {
+				const uint32_t *x = Rs[b] + e * WS;
+				uint32_t wf = 0, wa = 0;
+				#pragma unroll
+				for (uint32_t s = 0; s < S; s++) {
+					const uint32_t pw = __popc(x[2u * s]) + __popc(x[2u * s + 1u]);
+					if (s < S0) { wf += pw; } else { wa += pw; }
+				}
+				float *w = (float *)(Rw + e / 2u);
+				float *wfull = (float *)(Rwf + e / 2u);
+				w[e % 2u] = float(wf);
+				wfull[e % 2u] = float(wf + wa);
+			}
+			__syncthreads();
+
+			const size_t r_base = c * RC;
+			// TN tiles per iteration: TN*TM independent mma before the first
+			// check. The vote is per 16x8 tile, so the early abort sees 128 pairs.
+			for (uint32_t t = 0; active && (t < RC / 8u) && (r_base + t * 8u < e2); t += TN) {
+				// wt_first of the columns 2q, 2q+1 of the tiles
+				float2 w[TN];
+				uint32_t bf[TN][S0][2];
+				#pragma unroll
+				for (uint32_t j = 0; j < TN; j++) {
+					w[j] = Rw[(t + j) * 4u + q];
+					const uint32_t *col = Rs[b] + ((t + j) * 8u + g) * WS;
+					#pragma unroll
+					for (uint32_t s = 0; s < S0; s++) {
+						const uint2 v = *(const uint2 *)(col + 2u * s);
+						bf[j][s][0] = (v.x >> q) & NIBBLES;
+						bf[j][s][1] = (v.y >> q) & NIBBLES;
+					}
+				}
+
+				// acc[j][i]: (row g, col 2q), (g, 2q+1), (g+8, 2q), (g+8, 2q+1)
+				float acc[TN][TM][4];
+				#pragma unroll
+				for (uint32_t j = 0; j < TN; j++) {
+					#pragma unroll
+					for (uint32_t i = 0; i < TM; i++) {
+						mma_mxf4_init(acc[j][i], ca[i][0], ca[i][1], a[i][0][0], a[i][0][1], a[i][0][2], a[i][0][3], bf[j][0][0], bf[j][0][1]);
+						#pragma unroll
+						for (uint32_t s = 1; s < S0; s++) {
+							mma_mxf4_acc(acc[j][i], a[i][s][0], a[i][s][1], a[i][s][2], a[i][s][3], bf[j][s][0], bf[j][s][1]);
+						}
+					}
+				}
+
+				// bit TM*j + i: the 16x8 tile (j, i) has a candidate in this
+				// thread; one warp reduction gives the tiles with a candidate
+				// in any lane
+				uint32_t cands = 0;
+				#pragma unroll
+				for (uint32_t j = 0; j < TN; j++) {
+					#pragma unroll
+					for (uint32_t i = 0; i < TM; i++) {
+						const bool cand = (fmaxf(acc[j][i][0], acc[j][i][2]) > w[j].x) |
+						                  (fmaxf(acc[j][i][1], acc[j][i][3]) > w[j].y);
+						cands |= uint32_t(cand) << (TM * j + i);
+					}
+				}
+				cands = __reduce_or_sync(0xffffffffu, cands);
+
+				// unlikely: some distance on the first 64*S0 bits is <= d
+				if (cands) {
+					#pragma unroll
+					for (uint32_t j = 0; j < TN; j++) {
+						#pragma unroll
+						for (uint32_t i = 0; i < TM; i++) {
+							// warp uniform
+							if ((cands >> (TM * j + i)) & 1u) {
+								const uint32_t *col = Rs[b] + ((t + j) * 8u + g) * WS;
+								#pragma unroll
+								for (uint32_t s = S0; s < S; s++) {
+									const uint2 v = *(const uint2 *)(col + 2u * s);
+									mma_mxf4_acc(acc[j][i], a[i][s][0], a[i][s][1], a[i][s][2], a[i][s][3],
+									             (v.x >> q) & NIBBLES, (v.y >> q) & NIBBLES);
+								}
+
+								// bit e: accumulator element e is a solution
+								const float2 wfull = Rwf[(t + j) * 4u + q];
+								const uint32_t hits = (acc[j][i][0] > wfull.x + wr[i][0] ? 1u : 0u) |
+								                      (acc[j][i][1] > wfull.y + wr[i][0] ? 2u : 0u) |
+								                      (acc[j][i][2] > wfull.x + wr[i][1] ? 4u : 0u) |
+								                      (acc[j][i][3] > wfull.y + wr[i][1] ? 8u : 0u);
+								// only real solutions get here
+								if (hits) {
+									const size_t row = w_base + i * 16u + g;
+									const size_t col0 = r_base + (t + j) * 8u + 2u * q;
+									// the zero padding can produce wrong solutions
+									if ((hits & 1u) && (row < e1) && (col0 < e2)) {
+										report_solution(row, col0, f1, f2);
+									}
+									if ((hits & 2u) && (row < e1) && (col0 + 1u < e2)) {
+										report_solution(row, col0 + 1u, f1, f2);
+									}
+									if ((hits & 4u) && (row + 8u < e1) && (col0 < e2)) {
+										report_solution(row + 8u, col0, f1, f2);
+									}
+									if ((hits & 8u) && (row + 8u < e1) && (col0 + 1u < e2)) {
+										report_solution(row + 8u, col0 + 1u, f1, f2);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+}
+
+/// Variant G: global wrapper around `dtensor_bruteforce_mxf4`, see there for
+/// the algorithm and all parameters.
+/// \tparam T base limb type of the lists, e.g. uint32_t or uint64_t
+/// \tparam nr_limbs number of limbs of type `T` per element; n =
+/// 		nr_limbs*sizeof(T)*8 must be a multiple of 32.
+/// \tparam d maximal hamming distance of a solution, d < n
+/// \tparam TM number of 16-row L tiles per warp in registers, 0 = automatic
+/// \tparam WARPS number of warps per CTA (default 8)
+/// \tparam RC number of elements of R per shared memory stage (default 256)
+/// \tparam S0 steps before the early abort check, 0 = automatic
+/// \tparam TN R tiles per iteration (default 2)
+/// \tparam MINB minimal CTAs per SM (`__launch_bounds__`), i.e. the register
+/// 		limit 64K / (MINB*WARPS*32) (default 2: 128 registers for 8 warps)
+/// \param L first list, `e1` contiguous elements, 8 byte aligned
+/// \param R second list, `e2` contiguous elements, 8 byte aligned
+/// \param e1 number of elements of L to search
+/// \param e2 number of elements of R to search
+/// \param f1 output: position of the solution in L, must be init with -1
+/// \param f2 output: position of the solution in R, must be init with -1
+///
+/// grid/block: blockDim.x = WARPS*32 (asserted), grid = (ceil(e1 / CTA_ROWS),
+/// parts of R), see `tensor_grid`. E.g. n = 256 bit elements as 8 uint32_t
+/// limbs, d = 20, default tuning (TM = 4: CTA_ROWS = 8*4*16 = 512, RC = 256):
+///
+///   cudaMemset(f1, 0xff, sizeof(size_t));  // -1: no solution yet
+///   cudaMemset(f2, 0xff, sizeof(size_t));
+///   tensor_bruteforce_mxf4<uint32_t, 8, 20>
+///       <<<tensor_grid(e1, e2, 512, 256), 8 * 32>>>(L, R, e1, e2, f1, f2);
+///   // or: launch_tensor_bruteforce_mxf4<uint32_t, 8, 20>(L, R, e1, e2, f1, f2);
+template<typename T, const uint32_t nr_limbs, const uint32_t d,
+		 const uint32_t TM=0, const uint32_t WARPS=8, const uint32_t RC=256,
+		 const uint32_t S0=0, const uint32_t TN=2, const uint32_t MINB=2>
+__global__ void __launch_bounds__(WARPS*32, MINB)
+tensor_bruteforce_mxf4(const T *L, const T *R,
+                       const size_t e1, const size_t e2,
+                       size_t *f1, size_t *f2) {
+	dtensor_bruteforce_mxf4
+		<T, nr_limbs, d, TM, WARPS, RC, S0, TN>
+		(L, R, e1, e2, f1, f2);
+}
+
+/// launches `tensor_bruteforce_mxf4` (variant G) on `stream` with the grid of
+/// `tensor_grid` and WARPS*32 threads per CTA. Does not synchronize.
+/// \tparam T base limb type of the lists, e.g. uint32_t or uint64_t
+/// \tparam nr_limbs number of limbs of type `T` per element; n =
+/// 		nr_limbs*sizeof(T)*8 must be a multiple of 32.
+/// \tparam d maximal hamming distance of a solution, d < n
+/// \tparam TM number of 16-row L tiles per warp in registers, 0 = automatic
+/// \tparam WARPS number of warps per CTA (default 8)
+/// \tparam RC number of elements of R per shared memory stage, multiple of
+/// 		8*TN (default 256)
+/// \tparam S0 steps before the early abort check, 0 = automatic
+/// \tparam TN R tiles per iteration (default 2)
+/// \tparam MINB minimal CTAs per SM (default 2)
+/// \param L first list, `e1` contiguous elements in device or managed
+/// 		memory, 8 byte aligned
+/// \param R second list, `e2` contiguous elements in device or managed
+/// 		memory, 8 byte aligned
+/// \param e1 number of elements of L to search
+/// \param e2 number of elements of R to search
+/// \param f1 output: position of the solution in L. Must be init with -1 (device
+/// 		or managed memory); only valid after the stream is synchronized.
+/// \param f2 output: position of the solution in R. Must be init with -1 (device
+/// 		or managed memory); only valid after the stream is synchronized.
+/// \param stream CUDA stream to launch on (default: the legacy default stream)
+/// NOTE: nothing is launched if one of the lists is empty.
+/// NOTE: launch errors exit the program via `checkCudaErrors`.
+/// See `tensor_bruteforce_mxf4` for the details of all parameters.
+template<typename T, const uint32_t nr_limbs, const uint32_t d,
+		 const uint32_t TM=0, const uint32_t WARPS=8, const uint32_t RC=256,
+		 const uint32_t S0=0, const uint32_t TN=2, const uint32_t MINB=2>
+void launch_tensor_bruteforce_mxf4(const T *L, const T *R,
+                                   const size_t e1, const size_t e2,
+                                   size_t *f1, size_t *f2,
+                                   cudaStream_t stream = 0) {
+	if ((e1 == 0) || (e2 == 0)) {
+		return;
+	}
+
+	constexpr uint32_t S = (nr_limbs * sizeof(T) / 4u + 1u) / 2u;
+	constexpr uint32_t rows = WARPS * (TM ? TM : mxf4_tiles(S)) * 16u;
+	tensor_bruteforce_mxf4
+		<T, nr_limbs, d, TM, WARPS, RC, S0, TN, MINB>
+		<<<tensor_grid(e1, e2, rows, RC), WARPS * 32u, 0, stream>>>
 		(L, R, e1, e2, f1, f2);
 	checkCudaErrors(cudaGetLastError());
 }
