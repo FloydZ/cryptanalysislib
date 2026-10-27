@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
@@ -24,7 +25,8 @@ static std::mt19937_64 gen;
 enum class Variant {
 	XOR,	// C: `tensor_bruteforce`
 	AND,	// D: `tensor_bruteforce_and`
-	HYBRID	// F: `tensor_bruteforce_hybrid`
+	HYBRID,	// F: `tensor_bruteforce_hybrid`
+	MXF4	// G: `tensor_bruteforce_mxf4`
 };
 
 /// minimal version of `NN<config>` from `nn/nn.h`, which cannot be compiled
@@ -37,7 +39,7 @@ class TensorNN {
 public:
 	using T = uint32_t;
 	constexpr static uint32_t ELEMENT_NR_LIMBS = n / 32u;
-	static_assert(n % 128u == 0);
+	static_assert(n % 32u == 0);
 
 	T *L1 = nullptr, *L2 = nullptr;
 	size_t solution_l = 0, solution_r = 0, solutions_nr = 0;
@@ -126,8 +128,10 @@ public:
 				launch_tensor_bruteforce<T, ELEMENT_NR_LIMBS, d>(L, R, e1, e2, f1, f2);
 			} else if constexpr (V == Variant::AND) {
 				launch_tensor_bruteforce_and<T, ELEMENT_NR_LIMBS, d>(L, R, e1, e2, f1, f2);
-			} else {
+			} else if constexpr (V == Variant::HYBRID) {
 				launch_tensor_bruteforce_hybrid<T, ELEMENT_NR_LIMBS, d>(L, R, e1, e2, f1, f2);
+			} else {
+				launch_tensor_bruteforce_mxf4<T, ELEMENT_NR_LIMBS, d>(L, R, e1, e2, f1, f2);
 			}
 		});
 	}
@@ -155,7 +159,8 @@ template<typename V>
 class TensorBruteforce : public Test {};
 using Variants = ::testing::Types<std::integral_constant<Variant, Variant::XOR>,
 								  std::integral_constant<Variant, Variant::AND>,
-								  std::integral_constant<Variant, Variant::HYBRID>>;
+								  std::integral_constant<Variant, Variant::HYBRID>,
+								  std::integral_constant<Variant, Variant::MXF4>>;
 TYPED_TEST_SUITE(TensorBruteforce, Variants);
 
 TYPED_TEST(TensorBruteforce, n128) {
@@ -369,6 +374,148 @@ TEST(TensorBruteforceParameters, HYBRID) {
 	}
 }
 
+/// mxf4: other tuning parameters, all steps before the check (S0 = S), and
+/// a single step
+TEST(TensorBruteforceParameters, MXF4) {
+	using T = uint32_t;
+	constexpr size_t ls = PARAMS_LS;
+	constexpr uint32_t d = PARAMS_D;
+	ParamsNN algo{};
+	algo.generate_random_instance(false);
+	algo.insert_solution(ls - 1, 0);
+
+	// one warp, one tile per iteration and chunk
+	algo.run([](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, 8, d, 1, 1, 8, 0, 1>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 1);
+	// TM = 4, large chunks, 4 tiles per iteration
+	algo.run([](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, 8, d, 4, 4, 256, 0, 4>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 2);
+	// no early abort: all 4 steps
+	algo.run([](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, 8, d, 2, 8, 128, 4>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 3);
+	// early abort after a single step, which for d = 30 is often not taken
+	algo.run([](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, 8, d, 2, 8, 64, 1>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 4);
+	// 3 steps, 8 tiles per iteration, 1 CTA per SM
+	algo.run([](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, 8, d, 2, 16, 128, 3, 8, 1>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 5);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	for (uint32_t i = 0; i < algo.solutions_nr; i++) {
+		EXPECT_EQ(algo.solutions[i].first, algo.solution_l);
+		EXPECT_EQ(algo.solutions[i].second, algo.solution_r);
+	}
+}
+
+/// mxf4 on element sizes which are not a multiple of 128 bits: inserts a
+/// solution of weight d and one of weight d+1, searches, and checks.
+/// NOTE: one alias per size, see `ParamsNN`
+template<typename NN>
+void check_mxf4_size(const size_t ls, const size_t l, const size_t r) {
+	using T = uint32_t;
+	constexpr uint32_t d = NN::d_;
+	NN algo{};
+	algo.generate_random_instance(false);
+	algo.insert_solution(gen() % ls, gen() % ls, d + 1);
+	algo.run([ls](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, NN::ELEMENT_NR_LIMBS, d>(L, R, ls, ls, f1, f2); });
+	EXPECT_EQ(algo.solutions_nr, 0);
+
+	algo.insert_solution(l, r);
+	algo.run([ls](const T *L, const T *R, size_t *f1, size_t *f2) {
+		launch_tensor_bruteforce_mxf4<T, NN::ELEMENT_NR_LIMBS, d>(L, R, ls, ls, f1, f2); });
+	ASSERT_EQ(algo.solutions_nr, 1);
+	EXPECT_EQ(algo.all_solutions_correct(), true);
+	EXPECT_EQ(algo.solutions[0].first, l);
+	EXPECT_EQ(algo.solutions[0].second, r);
+}
+
+/// `TensorNN` with the weight as a member, for `check_mxf4_size`
+template<const uint32_t n, const uint32_t d, const size_t LIST_SIZE>
+struct SizeNN : public TensorNN<n, d, LIST_SIZE> {
+	constexpr static uint32_t d_ = d;
+};
+
+constexpr size_t SIZE_LS = 2000;
+/// NOTE: n = 32 needs a tiny d: 4e6 random pairs contain ~5 of weight <= 3
+using NN32 = SizeNN<32, 1, SIZE_LS>;
+using NN64 = SizeNN<64, 8, SIZE_LS>;
+using NN96 = SizeNN<96, 12, SIZE_LS>;
+using NN160 = SizeNN<160, 20, SIZE_LS>;
+using NN192 = SizeNN<192, 30, SIZE_LS>;
+using NN512 = SizeNN<512, 100, SIZE_LS>;
+using NN512s = SizeNN<512, 10, SIZE_LS>;
+
+/// n = 32: a single word per element, one step
+TEST(TensorBruteforceMXF4, n32) {
+	check_mxf4_size<NN32>(SIZE_LS, 1234, SIZE_LS - 1);
+}
+
+/// n = 64: one step, uint2 copies
+TEST(TensorBruteforceMXF4, n64) {
+	check_mxf4_size<NN64>(SIZE_LS, 0, 7);
+}
+
+/// n = 96: odd number of words, the last step has a single word
+TEST(TensorBruteforceMXF4, n96) {
+	check_mxf4_size<NN96>(SIZE_LS, SIZE_LS - 1, 0);
+}
+
+/// n = 160: odd number of words, 3 steps
+TEST(TensorBruteforceMXF4, n160) {
+	check_mxf4_size<NN160>(SIZE_LS, 300, 301);
+}
+
+/// n = 192: 3 steps, row stride 6
+TEST(TensorBruteforceMXF4, n192) {
+	check_mxf4_size<NN192>(SIZE_LS, 999, 1000);
+}
+
+/// n = 512: 8 steps, row stride 18, large d: 2 steps before the check
+TEST(TensorBruteforceMXF4, n512) {
+	check_mxf4_size<NN512>(SIZE_LS, 17, 1999);
+}
+
+/// n = 512, small d: one step before the check
+TEST(TensorBruteforceMXF4, n512_small_d) {
+	check_mxf4_size<NN512s>(SIZE_LS, 18, 18);
+}
+
+/// the automatic choice of the steps before the early abort check
+TEST(TensorBruteforceMXF4, FirstSteps) {
+	// Pr[Bin(64, 1/2) <= 20] ~ 0.0017 (~20% of 128 pairs),
+	// Pr[Bin(128, 1/2) <= 50] ~ 0.008 (~66% of 128 pairs)
+	EXPECT_EQ(first_steps(20, 2), 2u);
+	EXPECT_EQ(first_steps(20, 2, 128, 1.), 1u);
+	EXPECT_EQ(first_steps(20, 4), 2u);
+	EXPECT_EQ(first_steps(10, 4), 1u);
+	EXPECT_EQ(first_steps(50, 4), 3u);
+	EXPECT_EQ(first_steps(50, 4, 1, 1.), 2u);
+	EXPECT_EQ(first_steps(100, 8), 4u);
+	EXPECT_EQ(first_steps(10, 1), 1u);
+	EXPECT_EQ(first_steps(60, 2), 2u);
+	for (const uint32_t n : {8u, 64u, 128u, 512u}) {
+		for (const uint32_t d : {0u, 1u, 20u, 50u, 100u, 512u}) {
+			// reference via lgamma, as `filter_probability` in nn/full_length.cuh
+			double p = 0.;
+			for (uint32_t k = 0; (k <= d) && (k <= n); k++) {
+				p += std::exp(std::lgamma(n + 1.) - std::lgamma(k + 1.) - std::lgamma(n - k + 1.) - n * std::log(2.));
+			}
+			p = p > 1. ? 1. : p;
+			EXPECT_NEAR(binomial_tail(n, d), p, 1e-9 * p + 1e-300) << n << " " << d;
+		}
+	}
+	EXPECT_EQ(binomial_tail(8, 8), 1.);
+	EXPECT_EQ(mxf4_row_stride(1), 2u);
+	EXPECT_EQ(mxf4_row_stride(4), 4u);
+	EXPECT_EQ(mxf4_row_stride(8), 10u);
+	EXPECT_EQ(mxf4_row_stride(16), 18u);
+}
+
 /// measures the throughput of `launch(L, R, f1, f2)` on two random lists of
 /// `ls` elements of `n` bits, with at least 2^34 pairs in total.
 /// \return Gpairs/s
@@ -424,7 +571,7 @@ void bench() {
 	using T = uint32_t;
 	constexpr uint32_t nr_limbs = n / 32u;
 	printf("n=%u d=%u [Gpairs/s]\n", n, d);
-	printf("  log|L|     popc      xor      and   hybrid\n");
+	printf("  log|L|     popc      xor      and   hybrid     mxf4\n");
 	for (uint32_t l = 10; l <= 18; l++) {
 		const size_t ls = size_t(1u) << l;
 		const double popc = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
@@ -432,16 +579,22 @@ void bench() {
 			const uint32_t blocks = (ls + threads - 1) / threads;
 			bruteforce<T, nr_limbs, d><<<blocks, threads>>>(L, R, ls, ls, f1, f2);
 		});
-		const double x = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
-			launch_tensor_bruteforce<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
+		double x = 0., a = 0., h = 0.;
+		if constexpr ((n % 128u) == 0) {
+			x = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
+				launch_tensor_bruteforce<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
+			});
+			a = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
+				launch_tensor_bruteforce_and<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
+			});
+			h = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
+				launch_tensor_bruteforce_hybrid<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
+			});
+		}
+		const double m = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
+			launch_tensor_bruteforce_mxf4<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
 		});
-		const double a = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
-			launch_tensor_bruteforce_and<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
-		});
-		const double h = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
-			launch_tensor_bruteforce_hybrid<T, nr_limbs, d>(L, R, ls, ls, f1, f2);
-		});
-		printf("  %6u %8.1f %8.1f %8.1f %8.1f\n", l, popc, x, a, h);
+		printf("  %6u %8.1f %8.1f %8.1f %8.1f %8.1f\n", l, popc, x, a, h, m);
 	}
 }
 
@@ -452,24 +605,39 @@ TEST(TensorBench, DISABLED_bench) {
 	bench<256, 50>();
 }
 
+/// the element sizes only the mxf4 variant supports (popc for comparison)
+/// run with: --gtest_also_run_disabled_tests --gtest_filter=TensorBench.DISABLED_bench_sizes
+TEST(TensorBench, DISABLED_bench_sizes) {
+	bench<32, 3>();
+	bench<64, 8>();
+	bench<96, 12>();
+	bench<192, 30>();
+	bench<512, 100>();
+}
+
 /// prints the throughput of one set of tuning parameters, see `DISABLED_tune`
+/// \tparam P1, P2 hybrid: POPC_WARPS, RC_POPC; mxf4: TN, MINB
+/// \tparam S0 mxf4: steps before the early abort check, 0 = automatic
 template<const Variant V, const uint32_t TM, const uint32_t WARPS, const uint32_t RC,
-		 const uint32_t POPC_WARPS=0, const uint32_t RC_POPC=0>
+		 const uint32_t P1=0, const uint32_t P2=0, const uint32_t n=128, const uint32_t d=20,
+		 const uint32_t S0=0>
 void tune(const size_t ls) {
 	using T = uint32_t;
-	constexpr uint32_t n = 128, d = 20, nr_limbs = n / 32u;
+	constexpr uint32_t nr_limbs = n / 32u;
 	const double r = measure<n>(ls, [ls](T *L, T *R, size_t *f1, size_t *f2) {
 		if constexpr (V == Variant::XOR) {
 			launch_tensor_bruteforce<T, nr_limbs, d, TM, WARPS, RC>(L, R, ls, ls, f1, f2);
 		} else if constexpr (V == Variant::AND) {
 			launch_tensor_bruteforce_and<T, nr_limbs, d, TM, WARPS, RC>(L, R, ls, ls, f1, f2);
+		} else if constexpr (V == Variant::HYBRID) {
+			launch_tensor_bruteforce_hybrid<T, nr_limbs, d, TM, WARPS, RC, P1, P2>(L, R, ls, ls, f1, f2);
 		} else {
-			launch_tensor_bruteforce_hybrid<T, nr_limbs, d, TM, WARPS, RC, POPC_WARPS, RC_POPC>(L, R, ls, ls, f1, f2);
+			launch_tensor_bruteforce_mxf4<T, nr_limbs, d, TM, WARPS, RC, S0, P1, P2>(L, R, ls, ls, f1, f2);
 		}
 	});
-	const char *name = V == Variant::XOR ? "xor" : V == Variant::AND ? "and" : "hybrid";
-	printf("%-6s TM=%2u WARPS=%2u RC=%3u POPC_WARPS=%2u RC_POPC=%3u: %7.1f Gpairs/s\n",
-		   name, TM, WARPS, RC, POPC_WARPS, RC_POPC, r);
+	const char *name = V == Variant::XOR ? "xor" : V == Variant::AND ? "and" : V == Variant::HYBRID ? "hybrid" : "mxf4";
+	printf("%-6s n=%3u d=%3u TM=%2u WARPS=%2u RC=%3u P1=%3u P2=%3u S0=%u: %7.1f Gpairs/s\n",
+		   name, n, d, TM, WARPS, RC, P1, P2, S0, r);
 }
 
 /// sweep over the tuning parameters (n=128, d=20, |L|=|R|=2^17), which was
@@ -509,6 +677,70 @@ TEST(TensorBench, DISABLED_tune) {
 	tune<Variant::HYBRID, 2, 4, 256, 2, 128>(ls);
 	tune<Variant::HYBRID, 2, 16, 256, 8, 160>(ls);
 	tune<Variant::HYBRID, 4, 4, 256, 4, 160>(ls);
+}
+
+/// sweep over the tuning parameters of the mxf4 variant (n=128, d=20,
+/// |L|=|R|=2^17)
+/// run with: --gtest_also_run_disabled_tests --gtest_filter=TensorBench.DISABLED_tune_mxf4
+TEST(TensorBench, DISABLED_tune_mxf4) {
+	constexpr size_t ls = 1u << 17u;
+	// TM, WARPS, RC, TN, MINB, n, d, S0 (0: automatic)
+	tune<Variant::MXF4, 2, 8, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 4, 2>(ls);
+	tune<Variant::MXF4, 3, 8, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 4, 8, 128, 2, 2>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 2, 2, 128, 20, 1>(ls);
+	tune<Variant::MXF4, 6, 8, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 6, 8, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 2, 12, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 2, 16, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 2, 16, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 2, 16, 256, 4, 2>(ls);
+	tune<Variant::MXF4, 3, 16, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 3, 16, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 4, 16, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 4, 16, 256, 1, 1>(ls);
+	tune<Variant::MXF4, 4, 12, 256, 1, 2>(ls);
+	tune<Variant::MXF4, 4, 12, 256, 2, 2>(ls);
+	tune<Variant::MXF4, 4, 4, 256, 2, 4>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 3>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 4, 3>(ls);
+	tune<Variant::MXF4, 3, 8, 256, 2, 3>(ls);
+	// n = 256
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 4, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 3, 8, 256, 2, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 1, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 2, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 1, 1, 256, 20>(ls);
+	tune<Variant::MXF4, 2, 16, 256, 2, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 2, 12, 256, 2, 2, 256, 20>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 3, 256, 20>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 256, 20, 1>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 256, 50>(ls);
+	tune<Variant::MXF4, 3, 8, 256, 2, 2, 256, 50>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 1, 2, 256, 50>(ls);
+	tune<Variant::MXF4, 4, 8, 256, 2, 2, 256, 50>(ls);
+	tune<Variant::MXF4, 2, 16, 256, 2, 2, 256, 50>(ls);
+	// n = 512
+	tune<Variant::MXF4, 1, 8, 256, 2, 2, 512, 100>(ls);
+	tune<Variant::MXF4, 1, 8, 256, 4, 2, 512, 100>(ls);
+	tune<Variant::MXF4, 1, 16, 256, 2, 2, 512, 100>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 512, 100>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 1, 2, 512, 100>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 1, 512, 100>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 512, 100, 3>(ls);
+	tune<Variant::MXF4, 2, 8, 256, 2, 2, 512, 100, 5>(ls);
+	// n = 64
+	tune<Variant::MXF4, 4, 8, 256, 2, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 8, 8, 256, 1, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 8, 8, 256, 2, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 6, 8, 256, 2, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 4, 16, 256, 2, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 6, 16, 256, 1, 2, 64, 8>(ls);
+	tune<Variant::MXF4, 4, 12, 256, 2, 2, 64, 8>(ls);
 }
 
 int main(int argc, char **argv) {
