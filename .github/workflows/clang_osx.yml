@@ -20,6 +20,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Software
+        run: brew install googletest
+
       - name: Configure CMake
         env:
           CC: clang

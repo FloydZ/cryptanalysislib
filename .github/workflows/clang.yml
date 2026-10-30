@@ -20,7 +20,7 @@ jobs:
     - name: Install Software
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y cmake clang-${{matrix.version}} libgmp-dev libmpfr-dev
+        sudo apt-get install -y cmake clang-${{matrix.version}} libgtest-dev
 
     - name: Configure CMake
       env:
