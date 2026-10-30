@@ -34,6 +34,13 @@
 #endif
 #endif
 
+// NOTE: nvcc cannot constant evaluate vector casts, e.g. `(__m256i)(__v32qi){...}`
+#ifdef __CUDACC__
+#define CRYPTANALYSISLIB_SIMD_CONSTEXPR const
+#else
+#define CRYPTANALYSISLIB_SIMD_CONSTEXPR constexpr
+#endif
+
 #if defined(DEBUG) && defined(NDEBUG)
 #error "debug and no debug?"
 #endif

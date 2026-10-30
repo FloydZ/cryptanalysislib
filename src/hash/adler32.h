@@ -161,7 +161,7 @@ constexpr static uint32_t avx2_adler32(const uint32_t val,
 constexpr static uint32_t avx512_adler32(uint32_t val,
                                   		 const uint8_t *in,
                                   		 const size_t in_len) noexcept {
-	constexpr static uint32_t BLOCK_SIZE = 64u;
+	constexpr uint32_t BLOCK_SIZE = 64u;
 	if (in_len < BLOCK_SIZE) {
 		return avx2_adler32(val, in, in_len);
 	}

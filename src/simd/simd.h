@@ -195,7 +195,7 @@ public:
         } else if constexpr (Size == 64) {
             return _knot_mask64(k);
         } else {
-            static_assert(false);
+            static_assert(Size <= 64);
         }
 #else 
         return (MaskType<Size>)(~k) & lane_mask();
@@ -215,7 +215,7 @@ public:
         } else if constexpr (Size == 64) {
             return _kand_mask64(k, m);
         } else {
-            static_assert(false);
+            static_assert(Size <= 64);
         }
 #else 
         return (MaskType<Size>)(k & m);

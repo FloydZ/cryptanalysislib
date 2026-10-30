@@ -772,6 +772,392 @@ __global__ void nn_tree_child(const T *L, const T *R,
 	}
 }
 
+/* ///////////////////////////// flat tree \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ */
+/// Tree of `r` levels with branching factor N (<= 64) per level, flattened:
+/// no gathers of whole elements, no per element global atomics, the centers
+/// of all nodes hashed from one seed. For lists which fit into the L2 cache
+/// (|L| ~ 2^16 .. 2^20).
+///
+///   level l = 1 .. r  (`nn_flat_level<l>`), filter on the low k bits of LT limb l-1:
+///     block (chunk of E inputs of a node v of level l-1, list)
+///       input:  l = 1: the elements of the list, else the entries (pos, limb l-1)
+///               of the node list of v
+///       test:   survival mask m over the N child centers of v (branchless),
+///               then the set bits
+///       output: l < r: (pos, limb l) into the node list of child v*N + c
+///               l = r: pos into the leaf bucket v*N + c
+///       staged per child in shared memory, one global atomic per (block, child)
+///   `nn_flat_leaf`: one CTA per leaf (N^r of them), all pairs of the two
+///     buckets with a 32 bit prefilter on a word no filter touched.
+///
+///   L, R --1--> E1[list][y] = (pos, limb 1) --2--> E2[list][y*N+c] = (pos, limb 2)
+///         --...--> idx[list][leaf] = pos  --leaf-->  (f1, f2)
+///
+/// Node v of level l has the children v*N + c (c < N), i.e. the nodes of
+/// level l are 0 .. N^l - 1. The center of child c of node v on level l is
+/// `nn_flat_center(seed, l, v, c)`: no center arrays, every block hashes the
+/// N centers it needs.
+///
+/// Compared to `nn_tree_root`/`nn_tree_child` (gathers per node, one subtree
+/// per CTA, a global atomic per survivor) the lists are read once per level
+/// 1 only. RTX 5090, |L| = 131841 elements of 256 bits, r = 2, N = 36,
+/// k = 16, dk = 4, d = 20: 45 us instead of 344 us at the same success
+/// probability (level 1: 12, level 2: 8, leaves: 24 us).
+/// See `NN::cuda_launch` with `NN_Config::CUDA_FLAT`.
+
+/// \return Pr[wt(k random bits) <= dk], the probability that a random
+/// 		element survives a filter (`NN_LOWER`)
+__host__ __device__ constexpr double nn_flat_survival(const uint32_t k, const uint32_t dk) {
+	double s = 0., b = 1.;
+	for (uint32_t i = 0; i <= dk; i++) {
+		s += b;
+		b = b * double(k - i) / double(i + 1u);
+	}
+	double p = 1.;
+	for (uint32_t i = 0; i < k; i++) { p *= 0.5; }
+	return s * p;
+}
+
+/// \return capacity for the survivors of `E` candidates with survival
+/// 		probability `p`: mean + 5 standard deviations + 8, multiple of 8
+__host__ __device__ constexpr uint32_t nn_flat_capacity(const size_t E, const double p) {
+	const double mu = double(E) * p;
+	double sd = mu;
+	for (uint32_t i = 0; (i < 64) && (sd > 0.); i++) { sd = 0.5 * (sd + mu / sd); }
+	const double c = mu + 5. * sd + 8.;
+	const uint32_t cap = c > double(E) ? uint32_t(E) : uint32_t(c);
+	return (cap + 7u) & ~7u;
+}
+
+/// \return C(a, b) as a double
+__host__ __device__ constexpr double nn_flat_binom(const uint32_t a, const uint32_t b) {
+	if (b > a) { return 0.; }
+	double r = 1.;
+	for (uint32_t i = 0; i < b; i++) { r = r * double(a - i) / double(i + 1u); }
+	return r;
+}
+
+/// \return the smallest t with Pr[X > t] <= 1e-3 for X ~ Hypergeom(n, d, 32):
+/// 		the number of the d error positions of a solution which fall
+/// 		into a 32 bit word of the n bits. The prefilter of `nn_flat_leaf`
+/// 		drops a solution with probability <= 1e-3.
+__host__ __device__ constexpr uint32_t nn_flat_prefilter(const uint32_t n, const uint32_t d) {
+	const uint32_t m = n < 32u ? n : 32u;
+	const double total = nn_flat_binom(n, m);
+	uint32_t t = 0;
+	while (t < d) {
+		double tail = 0.;
+		for (uint32_t j = t + 1u; (j <= d) && (j <= m); j++) {
+			tail += nn_flat_binom(d, j) * nn_flat_binom(n - d, m - j);
+		}
+		if (tail <= 1e-3 * total) { break; }
+		t++;
+	}
+	return t;
+}
+
+/// \return N^l
+__host__ __device__ constexpr size_t nn_flat_pow(const uint32_t N, const uint32_t l) {
+	size_t r = 1;
+	for (uint32_t i = 0; i < l; i++) { r *= N; }
+	return r;
+}
+
+/// \return p^l
+__host__ __device__ constexpr double nn_flat_powd(const double p, const uint32_t l) {
+	double r = 1.;
+	for (uint32_t i = 0; i < l; i++) { r *= p; }
+	return r;
+}
+
+/// entry of a node list: the position of the element and its next LT limb
+template<typename LT>
+struct nn_flat_entry {
+	uint32_t pos;
+	LT x;
+};
+
+/// advances the device side seed of the centers. A device side seed keeps
+/// the centers fresh when the launches are captured in a CUDA graph.
+/// grid/block: <<<1, 1>>>
+__global__ void nn_flat_next_seed(uint64_t *seed) {
+	*seed += 0x9E3779B97F4A7C15ull;
+}
+
+/// splitmix64
+__host__ __device__ __forceinline__ uint64_t nn_flat_mix(uint64_t x) {
+	x += 0x9E3779B97F4A7C15ull;
+	x = (x ^ (x >> 30u)) * 0xBF58476D1CE4E5B9ull;
+	x = (x ^ (x >> 27u)) * 0x94D049BB133111EBull;
+	return x ^ (x >> 31u);
+}
+
+/// \return the center of child `c` of node `node` on level `level`
+template<typename LT, const uint32_t N>
+__host__ __device__ __forceinline__ LT nn_flat_center(const uint64_t seed, const uint32_t level,
+                                                      const size_t node, const uint32_t c) {
+	return LT(nn_flat_mix(seed ^ nn_flat_mix((uint64_t(node) * N + c) * 8u + level)));
+}
+
+/// loads the `W` words of an element with the widest aligned loads
+template<const uint32_t W>
+__device__ __forceinline__ void nn_flat_load(uint32_t (&x)[W], const uint32_t *p) {
+	if constexpr ((W % 4u) == 0) {
+		#pragma unroll
+		for (uint32_t i = 0; i < W / 4u; i++) {
+			const uint4 v = __ldg((const uint4 *)p + i);
+			x[4 * i] = v.x; x[4 * i + 1] = v.y; x[4 * i + 2] = v.z; x[4 * i + 3] = v.w;
+		}
+	} else if constexpr ((W % 2u) == 0) {
+		#pragma unroll
+		for (uint32_t i = 0; i < W / 2u; i++) {
+			const uint2 v = __ldg((const uint2 *)p + i);
+			x[2 * i] = v.x; x[2 * i + 1] = v.y;
+		}
+	} else {
+		#pragma unroll
+		for (uint32_t i = 0; i < W; i++) { x[i] = __ldg(p + i); }
+	}
+}
+
+/// flat tree, level `LEVEL` of `R`: block (blockIdx.x = node v of level
+/// LEVEL-1 and chunk of `E` inputs, blockIdx.y = list) tests the inputs of v
+/// against the N child centers of v on LT limb LEVEL-1. The survivors are
+/// staged per child in shared memory and appended with one atomic per child.
+///
+///   thread: LEVEL = 1: x = limb 0 of element pos;  else (pos, x) = in[v][..]
+///           m = bits c with wt((x ^ z_c) & mask) <= dk
+///           for each set bit c:  stage[c][atomicAdd(scnt[c])] = LEVEL < R ? (pos, limb LEVEL) : pos
+///   block:  sbase[c] = atomicAdd(out_cnt[v*N + c], scnt[c]);  out[v*N + c][sbase[c] ..] = stage[c]
+///
+/// \tparam T limb type of the lists, LT limb type of the filters (k <= 8*sizeof(LT))
+/// \tparam E inputs per block, multiple of 256
+/// \tparam SC staging capacity per child and block, see `nn_flat_capacity(E, p)`.
+/// 		On overflow the survivor is appended directly with a global atomic.
+/// \param L, R the lists (level 1 input, limb gathers of all levels)
+/// \param e1, e2 number of elements (level 1), or their upper bounds if `de`
+/// \param de if not null: the number of elements per list in device memory
+/// 		(de[0], de[1], e.g. written by the kernel which built the lists),
+/// 		clamped to e1, e2
+/// \param in, in_cnt, in_cap the node lists of level LEVEL-1 (per list and
+/// 		node `in_cap` entries, 2 * N^(LEVEL-1) counters), unused for LEVEL = 1
+/// \param out, out_pos output: LEVEL < R: node lists of level LEVEL (per list
+/// 		and node `out_cap` entries), else the leaf buckets `out_pos` (per
+/// 		list and leaf `out_cap` positions)
+/// \param out_cnt output: 2 * N^LEVEL counters, must be zero. Can exceed
+/// 		`out_cap`, then only the first `out_cap` survivors were stored.
+///
+/// grid/block: blockDim.x = 256, grid (N^(LEVEL-1) * chunks, 2) with
+/// chunks = ceil(e / E) (LEVEL 1, e = max(e1, e2)) resp. ceil(in_cap / E);
+/// blocks beyond the size of their node list exit at once.
+template<typename T, typename LT, const uint32_t nr_limbs, const uint32_t k, const uint32_t dk,
+		 const uint32_t N, const uint32_t E, const uint32_t SC, const uint32_t LEVEL, const uint32_t R>
+__global__ void __launch_bounds__(256)
+nn_flat_level(const T *L, const T *Rl, const uint32_t e1, const uint32_t e2, const uint32_t *de,
+			  const nn_flat_entry<LT> *in, const uint32_t *in_cnt, const uint32_t in_cap,
+			  nn_flat_entry<LT> *out, uint32_t *out_pos, uint32_t *out_cnt, const uint32_t out_cap,
+			  const uint64_t *seed) {
+	static_assert((N > 0) && (N <= 64), "the survival mask has 64 bits");
+	static_assert((E % 256u) == 0);
+	static_assert((LEVEL >= 1) && (LEVEL <= R) && (R >= 2));
+	static_assert(R * sizeof(LT) <= nr_limbs * sizeof(T), "R LT limbs per element");
+	static_assert((nr_limbs * sizeof(T)) % sizeof(LT) == 0, "LT limbs must be aligned");
+	constexpr bool LAST = LEVEL == R;
+	constexpr uint32_t bits = sizeof(LT) * 8u;
+	constexpr LT mask = k >= bits ? LT(-1) : LT((LT(1) << k) - 1u);
+	constexpr size_t NODES_IN = nn_flat_pow(N, LEVEL - 1u);
+	constexpr size_t NODES_OUT = NODES_IN * N;
+	using SE = std::conditional_t<LAST, uint32_t, nn_flat_entry<LT>>;
+	__shared__ LT sz[N];
+	__shared__ uint32_t scnt[N], sbase[N];
+	__shared__ SE stage[N][SC];
+
+	const uint32_t list = blockIdx.y;
+	const T *X = list ? Rl : L;
+	const uint32_t chunks = LEVEL == 1 ? gridDim.x : (in_cap + E - 1u) / E;
+	const size_t v = blockIdx.x / chunks;
+	const uint32_t base = (blockIdx.x % chunks) * E;
+	const uint32_t emax = list ? e2 : e1;
+	const uint32_t e = LEVEL == 1 ? (de ? min(de[list], emax) : emax) : min(in_cnt[list * NODES_IN + v], in_cap);
+	if (base >= e) { return; }
+	const nn_flat_entry<LT> *lin = in + (list * NODES_IN + v) * in_cap;
+	uint32_t *lcnt = out_cnt + (list * NODES_OUT + v * N);
+	nn_flat_entry<LT> *lout = out + (list * NODES_OUT + v * N) * out_cap;
+	uint32_t *lpos = out_pos + (list * NODES_OUT + v * N) * out_cap;
+	const uint32_t tid = threadIdx.x, lane = tid % 32u, warp = tid / 32u;
+	const uint64_t s = *seed;
+	for (uint32_t c = tid; c < N; c += blockDim.x) {
+		sz[c] = nn_flat_center<LT, N>(s, LEVEL, v, c) & mask;
+		scnt[c] = 0;
+	}
+	__syncthreads();
+
+	for (uint32_t i = tid; i < E; i += blockDim.x) {
+		const uint32_t j = base + i;
+		if (j >= e) { break; }
+		uint32_t pos;
+		LT x;
+		if constexpr (LEVEL == 1) {
+			pos = j;
+			x = ((const LT *)(X + size_t(pos) * nr_limbs))[0] & mask;
+		} else {
+			const nn_flat_entry<LT> ent = lin[j];
+			pos = ent.pos;
+			x = ent.x;
+		}
+		// branchless survival mask, then the set bits
+		uint64_t m = 0;
+		#pragma unroll 8
+		for (uint32_t c = 0; c < N; c++) {
+			m |= uint64_t(compare<LT, dk>(x ^ sz[c])) << c;
+		}
+		if (m == 0) { continue; }
+		SE val;
+		if constexpr (LAST) {
+			val = pos;
+		} else {
+			val = nn_flat_entry<LT>{pos, ((const LT *)(X + size_t(pos) * nr_limbs))[LEVEL] & mask};
+		}
+		while (m) {
+			const uint32_t c = __ffsll((long long)m) - 1u;
+			m &= m - 1u;
+			const uint32_t sc = atomicAdd(scnt + c, 1u);
+			if (sc < SC) {
+				stage[c][sc] = val;
+			} else {
+				const uint32_t o = atomicAdd(lcnt + c, 1u);
+				if (o < out_cap) {
+					if constexpr (LAST) { lpos[size_t(c) * out_cap + o] = val; }
+					else { lout[size_t(c) * out_cap + o] = val; }
+				}
+			}
+		}
+	}
+	__syncthreads();
+
+	// reserve the slots of this block, then one warp per child copies
+	for (uint32_t c = tid; c < N; c += blockDim.x) {
+		const uint32_t n = min(scnt[c], SC);
+		sbase[c] = n ? atomicAdd(lcnt + c, n) : 0u;
+	}
+	__syncthreads();
+	for (uint32_t c = warp; c < N; c += blockDim.x / 32u) {
+		const uint32_t n = min(scnt[c], SC);
+		for (uint32_t i = lane; i < n; i += 32u) {
+			const uint32_t o = sbase[c] + i;
+			if (o < out_cap) {
+				if constexpr (LAST) { lpos[size_t(c) * out_cap + o] = stage[c][i]; }
+				else { lout[size_t(c) * out_cap + o] = stage[c][i]; }
+			}
+		}
+	}
+}
+
+/// flat tree, the leaves: CTA `blockIdx.x` compares all pairs of leaf
+/// (bucket) `blockIdx.x`: the left bucket in passes of 256 rows (one row per
+/// thread in registers), the right bucket streamed through shared memory in
+/// tiles of `TILE` rows (word major, broadcast reads), so any bucket size
+/// works. Prefilter per pair: wt(word A) <= pt, only then the full weight
+/// (<= d) is computed.
+///
+///   L[idx[leaf]]:       pass: thread t: row i0 + t             a[0..W)
+///   R[idx[nr + leaf]]:  tile: sR[w * TILE + j] = word w of row j0 + j  (shared)
+///   pair (t, j):        popc(a[A] ^ sR[A*TILE + j]) <= pt  ->  full weight
+///
+/// \tparam cap capacity of a bucket (`idx` holds `cap` positions per bucket)
+/// \tparam pt prefilter threshold, see `nn_flat_prefilter`
+/// \tparam A the word of the prefilter, ideally one no filter touched
+/// \tparam TILE rows of the right bucket per shared memory tile
+/// \param cnt, idx the buckets, see `nn_flat_level`; the left buckets first,
+/// 		the right buckets at `nr_leaves`
+/// \param f1, f2 output: positions of the first solution, must be init with -1
+///
+/// grid/block: <<<nr_leaves, 256>>>, shared memory TILE * (W + 1) * 4 bytes.
+template<typename T, const uint32_t nr_limbs, const uint32_t d,
+		 const uint32_t cap, const uint32_t pt, const uint32_t A, const uint32_t TILE = 512>
+__global__ void __launch_bounds__(256)
+nn_flat_leaf(const T *L, const T *R, const uint32_t *cnt, const uint32_t *idx,
+			 const uint32_t nr_leaves, size_t *f1, size_t *f2) {
+	static_assert((nr_limbs * sizeof(T)) % 4u == 0);
+	constexpr uint32_t W = nr_limbs * sizeof(T) / 4u;
+	static_assert(A < W);
+	static_assert(TILE * (W + 1u) * 4u <= 40u * 1024u, "tile too large for shared memory");
+	__shared__ uint32_t sR[TILE * W];
+	__shared__ uint32_t iR[TILE];
+	const uint32_t leaf = blockIdx.x;
+	const uint32_t n1 = min(cnt[leaf], cap), n2 = min(cnt[nr_leaves + leaf], cap);
+	if ((n1 == 0) || (n2 == 0)) { return; }
+	const uint32_t *L32 = (const uint32_t *)L, *R32 = (const uint32_t *)R;
+
+	for (uint32_t i0 = 0; i0 < n1; i0 += blockDim.x) {
+		const uint32_t i = i0 + threadIdx.x;
+		const bool valid = i < n1;
+		uint32_t p = 0, a[W];
+		if (valid) {
+			p = idx[size_t(leaf) * cap + i];
+			nn_flat_load<W>(a, L32 + size_t(p) * W);
+		}
+		for (uint32_t j0 = 0; j0 < n2; j0 += TILE) {
+			const uint32_t t = (n2 - j0) < TILE ? (n2 - j0) : TILE;
+			// all threads must be done with the previous tile
+			__syncthreads();
+			for (uint32_t j = threadIdx.x; j < t; j += blockDim.x) {
+				const uint32_t q = idx[size_t(nr_leaves + leaf) * cap + j0 + j];
+				iR[j] = q;
+				uint32_t x[W];
+				nn_flat_load<W>(x, R32 + size_t(q) * W);
+				#pragma unroll
+				for (uint32_t w = 0; w < W; w++) { sR[w * TILE + j] = x[w]; }
+			}
+			__syncthreads();
+			if (!valid) { continue; }
+			#pragma unroll 8
+			for (uint32_t j = 0; j < t; j++) {
+				if (__popc(a[A] ^ sR[A * TILE + j]) <= pt) {
+					uint32_t wt = 0;
+					#pragma unroll
+					for (uint32_t w = 0; w < W; w++) { wt += __popc(a[w] ^ sR[w * TILE + j]); }
+					if (wt <= d) {
+						if (atomicCAS((unsigned long long *)f1, (unsigned long long)-1, (unsigned long long)p) == (unsigned long long)-1) {
+							*f2 = iR[j];
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/* ////////////////////// Monte Carlo of the success probability \\\\\\\\\\\\\\\\\\\ */
+/// fills `L` with `e` random elements of `bits` bits (`nr_limbs` limbs of
+/// `T`, the bits above `bits` are zero), hashed from `seed`
+template<typename T, const uint32_t nr_limbs>
+__global__ void nn_mc_fill(T *L, const size_t e, const uint32_t bits, const uint64_t seed) {
+	constexpr uint32_t tb = sizeof(T) * 8u;
+	for (size_t i = blockIdx.x * size_t(blockDim.x) + threadIdx.x; i < e; i += size_t(gridDim.x) * blockDim.x) {
+		#pragma unroll
+		for (uint32_t j = 0; j < nr_limbs; j++) {
+			const uint32_t lo = j * tb;
+			T mask = 0;
+			if (bits >= lo + tb) { mask = T(-1); }
+			else if (bits > lo) { mask = (T(1) << (bits - lo)) - 1u; }
+			L[i * nr_limbs + j] = T(nn_flat_mix(seed ^ nn_flat_mix(i * nr_limbs + j))) & mask;
+		}
+	}
+}
+
+/// plants a pair: L2[b] = L1[a] with the `d` bits `pos[0..d)` flipped
+/// grid/block: <<<1, 32>>>
+template<typename T, const uint32_t nr_limbs>
+__global__ void nn_mc_plant(const T *L1, T *L2, const size_t a, const size_t b,
+							const uint32_t *pos, const uint32_t d) {
+	constexpr uint32_t tb = sizeof(T) * 8u;
+	if (threadIdx.x == 0) {
+		for (uint32_t j = 0; j < nr_limbs; j++) { L2[b * nr_limbs + j] = L1[a * nr_limbs + j]; }
+		for (uint32_t i = 0; i < d; i++) { L2[b * nr_limbs + pos[i] / tb] ^= T(1) << (pos[i] % tb); }
+	}
+}
+
 #ifdef NN_CUDA_TENSOR
 /// tensor core bruteforce of the roots, step 1 of 3: copies the survivors of
 /// root `blockIdx.y` (see `nn_tree_root`) into the dense lists `DL`, `DR` of
@@ -888,6 +1274,76 @@ __global__ void nn_tree_tensor_result(const uint32_t *RL, const uint32_t *RR,
 			}
 			return;
 		}
+	}
+}
+
+/// tensor core leaves of the flat tree, step 1 of 3: copies the elements of
+/// every leaf bucket (see `nn_flat_level`) into dense lists of `TL` limbs per
+/// element (zero padded to a multiple of 128 bits), `cap` elements per leaf:
+///
+///   idx[list][leaf]: [ 17 | 3 | 42 | ... ]   cnt[list][leaf] elements (<= cap stored)
+///                       |    |    |
+///   D[list] + leaf*cap*TL: [ X[17] 0 | X[3] 0 | X[42] 0 | ... ]   tcnt[2 leaf + list] = size
+///
+/// grid/block: blockDim.x = 256, grid (nr_leaves * ceil(cap / 256), 2):
+/// blockIdx.x = leaf * chunks + chunk, blockIdx.y = list.
+template<typename T, const uint32_t nr_limbs, const uint32_t TL>
+__global__ void nn_flat_gather(const T *L, const T *R, const uint32_t *cnt, const uint32_t *idx,
+							   const uint32_t nr_leaves, const uint32_t cap,
+							   T *DL, T *DR, uint32_t *tcnt) {
+	static_assert(TL >= nr_limbs);
+	const uint32_t chunks = (cap + 255u) / 256u;
+	const uint32_t leaf = blockIdx.x / chunks, list = blockIdx.y;
+	const uint32_t i = (blockIdx.x % chunks) * 256u + threadIdx.x;
+	const uint32_t e = min(cnt[size_t(list) * nr_leaves + leaf], cap);
+	if ((i == 0)) { tcnt[2 * leaf + list] = e; }
+	if (i >= e) { return; }
+	const T *X = list ? R : L;
+	T *D = list ? DR : DL;
+	const size_t p = idx[(size_t(list) * nr_leaves + leaf) * cap + i];
+	#pragma unroll
+	for (uint32_t l = 0; l < TL; l++) {
+		D[(size_t(leaf) * cap + i) * TL + l] = l < nr_limbs ? X[p * nr_limbs + l] : T(0);
+	}
+}
+
+/// tensor core leaves of the flat tree, step 2 of 3: the bruteforce of
+/// `nn_tree_tensor` on the dense lists of leaf `leaf0 + blockIdx.z`. The
+/// positions in the dense lists of a solution are written into `F[2 leaf]`,
+/// `F[2 leaf + 1]`, which must be init with -1.
+///
+/// grid/block: blockDim.x = (8 + 4)*32, grid (1, 1, min(65535, nr_leaves - leaf0)),
+/// launched for leaf0 = 0, 65535, ... (gridDim.z is limited to 65535).
+template<typename T, const uint32_t TL, const uint32_t d>
+__global__ void __launch_bounds__((8+4)*32)
+nn_flat_leaf_tensor(const T *DL, const T *DR, const uint32_t *tcnt,
+					const uint32_t cap, const uint32_t leaf0, size_t *F) {
+	const uint32_t leaf = leaf0 + blockIdx.z;
+	const size_t o = size_t(leaf) * cap * TL;
+	const uint32_t e1 = tcnt[2 * leaf], e2 = tcnt[2 * leaf + 1];
+	if ((e1 == 0) || (e2 == 0)) { return; }
+#if defined(NN_TENSOR_MXF4)
+	cryptanalysislib::nn::tensor::dtensor_bruteforce_mxf4
+		<T, TL, d, 0, 8 + 4, 256, 0, 2>
+		(DL + o, DR + o, e1, e2, F + 2*leaf, F + 2*leaf + 1);
+#else
+	cryptanalysislib::nn::tensor::dtensor_bruteforce_and
+		<T, TL, d, 2, 8, 256, 4, 112>
+		(DL + o, DR + o, e1, e2, F + 2*leaf, F + 2*leaf + 1);
+#endif
+}
+
+/// tensor core leaves of the flat tree, step 3 of 3: translates the first
+/// solution of any leaf into positions in `L`, `R`: thread per leaf.
+/// grid/block: <<<ceil(nr_leaves / 256), 256>>>
+__global__ void nn_flat_tensor_result(const uint32_t *idx, const uint32_t nr_leaves, const uint32_t cap,
+									  const size_t *F, size_t *f1, size_t *f2) {
+	const uint32_t leaf = blockIdx.x * blockDim.x + threadIdx.x;
+	if ((leaf >= nr_leaves) || (F[2 * leaf] == size_t(-1))) { return; }
+	const size_t a = idx[size_t(leaf) * cap + F[2 * leaf]];
+	const size_t b = idx[(size_t(nr_leaves) + leaf) * cap + F[2 * leaf + 1]];
+	if (atomicCAS((unsigned long long *)f1, (unsigned long long)-1, a) == (unsigned long long)-1) {
+		(*f2) = b;
 	}
 }
 #endif

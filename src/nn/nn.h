@@ -1,11 +1,13 @@
 #ifndef CRYPTANALYSISLIB_NN_H
 #define CRYPTANALYSISLIB_NN_H
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include "alloc/alloc.h"
@@ -57,6 +59,10 @@ public:
 	const double survive_prob = 0.025;
 	const uint32_t BUCKET_SIZE = 1024;
 
+	// GPU: if true, `cuda_launch` runs the flat two level tree (r must be 2,
+	// N <= 64), see `nn_flat_root` in nn/nn.cuh, instead of the recursive one
+	const bool CUDA_FLAT = false;
+
 	constexpr NN_Config(const uint32_t n,
 	                    const uint32_t r,
 	                    const uint32_t N,
@@ -68,10 +74,11 @@ public:
 	                    const uint32_t bf,
 	                    const uint32_t dk_bruteforce_weight = 0,
 	                    const uint32_t dk_bruteforce_size = 0,
-	                    const bool USE_REARRANGE=false) noexcept :
+	                    const bool USE_REARRANGE=false,
+	                    const bool CUDA_FLAT=false) noexcept :
 	    n(n), r(r), N(N), k(k), d(d), dk(dk), dk_bruteforce_weight(dk_bruteforce_weight),
 	    dk_bruteforce_size(dk_bruteforce_size), LIST_SIZE(ls), epsilon(epsilon), BRUTEFORCE_THRESHOLD(bf),
-	    USE_REARRANGE(USE_REARRANGE){};
+	    USE_REARRANGE(USE_REARRANGE), CUDA_FLAT(CUDA_FLAT){};
 
 	///
 	/// helper function, only printing the internal parameters
@@ -92,10 +99,16 @@ public:
 				<< ", \"USE_REARRANGE\": " << USE_REARRANGE
 				<< ", \"survive_prop\": " << survive_prob
 				<< ", \"BUCKET_SIZE\": " << BUCKET_SIZE
+				<< ", \"CUDA_FLAT\": " << CUDA_FLAT
 		        << " }" << std::endl;
 	}
 };
 
+
+/// limb type the GPU filters on: uint32_t if `k` <= 32, else uint64_t. Not a
+/// member typedef of `NN`, see the NOTE at `NN::CUDA_THREADS`.
+template<const uint32_t k>
+using nn_cuda_lt = std::conditional_t<(k <= 32), uint32_t, uint64_t>;
 
 template<const NN_Config &config, typename T=uint64_t >
 class NN {
@@ -195,6 +208,11 @@ public:
 		if (dDR) { cudaFree(dDR); }
 		if (dTCnt) { cudaFree(dTCnt); }
 		if (dF) { cudaFree(dF); }
+		for (auto *ptr : dE) { if (ptr) { cudaFree(ptr); } }
+		for (auto *ptr : dC) { if (ptr) { cudaFree(ptr); } }
+		if (dFCnt) { cudaFree(dFCnt); }
+		if (dIdx) { cudaFree(dIdx); }
+		if (dSeed) { cudaFree(dSeed); }
 #endif
 	}
 
@@ -1696,8 +1714,12 @@ public:
 	}
 
 #if defined(USE_CUDA) && defined(__CUDACC__)
-	// limb type to filter on, see `nn_tree_root`
-	using CUDA_LT = std::conditional_t<(k <= 32), uint32_t, uint64_t>;
+	// NOTE: the limb type to filter on (see `nn_tree_root`) is `nn_cuda_lt<k>`
+	// 	and deliberately not a typedef of this class: nvcc names kernel
+	// 	parameter types in its host stubs after a class typedef in scope, and
+	// 	that name is the same for every instance built from function local
+	// 	configs (as in a test file), while the type differs: "conflicting
+	// 	declaration typedef unsigned int NN<...>::CUDA_LT"
 	constexpr static uint32_t CUDA_THREADS = 256;
 	// if true, the roots below the bruteforce threshold are bruteforced on the
 	// tensor cores. Elements are padded to `CUDA_TL` limbs (multiple of 128 bit)
@@ -1708,6 +1730,151 @@ public:
 #endif
 	constexpr static uint32_t CUDA_TL = ((ELEMENT_NR_LIMBS * sizeof(T) * 8u + 127u) / 128u) * (128u / (sizeof(T) * 8u));
 
+	// flat tree (`config.CUDA_FLAT`), see `nn_flat_level` in nn/nn.cuh:
+	// inputs per block, survival probability of a filter, staging capacity per
+	// child and block, words per element, the prefilter word (the first one no
+	// filter touches) and its threshold
+	constexpr static bool CUDA_FLAT = config.CUDA_FLAT;
+	constexpr static uint32_t CUDA_FLAT_E = 256;
+	constexpr static double CUDA_FLAT_P1 = nn_flat_survival(k, dk);
+	constexpr static uint32_t CUDA_FLAT_SC = nn_flat_capacity(CUDA_FLAT_E, CUDA_FLAT_P1);
+	constexpr static uint32_t CUDA_FLAT_W = ELEMENT_NR_LIMBS * sizeof(T) / 4u;
+	constexpr static uint32_t CUDA_FLAT_A = (r * sizeof(nn_cuda_lt<k>) / 4u) < CUDA_FLAT_W ? uint32_t(r * sizeof(nn_cuda_lt<k>) / 4u) : 0u;
+	constexpr static uint32_t CUDA_FLAT_PT = nn_flat_prefilter(n, d);
+	/// nodes of level l, and the capacity of a node list (l < r) resp. a leaf
+	/// bucket (l = r) of level l: the survivors of |L| with probability p1^l
+	constexpr static size_t cuda_flat_nodes(const uint32_t l) noexcept { return nn_flat_pow(N, l); }
+	constexpr static uint32_t cuda_flat_cap(const uint32_t l) noexcept {
+		return nn_flat_capacity(LIST_SIZE, nn_flat_powd(CUDA_FLAT_P1, l));
+	}
+	constexpr static uint32_t CUDA_FLAT_CAP = cuda_flat_cap(uint32_t(r));
+	constexpr static size_t CUDA_FLAT_LEAVES = cuda_flat_nodes(uint32_t(r));
+	static_assert(!CUDA_FLAT || ((r >= 2) && (r <= 8)), "the flat tree has 2 to 8 levels");
+	static_assert(!CUDA_FLAT || (N <= 64), "the flat tree supports N <= 64");
+	static_assert(!CUDA_FLAT || (CUDA_FLAT_LEAVES <= (size_t(1) << 31u)), "too many leaves");
+	// node lists of the levels 1 .. r-1 (`nn_flat_entry<nn_cuda_lt<k>>`, per
+	// list and node `cuda_flat_cap(l)` entries) and their counters, the leaf
+	// buckets (positions) and their counters
+	void *dE[8] = {};
+	uint32_t *dC[8] = {};
+	uint32_t *dFCnt = nullptr, *dIdx = nullptr;
+	// device side seed of the centers, see `nn_flat_next_seed`
+	uint64_t *dSeed = nullptr;
+	// if set: the sizes of `dL1`, `dL2` are read from this device address
+	// (2 counters, clamped to `LIST_SIZE`) instead of `e1`, `e2` of
+	// `cuda_launch`, s.t. a kernel which fills the lists and the NN can be
+	// captured in one graph without a host sync in between
+	uint32_t *dSizes = nullptr;
+
+	/// Monte Carlo estimate of the success probability of `cuda_launch`:
+	/// `instances` pairs of random lists of `e` elements of `bits` bits with
+	/// one planted pair of weight `d` at uniform positions, `per` launches
+	/// each (fresh centers). The found pairs are verified.
+	/// NOTE: overwrites `dL1`, `dL2` (and `dSizes` if set)
+	/// \return the fraction of launches which found a pair
+	double cuda_success_probability(const size_t e, const uint32_t bits,
+	                                const uint32_t instances, const uint32_t per,
+	                                cudaStream_t stream) noexcept {
+		cuda_alloc();
+		assert(e <= LIST_SIZE);
+		assert(bits <= n);
+		uint32_t *dpos;
+		checkCudaErrors(cudaMalloc(&dpos, (d + 1) * sizeof(uint32_t)));
+		std::vector<uint32_t> pos(bits);
+		std::mt19937_64 gen(rng());
+		uint32_t found = 0, trials = 0, wrong = 0;
+		for (uint32_t inst = 0; inst < instances; inst++) {
+			::nn_mc_fill<T, ELEMENT_NR_LIMBS><<<4096, 256, 0, stream>>>(dL1, e, bits, rng());
+			::nn_mc_fill<T, ELEMENT_NR_LIMBS><<<4096, 256, 0, stream>>>(dL2, e, bits, rng());
+			const size_t a = rng(e), b = rng(e);
+			for (uint32_t i = 0; i < bits; i++) { pos[i] = i; }
+			std::shuffle(pos.begin(), pos.end(), gen);
+			checkCudaErrors(cudaMemcpyAsync(dpos, pos.data(), d * sizeof(uint32_t), cudaMemcpyHostToDevice, stream));
+			::nn_mc_plant<T, ELEMENT_NR_LIMBS><<<1, 32, 0, stream>>>(dL1, dL2, a, b, dpos, d);
+			checkCudaErrors(cudaGetLastError());
+			if (dSizes) {
+				const uint32_t sizes[2] = {uint32_t(e), uint32_t(e)};
+				checkCudaErrors(cudaMemcpyAsync(dSizes, sizes, sizeof(sizes), cudaMemcpyHostToDevice, stream));
+			}
+			for (uint32_t i = 0; i < per; i++) {
+				cuda_launch(e, e, stream);
+				checkCudaErrors(cudaStreamSynchronize(stream));
+				trials++;
+				if (hf[0] != size_t(-1)) {
+					Element x, y;
+					checkCudaErrors(cudaMemcpy(x, dL1 + hf[0] * ELEMENT_NR_LIMBS, sizeof(Element), cudaMemcpyDeviceToHost));
+					checkCudaErrors(cudaMemcpy(y, dL2 + hf[1] * ELEMENT_NR_LIMBS, sizeof(Element), cudaMemcpyDeviceToHost));
+					uint32_t wt = 0;
+					for (uint32_t j = 0; j < ELEMENT_NR_LIMBS; j++) { wt += popcount::popcount(x[j] ^ y[j]); }
+					wrong += wt > d;
+					found++;
+				}
+			}
+		}
+		cudaFree(dpos);
+		if (wrong) { std::cout << "{ \"nn_mc_wrong\": " << wrong << " }" << std::endl; }
+		return trials ? double(found) / double(trials) : 0.;
+	}
+
+	/// level `L` of the flat tree, see `cuda_launch_flat`
+	template<typename LT, const uint32_t L>
+	void cuda_launch_flat_level(const size_t e1,
+	                            const size_t e2,
+	                            cudaStream_t stream) noexcept {
+		constexpr bool LAST = L == r;
+		constexpr uint32_t in_cap = L == 1 ? 0u : cuda_flat_cap(L - 1u);
+		constexpr uint32_t out_cap = cuda_flat_cap(L);
+		// with device side sizes the grid covers `LIST_SIZE`, the kernel clamps
+		const size_t m1 = dSizes ? LIST_SIZE : e1, m2 = dSizes ? LIST_SIZE : e2;
+		const size_t e = m1 > m2 ? m1 : m2;
+		const size_t chunks = L == 1 ? (e + CUDA_FLAT_E - 1) / CUDA_FLAT_E : (in_cap + CUDA_FLAT_E - 1) / CUDA_FLAT_E;
+		const dim3 grid(uint32_t(cuda_flat_nodes(L - 1u) * chunks), 2);
+		const nn_flat_entry<LT> *in = L == 1 ? nullptr : (const nn_flat_entry<LT> *)dE[L - 1u];
+		const uint32_t *in_cnt = L == 1 ? nullptr : dC[L - 1u];
+		nn_flat_entry<LT> *out = LAST ? nullptr : (nn_flat_entry<LT> *)dE[L];
+		uint32_t *out_cnt = LAST ? dFCnt : dC[L];
+		checkCudaErrors(cudaMemsetAsync(out_cnt, 0, size_t(2) * cuda_flat_nodes(L) * sizeof(uint32_t), stream));
+		::nn_flat_level<T, LT, ELEMENT_NR_LIMBS, k, dk, N, CUDA_FLAT_E, CUDA_FLAT_SC, L, uint32_t(r)><<<grid, 256, 0, stream>>>
+			(dL1, dL2, uint32_t(m1), uint32_t(m2), dSizes, in, in_cnt, in_cap, out, dIdx, out_cnt, out_cap, dSeed);
+		checkCudaErrors(cudaGetLastError());
+	}
+
+	/// the flat tree, see `cuda_launch`. `LT` is `nn_cuda_lt<k>`, spelled as
+	/// a fundamental type by the caller (see the NOTE at `CUDA_THREADS`).
+	/// NOTE: no host side state per launch (the seed is advanced on the
+	/// 	device), hence the launches can be captured in a CUDA graph.
+	template<typename LT>
+	void cuda_launch_flat(const size_t e1,
+	                      const size_t e2,
+	                      cudaStream_t stream) noexcept {
+		static_assert(std::is_same_v<LT, nn_cuda_lt<k>>);
+		checkCudaErrors(cudaMemsetAsync(df, 0xff, 2 * sizeof(size_t), stream));
+		::nn_flat_next_seed<<<1, 1, 0, stream>>>(dSeed);
+		// the levels 1 .. r, then the leaves
+		[&]<uint32_t... Ls>(std::integer_sequence<uint32_t, Ls...>) {
+			(cuda_launch_flat_level<LT, Ls + 1u>(e1, e2, stream), ...);
+		}(std::make_integer_sequence<uint32_t, uint32_t(r)>{});
+		constexpr uint32_t leaves = uint32_t(CUDA_FLAT_LEAVES);
+#ifdef NN_CUDA_TENSOR
+		// the leaves on the tensor cores: dense per leaf lists, mxf4 bruteforce
+		checkCudaErrors(cudaMemsetAsync(dF, 0xff, size_t(2) * leaves * sizeof(size_t), stream));
+		::nn_flat_gather<T, ELEMENT_NR_LIMBS, CUDA_TL><<<dim3(leaves * ((CUDA_FLAT_CAP + 255u) / 256u), 2), 256, 0, stream>>>
+			(dL1, dL2, dFCnt, dIdx, leaves, CUDA_FLAT_CAP, dDL, dDR, dTCnt);
+		checkCudaErrors(cudaGetLastError());
+		for (uint32_t leaf0 = 0; leaf0 < leaves; leaf0 += 65535u) {
+			const uint32_t z = (leaves - leaf0) < 65535u ? (leaves - leaf0) : 65535u;
+			::nn_flat_leaf_tensor<T, CUDA_TL, d><<<dim3(1, 1, z), (8 + 4) * 32, 0, stream>>>(dDL, dDR, dTCnt, CUDA_FLAT_CAP, leaf0, dF);
+			checkCudaErrors(cudaGetLastError());
+		}
+		::nn_flat_tensor_result<<<(leaves + 255u) / 256u, 256, 0, stream>>>(dIdx, leaves, CUDA_FLAT_CAP, dF, df, df + 1);
+#else
+		::nn_flat_leaf<T, ELEMENT_NR_LIMBS, d, CUDA_FLAT_CAP, CUDA_FLAT_PT, CUDA_FLAT_A><<<leaves, 256, 0, stream>>>
+			(dL1, dL2, dFCnt, dIdx, leaves, df, df + 1);
+#endif
+		checkCudaErrors(cudaGetLastError());
+		checkCudaErrors(cudaMemcpyAsync(hf, df, 2 * sizeof(size_t), cudaMemcpyDeviceToHost, stream));
+	}
+
 	/// allocates the GPU buffers, once with the max. size. Freed in `~NN`
 	void cuda_alloc() noexcept {
 		static_assert(NN_LOWER && !EXACT && !USE_REARRANGE && FINAL_SOL_WEIGHT);
@@ -1715,21 +1882,41 @@ public:
 		static_assert(LIST_SIZE <= uint32_t(-1));
 		if (dL1 != nullptr) { return; }
 
+		checkCudaErrors(cudaMalloc(&dL1, LIST_SIZE * sizeof(Element)));
+		checkCudaErrors(cudaMalloc(&dL2, LIST_SIZE * sizeof(Element)));
+		checkCudaErrors(cudaMalloc(&df, 2 * sizeof(size_t)));
+		// NOTE: pinned, s.t. the copy back is async
+		checkCudaErrors(cudaHostAlloc(&hf, 2 * sizeof(size_t), cudaHostAllocDefault));
+		if constexpr (CUDA_FLAT) {
+			for (uint32_t l = 1; l < r; l++) {
+				checkCudaErrors(cudaMalloc(&dE[l], size_t(2) * cuda_flat_nodes(l) * cuda_flat_cap(l) * sizeof(nn_flat_entry<nn_cuda_lt<k>>)));
+				checkCudaErrors(cudaMalloc(&dC[l], size_t(2) * cuda_flat_nodes(l) * sizeof(uint32_t)));
+			}
+			checkCudaErrors(cudaMalloc(&dFCnt, size_t(2) * CUDA_FLAT_LEAVES * sizeof(uint32_t)));
+			checkCudaErrors(cudaMalloc(&dIdx, size_t(2) * CUDA_FLAT_LEAVES * CUDA_FLAT_CAP * sizeof(uint32_t)));
+			if constexpr (CUDA_TENSOR) {
+				// dense per leaf lists for the tensor core leaves
+				checkCudaErrors(cudaMalloc(&dDL, CUDA_FLAT_LEAVES * CUDA_FLAT_CAP * CUDA_TL * sizeof(T)));
+				checkCudaErrors(cudaMalloc(&dDR, CUDA_FLAT_LEAVES * CUDA_FLAT_CAP * CUDA_TL * sizeof(T)));
+				checkCudaErrors(cudaMalloc(&dTCnt, size_t(2) * CUDA_FLAT_LEAVES * sizeof(uint32_t)));
+				checkCudaErrors(cudaMalloc(&dF, size_t(2) * CUDA_FLAT_LEAVES * sizeof(size_t)));
+			}
+			const uint64_t seed = rng();
+			checkCudaErrors(cudaMalloc(&dSeed, sizeof(uint64_t)));
+			checkCudaErrors(cudaMemcpy(dSeed, &seed, sizeof(uint64_t), cudaMemcpyHostToDevice));
+			return;
+		}
+
 		int sms = 0, occupancy = 0;
-		const auto child = ::nn_tree_child<T, CUDA_LT, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR>;
+		const auto child = ::nn_tree_child<T, nn_cuda_lt<k>, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR>;
 		checkCudaErrors(cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, 0));
 		checkCudaErrors(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occupancy, child, CUDA_THREADS, 0));
 		cuda_blocks = sms * occupancy;
 
-		checkCudaErrors(cudaMalloc(&dL1, LIST_SIZE * sizeof(Element)));
-		checkCudaErrors(cudaMalloc(&dL2, LIST_SIZE * sizeof(Element)));
 		checkCudaErrors(cudaMalloc(&dRoot, size_t(N) * 2 * LIST_SIZE * sizeof(uint32_t)));
 		checkCudaErrors(cudaMalloc(&dB, size_t(cuda_blocks) * 2 * (r > 1 ? r - 1 : 1) * LIST_SIZE * sizeof(uint32_t)));
 		// 2 counters per root and the work counter
 		checkCudaErrors(cudaMalloc(&dCnt, (2 * N + 1) * sizeof(uint32_t)));
-		checkCudaErrors(cudaMalloc(&df, 2 * sizeof(size_t)));
-		// NOTE: pinned, s.t. the copy back is async
-		checkCudaErrors(cudaHostAlloc(&hf, 2 * sizeof(size_t), cudaHostAllocDefault));
 		if constexpr (CUDA_TENSOR) {
 			checkCudaErrors(cudaMalloc(&dDL, size_t(N) * LIST_SIZE * CUDA_TL * sizeof(T)));
 			checkCudaErrors(cudaMalloc(&dDR, size_t(N) * LIST_SIZE * CUDA_TL * sizeof(T)));
@@ -1750,6 +1937,15 @@ public:
 		assert(e1 <= LIST_SIZE);
 		assert(e2 <= LIST_SIZE);
 
+		if constexpr (CUDA_FLAT) {
+			if constexpr (k <= 32) {
+				cuda_launch_flat<uint32_t>(e1, e2, stream);
+			} else {
+				cuda_launch_flat<uint64_t>(e1, e2, stream);
+			}
+			return;
+		}
+
 		checkCudaErrors(cudaMemsetAsync(dCnt, 0, (2 * N + 1) * sizeof(uint32_t), stream));
 		// the kernel expects both positions to be init with -1
 		checkCudaErrors(cudaMemsetAsync(df, 0xff, 2 * sizeof(size_t), stream));
@@ -1758,7 +1954,7 @@ public:
 		const uint64_t seed = rng();
 		const size_t e = e1 > e2 ? e1 : e2;
 		const dim3 grid((e + 4 * CUDA_THREADS - 1) / (4 * CUDA_THREADS), N);
-		::nn_tree_root<T, CUDA_LT, ELEMENT_NR_LIMBS, dk, k><<<grid, CUDA_THREADS, 0, stream>>>
+		::nn_tree_root<T, nn_cuda_lt<k>, ELEMENT_NR_LIMBS, dk, k><<<grid, CUDA_THREADS, 0, stream>>>
 			(dL1, dL2, e1, e2, dRoot, dRoot + N * LIST_SIZE, dCnt, LIST_SIZE, seed);
 		checkCudaErrors(cudaGetLastError());
 #ifdef NN_CUDA_TENSOR
@@ -1778,7 +1974,7 @@ public:
 			checkCudaErrors(cudaGetLastError());
 		}
 #endif
-		::nn_tree_child<T, CUDA_LT, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR><<<cuda_blocks, CUDA_THREADS, 0, stream>>>
+		::nn_tree_child<T, nn_cuda_lt<k>, ELEMENT_NR_LIMBS, d, dk, k, N, r, CUDA_TENSOR><<<cuda_blocks, CUDA_THREADS, 0, stream>>>
 			(dL1, dL2, dRoot, dRoot + N * LIST_SIZE, dCnt, dB, LIST_SIZE,
 			 BRUTEFORCE_THRESHHOLD, df, df + 1, dCnt + 2 * N, seed);
 		checkCudaErrors(cudaGetLastError());
@@ -2063,7 +2259,10 @@ public:
 
 		uint64x4_t lii[u], rii[v];
 
-		for (size_t i = s1; i < e1; i += u) {
+		// NOTE: full blocks only, tails below. Before: read past `e1`/`e2`, checked only the first lane
+		const size_t ie = (e1 / u) * u;
+		const size_t je = (e2 / (4 * v)) * (4 * v);
+		for (size_t i = s1; i < ie; i += u) {
 
 			#pragma unroll
 			for (uint32_t j = 0; j < u; ++j) {
@@ -2073,7 +2272,7 @@ public:
 			/// NOTE: only possible because L2 is a continuous memory block
 			auto *ptr_r = (uint64x4_t *) L2;
 
-			for (size_t j = s2; j < s2 + (e2 + 3) / 4; j += v, ptr_r += v) {
+			for (size_t j = s2; j < je / 4; j += v, ptr_r += v) {
 
 				#pragma unroll
 				for (uint32_t s = 0; s < v; ++s) {
@@ -2087,20 +2286,25 @@ public:
 					#pragma unroll
 					for (uint32_t a2 = 0; a2 < v; ++a2) {
 						const uint64x4_t tmp2 = rii[a2];
-						const int m = compare_256_64(tmp1, tmp2);
+						int m = compare_256_64(tmp1, tmp2);
 
-						if (m) {
+						while (m) {
 							const size_t jprime = j * 4 + a2 * 4 + __builtin_ctz(m);
 							const size_t iprime = i + a1;
+							m &= m - 1;
 
 							if (compare_u64_ptr((T *) (L1 + iprime), (T *) (L2 + jprime))) {
 								found_solution(iprime, jprime);
 							}
-						}// if
+						}// while
 					}    // for v
 				} // for u
 			} // for right list
 		} // for left list
+
+		// tails
+		bruteforce_range(ie, e1, s2, e2);
+		bruteforce_range(s1, ie, je, e2);
 	}
 
 

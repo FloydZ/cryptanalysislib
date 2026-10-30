@@ -15,7 +15,7 @@
 // small little helper macro containing some lookup definition
 // which is used in all subsequent functions
 #define POPCOUNT_HELPER_MACRO() 												\
-constexpr __m256i lookup = __extension__ (__m256i)(__v32qi){  					\
+CRYPTANALYSISLIB_SIMD_CONSTEXPR __m256i lookup = __extension__ (__m256i)(__v32qi){ \
 		/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2, 							\
 		/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3, 							\
 		/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3, 							\
@@ -38,7 +38,7 @@ const __m256i popcnt2 = (__m256i)__builtin_ia32_pshufb256((__v32qi)lookup, (__v3
 
 
 #define POPCOUNT_HELPER_MACRO_U128() 											\
-constexpr __m128i lookup = __extension__ (__m128i)(__v16qi){  					\
+CRYPTANALYSISLIB_SIMD_CONSTEXPR __m128i lookup = __extension__ (__m128i)(__v16qi){ \
 		/* 0 */ 0, /* 1 */ 1, /* 2 */ 1, /* 3 */ 2, 							\
 		/* 4 */ 1, /* 5 */ 2, /* 6 */ 2, /* 7 */ 3, 							\
 		/* 8 */ 1, /* 9 */ 2, /* a */ 2, /* b */ 3, 							\

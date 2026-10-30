@@ -937,7 +937,7 @@ public:
 	                            Permutation &P) noexcept {
 		assert(ncols >= P.length);
 
-		this->transpose(AT, *this, 0, 0);
+		transpose(AT, *this);
 		for (uint32_t i = 0; i < P.length; ++i) {
 			uint32_t pos = rng(P.length - i);
 			assert(i + pos < P.length);
@@ -949,7 +949,7 @@ public:
 			AT.swap_rows(i, i + pos);
 		}
 
-		FqMatrix<T, ncols, nrows, q>::transpose(*this, AT, 0, 0);
+		FqMatrix<T, ncols, nrows, q>::transpose(*this, AT);
 	}
 
 	/// optimized version to which you have additionally pass the transposed.

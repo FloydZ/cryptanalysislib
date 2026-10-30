@@ -4437,7 +4437,7 @@ struct Xint32x8_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
 		S out{};
-		constexpr S minus_one = S::set1(-1);
+		CRYPTANALYSISLIB_SIMD_CONSTEXPR S minus_one = S::set1(-1);
 		out.v256 = in1.v256 ^ minus_one.v256;
 		return out;
 	}
@@ -5321,7 +5321,7 @@ struct Xint64x4_t {
 	/// \return
 	[[nodiscard]] constexpr static inline S not_(const S in1) noexcept {
 		S out;
-		constexpr S minus_one = S::set1(-1);
+		CRYPTANALYSISLIB_SIMD_CONSTEXPR S minus_one = S::set1(-1);
 		out.v256 = in1.v256 ^ minus_one.v256;
 		return out;
 	}

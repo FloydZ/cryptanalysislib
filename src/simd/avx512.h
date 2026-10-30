@@ -941,7 +941,7 @@ struct Xint8x64_t {
 		S ret;
 		// 1. reverse order of 32-bit words in register
 		const __m512i indices = _mm512_set_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-		const __m512i swap_32 = _mm512_permutexvar_epi32(indices, v);
+		const __m512i swap_32 = _mm512_permutexvar_epi32(indices, input.v512);
 
 		// 2. reverse order of 16-bit words within 32-bit lanes
 		// swap_32 = [ a | b | c | d ] x 16
