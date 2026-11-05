@@ -74,6 +74,23 @@ constexpr uint64_t sum_bc(const uint64_t nn,
 	return std::max(sum, uint64_t(1));
 }
 
+
+/// just computes n over 3
+/// \tparam T
+/// \param n
+/// \return
+template<typename T>
+__device__
+inline T max_bc_helper3(const T n) {
+	constexpr T re = 6; // Assumes k = 3
+
+	assert(n >= 3);
+
+	const T a = n*(n-1)*(n-2);
+
+	return a/re;
+}
+
 /// NOTE: there is an avx2 version below
 /// NOTE: w/k must be smaller than 5
 /// \param a input number
@@ -81,6 +98,7 @@ constexpr uint64_t sum_bc(const uint64_t nn,
 /// \param k max weight
 /// \return maximal ctr < n, s.t. k+ctr over k <= a
 template<typename T, const uint32_t k>
+__host__ __device__
 inline T opt_max_bc(const T a, const uint32_t n) {
 	static_assert(k < 5, "sorry not implemented");
 
@@ -89,25 +107,45 @@ inline T opt_max_bc(const T a, const uint32_t n) {
 	}
 
 	if constexpr (k == 2) {
+#ifdef __CUDA_ARCH__
+		//const uint32_t t = (sqrtf((a<<3) + 1u) + 1.)/2.;
+		const uint32_t t = ((uint32_t)(sqrtf((a<<3) + 1u) + 1u)) >> 1u;
+		//const uint32_t t =  uint32_t(__builtin_sqrt((a<<3) + 1) + 1) >> 1;
+#else
 		const T b = 8 * a + 1;
 		const double s = __builtin_sqrt(b);
 		const auto s1 = s + 1.;
 		const auto s2 = s1 / 2.;
 		const uint32_t t = __builtin_floor(s2);
 		return n - t - 1;
+#endif
 	}
 
 	if constexpr (k == 3) {
 		if (a == 1)
 			return n - k - 1;
 
+#ifdef __CUDA_ARCH__
+		constexpr uint32_t 	bitsize = sizeof(T) * 8;
+		int ctr = bitsize -	 __clz(a|1);
+
+		T tmp = max_bc_helper3(k+ctr);
+		T c = k+ctr, d = ctr;
+		tmp = (tmp*d) / c;
+		while ((tmp > a) && (ctr > 0)) {
+			ctr -= 1;
+			d -= 1;
+			c -= 1;
+			tmp = (tmp*d) / c;
+		}
+#else
 		float x = a;
 		float t1 = sqrtf(729.f * x * x);
 		float t2 = cbrtf(3.f * t1 + 81.f * x);
 		float t3 = t2 / 2.09f;
 		float ctr2 = t3;
 		int ctr = int(ctr2);
-
+#endif
 		return n - ctr - k;
 	}
 

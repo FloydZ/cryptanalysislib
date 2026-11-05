@@ -837,7 +837,7 @@ public:
 	                                 FqPackedVector const &v2,
 									 const uint32_t k_lower,
 									 const uint32_t k_upper,
-									 const uint32_t norm=-1) noexcept {
+									 const uint32_t norm=-1u) noexcept {
 		return add(v3.ptr(), v1.ptr(), v2.ptr(), k_lower, k_upper, norm);
 	}
 
@@ -1154,7 +1154,7 @@ public:
 	                                 FqPackedVector const &v2,
 									 const uint32_t k_lower=0,
 									 const uint32_t k_upper=length,
-									 const uint32_t norm=-1) noexcept {
+									 const uint32_t norm=-1u) noexcept {
 		(void)norm;
 		assert(k_upper <= length && k_lower < k_upper);
 		const T lmask = higher_mask(k_lower % limb_bits_width());
@@ -1208,7 +1208,7 @@ public:
 									 DataType const v2,
 									 const uint32_t k_lower=0,
 									 const uint32_t k_upper=length,
-									 const uint32_t norm=-1) noexcept {
+									 const uint32_t norm=-1u) noexcept {
 		(void)norm;
 		if (v2) {
 			FqPackedVector::set(v3, v1, k_lower, k_upper);
@@ -1224,8 +1224,10 @@ public:
 	/// IMPORTANT: k_lower < k_upper is enforced.
 	/// sets v1 = v2[k_lower, ..., k_upper].
 	/// Does not change anything else.
-	inline constexpr static void set(FqPackedVector &v1, FqPackedVector const &v2,
-	                                 const uint32_t k_lower, const uint32_t k_upper) noexcept {
+	inline constexpr static void set(FqPackedVector &v1,
+									 FqPackedVector const &v2,
+	                                 const uint32_t k_lower,
+	                                 const uint32_t k_upper) noexcept {
 		assert(k_upper <= length && k_lower < k_upper);
 		const int64_t lower = round_down_to_limb(k_lower);
 		const int64_t upper = round_down_to_limb(k_upper - 1);
@@ -1613,7 +1615,7 @@ public:
     /// \return this[pos]
 	[[nodiscard]] constexpr const reference get(const size_t pos) const noexcept {
 		assert(pos < length);
-		return (const reference) reference(*this, pos);
+		return  reference(*this, pos);
 	}
     /// \param pos[in]:
     /// \return this[pos]

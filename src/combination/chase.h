@@ -647,7 +647,7 @@ public:
 		const uint32_t t = np - __builtin_ceil(pos) - pp;
 		rows[0] = n - 2 - t;
 
-		const uint32_t t2 = (-1 * (t + 1) * (t - n22)) >> 1;
+		const uint32_t t2 = (-1u * (t + 1) * (t - n22)) >> 1;
 
 		const bool dir = t & 1ul;
 		uint32_t t3 = !dir ? nn - (t2 - a) : t2 - a + t;

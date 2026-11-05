@@ -299,7 +299,7 @@ public:
 	/// \return a const ref to a row
 	[[nodiscard]] constexpr inline RowType get(const uint32_t i) const noexcept {
 		assert(i < nrows);
-		return (const RowType) __data.data() + padded_limbs * i;
+		return __data.data() + padded_limbs * i;
 	}
 
 
@@ -620,12 +620,12 @@ public:
 			_mzd_transpose(B.__data.data(), A.__data.data(),
 			               B.padded_limbs, A.padded_limbs);
 			return;
-		}
-
-		for (uint32_t i = 0; i < nrows; ++i) {
-			for (uint32_t j = 0; j < ncols; ++j) {
-				const DataType data = A.get(i, j);
-				B.set(data, j, i);
+		} else {
+			for (uint32_t i = 0; i < nrows; ++i) {
+				for (uint32_t j = 0; j < ncols; ++j) {
+					const DataType data = A.get(i, j);
+					B.set(data, j, i);
+				}
 			}
 		}
 	}
